@@ -1,0 +1,25 @@
+[workspace]
+name = "mixdome"
+version = "0.1.0"
+description = "4-STL hemisphere stack-mix generator"
+channels = ["conda-forge"]
+platforms = ["osx-64", "osx-arm64", "linux-64", "win-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+pip = "*"
+numpy = ">=1.26"
+trimesh = ">=4.11"
+pillow = ">=10.0"
+shapely = ">=2.0"
+scikit-image = ">=0.23"
+cairosvg = ">=2.7"
+mapbox_earcut = ">=1.0"
+svgpathtools = "*"
+
+[pypi-dependencies]
+
+[tasks]
+gen = "pixi run python mixplane.py --mode sequence --layers 5 --layer-height 0.08 --tile 6 --nx 0 --name plane_seq_L5_h008"
+gen-dome = "pixi run python layercap_dome.py --radius 20 --thickness 1.6 --rings 5 --segs 8 --t-subdiv 1 --p-subdiv 1 --include-pures --pattern gradient --z-slices 10 --slice-height 0.4 --name dome40_layercap"
+vec4 = "pixi run python svg_stack_rgbw_testsvg.py --svg test.svg --outdir out_testsvg --name test --width-mm 80 --first-layer-height 0.12 --layer-height 0.08 --layers 5 --view bottom --backing white"
