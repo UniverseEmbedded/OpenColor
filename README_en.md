@@ -1,7 +1,7 @@
 <p align="center"> 
  <img alt="OpenColor logo" src="test.svg" width="128" height="128"> 
  <br> 
- <em>I have mastered these mysteries, and I have absorbed the lessons they hid.</em> 
+ <em>I've mastered this, and gathered the lessons it concealed.</em> 
  <br> 
  <p align="center"> 
  | <a href="README_en.md">English</a> | <a href="README.md">简体中文</a> | 
