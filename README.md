@@ -4,9 +4,12 @@
  <em>我已精通此间奥秘，亦已吸取潜藏教诲。 ————《司辰之书》</em> 
  <br> 
  <p align="center"> 
- | <a href="README.md">English</a> | <a href="README.md">简体中文</a> | 
+ | <a href="README_en.md">English</a> | <a href="README.md">简体中文</a> | 
  </p>
 </p>
+
+> [!WARNING]
+> 注意项目依旧在草稿阶段，将会在正式版（GitHub/git中的main和main-XX分支）中魔改BambuStudio来实现完整的全彩混色功能，mainB和mainB-XX系列分支主要用于公示各种用于混色的技术，例如脚本，3D模型与开源硬件的alpha测试原型等。
 
 # OpenColor
 
