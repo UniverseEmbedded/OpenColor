@@ -1,0 +1,21 @@
+{
+  "name": "opencolor-cpp-module",
+  "version-string": "0.1.0",
+  "features": {
+    "dev-comment-coverage": {
+      "description": "Tree-sitter 注释覆盖率分析工具（开发用途）",
+      "dependencies": [
+        "tree-sitter"
+      ]
+    }
+  },
+  "dependencies": [
+    "vulkan",
+    "pybind11",
+    "shaderc",
+    "clipper2",
+    "earcut-hpp",
+    "manifold",
+    "nanosvg"
+  ]
+}

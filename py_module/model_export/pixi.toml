@@ -1,0 +1,13 @@
+[project]
+name = "model_export"
+channels = ["conda-forge"]
+platforms = ["osx-64", "osx-arm64", "linux-64", "win-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+numpy = ">=1.26"
+trimesh = ">=4.11"
+lxml = ">=5.0"
+scipy = ">=1.10"
+
+[tasks]

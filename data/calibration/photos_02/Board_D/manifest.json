@@ -1,0 +1,55 @@
+{
+  "version": "calib_photo_warp_01",
+  "timestamp": "2026-01-30T17:53:33.646177",
+  "inputs": [
+    "8-Color Board D"
+  ],
+  "outputs": [
+    "board_warped.png",
+    "board_overlay.png",
+    "warp.json",
+    "board_spec.json"
+  ],
+  "params": {
+    "points": [
+      [
+        154.0,
+        144.0
+      ],
+      [
+        959.0,
+        256.0
+      ],
+      [
+        1086.0,
+        1061.0
+      ],
+      [
+        213.0,
+        1020.0
+      ]
+    ],
+    "original_points": [
+      [
+        154,
+        144
+      ],
+      [
+        959,
+        256
+      ],
+      [
+        1086,
+        1061
+      ],
+      [
+        213,
+        1020
+      ]
+    ],
+    "spec": "8-Color Board D",
+    "dst_size": 1000,
+    "rotation_count": 0,
+    "point_order": "TL_TR_BR_BL"
+  }
+}

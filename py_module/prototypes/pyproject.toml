@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oc-prototypes"
+version = "0.1.0"
+description = "Prototypes for OpenColor"
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "gradio",
+    "pillow",
+    "scipy"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

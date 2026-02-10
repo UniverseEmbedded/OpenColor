@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenColor UI</title>
+    <link rel="icon" type="image/svg+xml" href="/src/assets/icon.svg" />
+    <style>
+      /* 初始加载屏幕样式 */
+      html, body {
+        background-color: #0b0d10; /* 默认深色背景 */
+        margin: 0;
+        padding: 0;
+      }
+      :root[data-theme="light"], :root[data-theme="light"] body {
+        background-color: #f0f3f6;
+      }
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0b0d10; /* 默认深色背景 */
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+      }
+      #loading-screen img {
+        width: 80px;
+        height: 80px;
+      }
+      /* 根据主题调整背景色 */
+      :root[data-theme="light"] {
+        color-scheme: light;
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+      }
+      :root[data-theme="light"] #loading-screen {
+        background-color: #f0f3f6;
+      }
+      :root[data-theme="dark"] #loading-screen {
+        background-color: #0b0d10;
+      }
+    </style>
+    <script>
+      (function() {
+        const theme = localStorage.getItem("theme") || "auto";
+        let targetTheme = theme;
+        if (theme === "auto") {
+          targetTheme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.setAttribute("data-theme", targetTheme);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="loading-screen">
+      <img src="/src/assets/loading.svg" alt="Loading..." />
+    </div>
+    <!-- 应用程序挂载点 -->
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

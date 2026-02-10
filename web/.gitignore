@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vite/
+.pnpm-debug.log
+.DS_Store
+/*.log
+*.exe
+/stats.html

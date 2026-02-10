@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oc_core"
+version = "0.1.0"
+description = "OpenColor 核心算法模块 - Calibration board to LUT and bitmap pipeline tool"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "OpenColor" }]
+
+dependencies = [
+  "numpy>=1.24",
+  "lxml",
+  "pillow>=10.0.0",
+  "trimesh>=4.0.0",
+  "opencv-python>=4.8.0",
+  "gradio>=4.44.0",
+  "pygltflib>=1.16.0",
+  "model_export",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oc_core"]

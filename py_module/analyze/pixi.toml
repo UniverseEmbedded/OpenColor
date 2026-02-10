@@ -1,0 +1,21 @@
+[project]
+name = "oc_analyze"
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[dependencies]
+python = ">=3.10"
+numpy = "*"
+lxml = "*"
+pillow = "*"
+trimesh = "*"
+opencv = "*"
+
+[pypi-dependencies]
+oc_analyze = { path = ".", editable = true }
+oc_core = { path = "../opencolor", editable = true }
+oc_engine = { path = "../engine", editable = true }
+oc_scripts = { path = "../scripts", editable = true }
+
+[tasks]
+verify = "pixi run python -m oc_analyze.verify_generated_3mf"

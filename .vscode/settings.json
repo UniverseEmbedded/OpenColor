@@ -1,0 +1,4 @@
+{
+//  pixi终端环境和基于vscode的AI编辑器（例如Trae和cursor）这三者不能一起启用
+  "python.terminal.activateEnvironment": false
+}

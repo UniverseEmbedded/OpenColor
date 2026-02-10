@@ -1,0 +1,95 @@
+[workspace]
+name = "opencolor"
+version = "0.1.0"
+description = "Full-color FDM printing" # 全彩 FDM 打印项目描述
+channels = ["conda-forge"] # 使用 conda-forge 频道获取依赖
+platforms = ["osx-64", "osx-arm64", "linux-64", "win-64"] # 支持的平台：macOS (Intel/Apple Silicon), Linux, Windows
+
+# Conda 依赖配置
+[dependencies]
+python = ">=3.11,<3.13" # Python 版本限制
+pip = "*"
+nodejs = ">=20" # Node.js 环境，用于前端构建
+pnpm = "*" # pnpm 包管理器
+libblas = { version = "*", build = "*openblas" } # 线性代数库
+numpy = ">=1.26" # 数值计算
+scipy = ">=1.17.0,<2" # 科学计算
+trimesh = ">=4.11" # 3D 网格处理
+pillow = ">=10.0" # 图像处理
+shapely = ">=2.0" # 几何操作
+scikit-image = ">=0.23" # 图像处理算法
+cairosvg = ">=2.7" # SVG 转图片
+svgpathtools = "*" # SVG 路径操作
+lxml = ">=5.0" # XML/HTML 处理
+pytest = ">=8.0" # 测试框架
+tqdm = "*" # 进度条
+pydantic = ">=2.12.5,<3" # 数据验证
+xgboost = ">=3.1.3,<4" # 机器学习库
+rtree = ">=1.4.1,<2"
+triangle = ">=1.6,<2"
+loguru = ">=0.7.0"
+
+# PyPI 依赖配置 (pip)
+[pypi-dependencies]
+mapbox-earcut = "*" # 多边形三角剖分
+manifold3d = "*" # 高性能几何布尔运算
+pupil-apriltags = "*" # AprilTag 检测
+lib3mf = ">=2.4.1.post1" # 3MF 文件格式支持
+gradio = ">=4.44.0" # Web UI 界面库
+pygltflib = ">=1.16.0" # glTF 文件处理
+opencv-python-headless = "*" # OpenCV 图像处理 (无 GUI 版本以减小体积)
+pyinstaller = "*" # 打包工具
+
+# 本地 Python 模块 (以可编辑模式安装)
+oc-calib = { path = "py_module/calibration", editable = true }
+model-export = { path = "py_module/model_export", editable = true }
+oc-core = { path = "py_module/opencolor", editable = true }
+oc-engine = { path = "py_module/engine", editable = true }
+oc-scripts = { path = "py_module/scripts", editable = true }
+oc-analyze = { path = "py_module/analyze", editable = true }
+oc-prototypes = { path = "py_module/prototypes", editable = true }
+oc-sdf = { path = "py_module/sdf", editable = true }
+oc-xgb = { path = "py_module/xgb", editable = true }
+vtracer = ">=0.6.11, <0.7"
+jax = ">=0.4.38, <0.10"
+jaxlib = ">=0.4.38, <0.10"
+
+# 任务配置
+[tasks]
+
+# Web 前端开发与构建任务
+web-install = "pixi run pnpm -C web install" # 安装前端依赖
+web-build = "pixi run pnpm -C web run build" # 构建前端生产环境代码
+web-dev = "pixi run pnpm -C web run dev" # 启动前端开发服务器
+web-tauri-dev = "pixi run python cpp_module/scripts/build_demo.py && pixi run pnpm -C web tauri dev" # 先编译 C++ 模块，再启动 Tauri 开发环境
+# 构建 Tauri 应用 (包含资源构建、C++ demo 构建和 Tauri 打包)
+web-tauri-build = "pixi run python -m oc_scripts.utils.build_tauri_resources && pixi run python cpp_module/scripts/build_demo.py && pixi run pnpm -C web tauri build --no-bundle"
+
+# Web 测试任务
+web-test-unit = "pixi run pnpm -C web run test:unit" # 运行前端单元测试
+web-test-rust = "pixi run pnpm -C web run test:rust" # 运行 Rust 后端测试
+web-test-all = "pixi run pnpm -C web run test:all" # 运行所有测试（带超时控制）
+web-test-tauri = "pixi run pnpm -C web run test:e2e:tauri" # 运行 Tauri 原生 E2E 测试（需先构建）
+web-playwright-install = "pixi run pnpm -C web run playwright:install" # 安装 Playwright 浏览器
+
+# C++ 相关任务
+setup-cpp = "pixi run python cpp_module/scripts/setup_cpp.py"
+cpp-comment-report = "pixi run python cpp_module/scripts/comment_coverage_report.py --input ."
+
+# OpenColor-02 (Prototypes v2) 任务
+p2-clean-calib = "python -m oc_proto.common.clean --type calib"
+p2-clean-gen = "python -m oc_proto.common.clean --type gen"
+p2-clean-all = "python -m oc_proto.common.clean --type all"
+
+p2-calib-board-gen = "python -m oc_proto.calib_board_gen.main"
+p2-calib-photo-warp = "python -m oc_proto.calib_photo_warp.app --rebuild --warp-json data/calibration/photos/warp-01.json"
+p2-calib-photo-warp-ui = "python -m oc_proto.calib_photo_warp.app"
+p2-calib-sample-build = "python -m oc_proto.calib_sample_build.main"
+p2-calib-color-rts = "python -m oc_proto.calib_color_rts.main"
+
+p2-gen-masks = "python -m oc_proto.gen_masks.main"
+p2-gen-vtracer = "python -m oc_proto.gen_vector.main"
+p2-gen-3mf = "python -m oc_proto.gen_3mf.main"
+
+p2-run-calib = "pixi run p2-calib-board-gen && pixi run p2-calib-photo-warp && pixi run p2-calib-sample-build && pixi run p2-calib-color-rts"
+p2-run-gen = "pixi run p2-gen-masks && pixi run p2-gen-vtracer && pixi run p2-gen-3mf"

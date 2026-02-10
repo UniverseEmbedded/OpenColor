@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# 原型产物和数据
+**/out/
+**/out_*/
+**/data/
+
+# 打包文件
+*.zip
+dist/
+build/
+*.egg-info/

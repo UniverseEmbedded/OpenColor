@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oc-calib"
+version = "0.1.0"
+description = "OpenColor 色盘校准模块"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "OpenColor Contributors" }
+]
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python>=4.8",
+    "scipy>=1.10",
+    "pillow>=10.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["calib*"]

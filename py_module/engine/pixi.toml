@@ -1,0 +1,18 @@
+[project]
+name = "oc_engine"
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[dependencies]
+python = ">=3.10"
+numpy = "*"
+lxml = "*"
+pillow = "*"
+trimesh = "*"
+opencv = "*"
+
+[pypi-dependencies]
+oc_engine = { path = ".", editable = true }
+oc_core = { path = "../opencolor", editable = true }
+
+[tasks]

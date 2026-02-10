@@ -1,0 +1,7 @@
+gradio>=4.44.0
+numpy>=1.24
+pillow>=10.0.0
+opencv-python>=4.8.0
+trimesh>=4.0.0
+pygltflib>=1.16.0
+vtracer>=0.6.11

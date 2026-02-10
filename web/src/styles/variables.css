@@ -1,0 +1,57 @@
+/* 字体定义 */
+@font-face{
+  font-family:"MapleMonoNormal-NF-CN"; /* 字体名称 */
+  src:url("../assets/MapleMonoNormal-NF-CN-Regular.woff2") format("woff2"); /* 字体文件路径和格式 */
+  font-weight:400; /* 字体粗细 */
+  font-style:normal; /* 字体样式 */
+  font-display:swap; /* 字体显示策略 */
+}
+
+/* 深色主题变量 */
+:root, [data-theme="dark"]{
+  color-scheme: dark; /* 颜色方案 */
+  --bg:#0b0d10; --panel:#11151b; --panel2:#0f1217; --text:#e7edf5; --muted:#9aa8b8; /* 背景色，面板色，文字颜色 */
+  --line:#223040; --accent:#005984; --accent2:#fb6104; --danger:#ff6b6b; --warn:#ffd166; /* 线条颜色，强调色，危险色，警告色 */
+  --accent-light: #ddf4c4; /* 浅色强调色 */
+  --btn:#1a2430; --btn2:#0f1f2a; --shadow: 0 10px 30px rgba(0,0,0,.45); /* 按钮颜色，阴影 */
+  --radius:14px; --radius2:18px; /* 圆角大小 */
+  --mono: "MapleMonoNormal-NF-CN", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 等宽字体 */
+  --sans: "MapleMonoNormal-NF-CN", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; /* 无衬线字体 */
+  --card-bg: rgba(255,255,255,.03); /* 卡片背景 */
+  --input-bg: rgba(0,0,0,.25); /* 输入框背景 */
+  --sidebar-grad: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); /* 侧边栏渐变 */
+  --modal-bg: rgba(15,18,23,.92); /* 模态框背景 */
+  --toast-bg: rgba(15,18,23,.90); /* 提示框背景 */
+  --overlay-bg: rgba(0,0,0,.18); /* 覆盖层背景 */
+  --hr-color: rgba(255,255,255,.06); /* 分隔线颜色 */
+  --border-alpha: rgba(255,255,255,.10); /* 边框透明度 */
+  --bg-alpha: rgba(0,0,0,.20); /* 背景透明度 */
+  --bg-alpha2: rgba(255,255,255,.04); /* 背景透明度2 */
+  --glass-bg: rgba(13,17,23,.6); /* 玻璃背景 */
+  --expand-card-bg: rgba(0,0,0,.12); /* 可展开卡片背景 */
+  --expand-card-border: rgba(255,255,255,.08); /* 可展开卡片边框 */
+  --expand-card-hd: rgba(255,255,255,.06); /* 可展开卡片头部 */
+}
+
+/* 浅色主题变量 */
+[data-theme="light"] {
+  color-scheme: light; /* 颜色方案 */
+  --bg:#f4f7fa; --panel:#ffffff; --panel2:#f9fafb; --text:#1e293b; --muted:#64748b; /* 背景色，面板色，文字颜色 */
+  --line:#e2e8f0; --accent:#005984; --accent2:#fb6104; --danger:#ef4444; --warn:#f59e0b; /* 线条颜色，强调色，危险色，警告色 */
+  --accent-light: #ddf4c4; /* 浅色强调色 */
+  --btn:#f1f5f9; --btn2:#e2e8f0; --shadow: 0 4px 12px rgba(0,0,0,.08); /* 按钮颜色，阴影 */
+  --card-bg: #ffffff; /* 卡片背景 */
+  --input-bg: #f8fafc; /* 输入框背景 */
+  --sidebar-grad: linear-gradient(180deg, #ffffff, #f1f5f9); /* 侧边栏渐变 */
+  --modal-bg: rgba(255,255,255,.98); /* 模态框背景 */
+  --toast-bg: rgba(255,255,255,.95); /* 提示框背景 */
+  --overlay-bg: rgba(0,0,0,.04); /* 覆盖层背景 */
+  --hr-color: rgba(0,0,0,.06); /* 分隔线颜色 */
+  --border-alpha: rgba(0,0,0,.08); /* 边框透明度 */
+  --bg-alpha: rgba(0,0,0,.04); /* 背景透明度 */
+  --bg-alpha2: rgba(0,0,0,.02); /* 背景透明度2 */
+  --glass-bg: rgba(255,255,255,.7); /* 玻璃背景 */
+  --expand-card-bg: rgba(0,0,0,.03); /* 可展开卡片背景 */
+  --expand-card-border: rgba(0,0,0,.08); /* 可展开卡片边框 */
+  --expand-card-hd: rgba(0,0,0,.06); /* 可展开卡片头部 */
+}

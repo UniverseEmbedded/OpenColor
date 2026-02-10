@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oc_xgb"
+version = "0.1.0"
+description = "OpenColor XGBoost 模块 - 颜色预测与物理GPR模型拟合"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "OpenColor" }]
+
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.17.0",
+  "xgboost>=3.1.3",
+  "pillow>=10.0",
+  "trimesh>=4.11",
+  "oc_core",
+  "oc_engine",
+  "oc_scripts",
+]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.7.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oc_xgb"]

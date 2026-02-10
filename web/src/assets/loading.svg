@@ -1,0 +1,28 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <svg x="16" y="16" width="32" height="32" viewBox="0 0 1024 1024"><defs
+     id="defs4" /><title
+     id="title1" /><path
+     id="rect6"
+     d="m 192.69789,92.622574 h 638.60427 a 100.0753,100.0753 0 0 1 100.0753,100.075296 v 638.60429 a 100.0753,100.0753 0 0 1 -100.0753,100.0753 H 192.69787 A 100.0753,100.0753 0 0 1 92.622574,831.30216 V 192.69789 A 100.07532,100.07532 0 0 1 192.69789,92.622574 Z"
+     style="fill:#005984;fill-opacity:1;stroke:none;stroke-width:1.24514;stroke-opacity:0.529623" /><path
+     id="rect5"
+     d="M 192.62796,192.62788 H 502.22918 A 329.14282,329.14282 0 0 1 831.372,521.7707 V 831.37197 H 192.62796 Z"
+     style="display:inline;fill:#ddf4c4;fill-opacity:1;stroke:none;stroke-width:1.25586;stroke-opacity:0.529623" /><path
+     id="path4"
+     style="display:inline;fill:#fb6104;stroke:none;stroke-width:1.25524;stroke-opacity:0.529623"
+     d="M 767.37238,512 A 255.37238,255.37238 0 0 1 512,767.37238 255.37238,255.37238 0 0 1 256.62762,512 255.37238,255.37238 0 0 1 512,256.62762 255.37238,255.37238 0 0 1 767.37238,512 Z" /><path
+     id="path5"
+     style="display:inline;fill:#005984;stroke:none;stroke-width:1.21686;stroke-opacity:0.529623"
+     d="M 695.39157,512 A 183.39157,183.39157 0 0 1 512,695.39157 183.39157,183.39157 0 0 1 328.60843,512 183.39157,183.39157 0 0 1 512,328.60843 183.39157,183.39157 0 0 1 695.39157,512 Z" /></svg>
+    <circle cx="32" cy="32" fill="none"
+            stroke-linecap="round" r="31" stroke-width="1" stroke="#fb6104"
+            stroke-dasharray="40 64">
+        <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 32 32;360 32 32"
+                          keyTimes="0;1" dur="1.5s" begin="0s" repeatCount="indefinite"></animateTransform>
+    </circle>
+    <circle cx="32" cy="32" fill="none" stroke-linecap="round" r="29"
+            stroke-width="1" stroke="#ddf4c4" stroke-dasharray="40 64">
+        <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 32 32;-360 32 32"
+                          keyTimes="0;1" dur="1.5s" begin="0s" repeatCount="indefinite"></animateTransform>
+    </circle>
+</svg>

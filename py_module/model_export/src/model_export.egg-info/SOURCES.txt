@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/model_export/__init__.py
+src/model_export/atomic_io.py
+src/model_export/standard_3mf.py
+src/model_export/types.py
+src/model_export.egg-info/PKG-INFO
+src/model_export.egg-info/SOURCES.txt
+src/model_export.egg-info/dependency_links.txt
+src/model_export.egg-info/requires.txt
+src/model_export.egg-info/top_level.txt
+src/model_export/bambu_3mf/__init__.py
+src/model_export/bambu_3mf/mesh_edit.py
+src/model_export/bambu_3mf/project_settings.py
+src/model_export/bambu_3mf/template.py
+src/model_export/bambu_3mf/xml_edit.py

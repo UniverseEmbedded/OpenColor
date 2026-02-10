@@ -1,0 +1,26 @@
+[project]
+name = "oc_core"
+version = "0.1.0"
+description = "OpenColor 核心算法模块 - Calibration board to LUT and bitmap pipeline tool"
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+numpy = "*"
+lxml = "*"
+pillow = "*"
+trimesh = "*"
+opencv = "*"
+
+[pypi-dependencies]
+oc_core = { path = ".", editable = true }
+model_export = { path = "../model_export", editable = true }
+gradio = ">=4.44.0"
+numpy = ">=1.24"
+pillow = ">=10.0.0"
+opencv-python = ">=4.8.0"
+trimesh = ">=4.0.0"
+pygltflib = ">=1.16.0"
+
+[tasks]

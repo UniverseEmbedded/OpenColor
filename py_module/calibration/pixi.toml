@@ -1,0 +1,17 @@
+[project]
+name = "oc-calib"
+version = "0.1.0"
+description = "OpenColor 色盘校准模块"
+authors = ["OpenColor Contributors"]
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = ">=3.11"
+numpy = ">=1.26"
+opencv = ">=4.8"
+scipy = ">=1.10"
+pillow = ">=10.0"
+
+[pypi-dependencies]
+oc-calib = { path = ".", editable = true }

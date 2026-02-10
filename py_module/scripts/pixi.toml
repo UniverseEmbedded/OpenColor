@@ -1,0 +1,20 @@
+[project]
+name = "oc_scripts"
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[dependencies]
+python = ">=3.10"
+numpy = "*"
+lxml = "*"
+pillow = "*"
+trimesh = "*"
+opencv = "*"
+
+[pypi-dependencies]
+oc_scripts = { path = ".", editable = true }
+oc_core = { path = "../opencolor", editable = true }
+model_export = { path = "../model_export", editable = true }
+oc_calib = { path = "../calibration", editable = true }
+
+[tasks]

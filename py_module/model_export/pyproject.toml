@@ -1,0 +1,17 @@
+[project]
+name = "model_export"
+version = "0.1.0"
+description = "3MF model export module for OpenColor"
+authors = [{name = "OpenColor Developers"}]
+dependencies = [
+    "numpy>=1.26",
+    "trimesh>=4.11",
+    "lxml>=5.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
