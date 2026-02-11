@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenColor - 色盘变换演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0b0d10;
+            --panel: #11151b;
+            --panel-elevated: #1a1f28;
+            --text: #e7edf5;
+            --text-muted: #94a3b8;
+            --accent: #005984;
+            --accent2: #fb6104;
+            --line: #2a3441;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧配置面板 */
+        .config-panel {
+            width: 320px;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .section {
+            padding: 16px;
+            background: var(--panel-elevated);
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .status-card {
+            background: var(--panel);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .status-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            color: var(--text-muted);
+        }
+
+        .status-value {
+            color: var(--text);
+            font-family: monospace;
+        }
+
+        /* 右侧图像区域 */
+        .image-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+
+        .toolbar {
+            padding: 12px 20px;
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .tool-btn {
+            padding: 6px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #warpCanvas {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            cursor: default;
+        }
+
+        #warpCanvas.select-mode {
+            cursor: default;
+        }
+
+        #warpCanvas.hover-point {
+            cursor: grab;
+        }
+
+        #warpCanvas.panning {
+            cursor: grab;
+        }
+
+        #warpCanvas.dragging {
+            cursor: grabbing;
+        }
+
+        .thumbnails {
+            height: 100px;
+            background: var(--panel);
+            border-top: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 12px;
+        }
+
+        .thumbnail {
+            width: 120px;
+            height: 80px;
+            background: var(--panel-elevated);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            overflow: hidden;
+        }
+
+        .thumbnail.active {
+            border-color: var(--accent);
+        }
+
+        .thumbnail canvas {
+            width: 100%;
+            height: 60px;
+            object-fit: cover;
+        }
+
+        .thumbnail-label {
+            padding: 4px;
+            font-size: 11px;
+        }
+
+        /* 提示信息 */
+        .hint {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* 文件输入 */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 左侧配置面板 -->
+        <aside class="config-panel">
+            <div class="panel-title">照片校正</div>
+
+            <!-- 文件选择 -->
+            <div class="section">
+                <div class="section-title">文件选择</div>
+                <div class="form-group">
+                    <label class="form-label">规格文件</label>
+                    <select class="form-select" id="specSelect">
+                        <option value="">请选择规格文件...</option>
+                        <option value="8color_a" selected>8-Color Board A (17x17)</option>
+                        <option value="8color_b">8-Color Board B (17x17)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">照片文件</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="photoInput" accept="image/*">
+                        <button class="btn btn-block" onclick="document.getElementById('photoInput').click()">
+                            选择照片...
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="section">
+                <div class="section-title">操作</div>
+                <div class="form-group">
+                    <button class="btn btn-block" onclick="rotateClockwise()">↻ 顺时针旋转 90°</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-block" onclick="resetCorners()">重置四角位置</button>
+                </div>
+            </div>
+
+            <!-- 状态显示 -->
+            <div class="section">
+                <div class="section-title">四角坐标</div>
+                <div class="status-card">
+                    <div class="status-row">
+                        <span class="status-label">左上 (LT)</span>
+                        <span class="status-value" id="ltCoord">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">右上 (RT)</span>
+                        <span class="status-value" id="rtCoord">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">右下 (RB)</span>
+                        <span class="status-value" id="rbCoord">-</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">左下 (LB)</span>
+                        <span class="status-value" id="lbCoord">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下一步 -->
+            <button class="btn btn-primary btn-block" onclick="startSampleExtract()">开始样本提取</button>
+        </aside>
+
+        <!-- 右侧图像区域 -->
+        <div class="image-area">
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('warp')">校正</div>
+                <div class="tab" onclick="switchTab('sample')">样本提取</div>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <button class="tool-btn active" id="selectTool" onclick="setTool('select')">选择点</button>
+                <button class="tool-btn" id="panTool" onclick="setTool('pan')">移动图像</button>
+                <button class="tool-btn" onclick="resetView()">重置视图</button>
+                <span style="margin-left: auto; color: var(--text-muted); font-size: 13px;">
+                    滚轮缩放 | 拖拽角点或平移
+                </span>
+            </div>
+
+            <!-- Canvas 区域 -->
+            <div class="canvas-container">
+                <div class="hint" id="hint">请选择照片文件开始</div>
+                <canvas id="warpCanvas" width="800" height="600"></canvas>
+            </div>
+
+            <!-- 缩略图栏 -->
+            <div class="thumbnails">
+                <div class="thumbnail active" id="thumbOriginal">
+                    <canvas id="thumbOriginalCanvas"></canvas>
+                    <div class="thumbnail-label">原图</div>
+                </div>
+                <div class="thumbnail" id="thumbWarped">
+                    <canvas id="thumbWarpedCanvas"></canvas>
+                    <div class="thumbnail-label">校正后</div>
+                </div>
+                <div class="thumbnail" id="thumbOverlay">
+                    <canvas id="thumbOverlayCanvas"></canvas>
+                    <div class="thumbnail-label">网格叠加</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 状态管理
+        const state = {
+            image: null,
+            cornerPoints: [], // [左上, 右上, 右下, 左下]
+            rotationCount: 0,
+            scale: 1,
+            offset: { x: 0, y: 0 },
+            activeTool: 'select',
+            draggingPoint: null,
+            isPanning: false,
+            panStart: { x: 0, y: 0 },
+            canvasSize: { width: 800, height: 600 }
+        };
+
+        // Canvas 和上下文
+        const canvas = document.getElementById('warpCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 设备像素比
+        const dpr = window.devicePixelRatio || 1;
+
+        // 初始化 Canvas 尺寸（处理 DPR）
+        function initCanvas() {
+            const cssWidth = 800;
+            const cssHeight = 600;
+            
+            // 设置 Canvas 实际像素尺寸为 CSS 尺寸的 DPR 倍
+            canvas.width = cssWidth * dpr;
+            canvas.height = cssHeight * dpr;
+            
+            // CSS 保持原始尺寸
+            canvas.style.width = cssWidth + 'px';
+            canvas.style.height = cssHeight + 'px';
+            
+            // 缩放上下文，使坐标系与 CSS 像素对齐
+            ctx.scale(dpr, dpr);
+            
+            // 启用高质量图像缩放
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+        }
+
+        // 初始化
+        function init() {
+            // 初始化 Canvas
+            initCanvas();
+            
+            // 加载示例图像（色盘）
+            loadSampleImage();
+            
+            // 绑定事件
+            bindEvents();
+        }
+
+        // 加载示例图像
+        function loadSampleImage() {
+            const img = new Image();
+            img.onload = () => {
+                state.image = img;
+                resetCorners();
+                resetView();
+                render();
+                updateThumbnails();
+                document.getElementById('hint').textContent = '拖拽四角点到色盘边缘';
+            };
+            // 创建一个模拟的色盘图像
+            img.src = createSampleBoardImage();
+        }
+
+        // 创建示例色盘图像（Data URL）
+        function createSampleBoardImage() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 800;
+            tempCanvas.height = 600;
+            const tctx = tempCanvas.getContext('2d');
+
+            // 背景
+            tctx.fillStyle = '#1a1f28';
+            tctx.fillRect(0, 0, 800, 600);
+
+            // 绘制倾斜的色盘
+            tctx.save();
+            tctx.translate(400, 300);
+            tctx.rotate(-0.15); // 倾斜角度
+            tctx.scale(0.8, 0.8);
+
+            // 色盘背景
+            tctx.fillStyle = '#2a3441';
+            tctx.fillRect(-250, -200, 500, 400);
+
+            // 绘制彩色格子（模拟 8x8 色盘）
+            const colors = [
+                '#ff0000', '#ff8000', '#ffff00', '#80ff00',
+                '#00ff00', '#00ff80', '#00ffff', '#0080ff',
+                '#0000ff', '#8000ff', '#ff00ff', '#ff0080',
+                '#ffffff', '#cccccc', '#999999', '#666666'
+            ];
+
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const x = -240 + col * 60;
+                    const y = -190 + row * 50;
+                    tctx.fillStyle = colors[(row * 8 + col) % colors.length];
+                    tctx.fillRect(x, y, 55, 45);
+                }
+            }
+
+            // 边框
+            tctx.strokeStyle = '#e7edf5';
+            tctx.lineWidth = 3;
+            tctx.strokeRect(-250, -200, 500, 400);
+
+            tctx.restore();
+
+            return tempCanvas.toDataURL();
+        }
+
+        // 重置四角位置
+        function resetCorners() {
+            if (!state.image) return;
+            
+            const w = state.image.width;
+            const h = state.image.height;
+            const margin = 50;
+
+            state.cornerPoints = [
+                { x: margin, y: margin },           // 左上
+                { x: w - margin, y: margin },       // 右上
+                { x: w - margin, y: h - margin },   // 右下
+                { x: margin, y: h - margin }        // 左下
+            ];
+
+            updateCoordDisplay();
+        }
+
+        // 重置视图
+        function resetView() {
+            if (!state.image) return;
+
+            const canvasW = state.canvasSize.width;
+            const canvasH = state.canvasSize.height;
+            const imgW = state.image.width;
+            const imgH = state.image.height;
+
+            // 计算适应画布的缩放比例
+            const scaleX = (canvasW - 40) / imgW;
+            const scaleY = (canvasH - 40) / imgH;
+            state.scale = Math.min(scaleX, scaleY);
+
+            // 居中
+            state.offset.x = (canvasW - imgW * state.scale) / 2;
+            state.offset.y = (canvasH - imgH * state.scale) / 2;
+
+            render();
+        }
+
+        // 顺时针旋转
+        function rotateClockwise() {
+            state.rotationCount = (state.rotationCount + 1) % 4;
+            
+            // 旋转四角点
+            if (state.image) {
+                const w = state.image.width;
+                const h = state.image.height;
+                const points = state.cornerPoints;
+
+                // 绕中心旋转 90 度
+                const cx = w / 2;
+                const cy = h / 2;
+
+                state.cornerPoints = points.map(p => {
+                    const dx = p.x - cx;
+                    const dy = p.y - cy;
+                    return {
+                        x: cx - dy,
+                        y: cy + dx
+                    };
+                });
+
+                // 重新排序点（左上、右上、右下、左下）
+                // 简化处理：直接重置
+                setTimeout(resetView, 100);
+            }
+
+            updateCoordDisplay();
+            render();
+            updateThumbnails();
+        }
+
+        // 渲染 Canvas
+        function render() {
+            if (!state.image) return;
+
+            const w = state.canvasSize.width;
+            const h = state.canvasSize.height;
+
+            // 清空画布
+            ctx.fillStyle = '#0b0d10';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.save();
+
+            // 应用平移和缩放
+            ctx.translate(state.offset.x, state.offset.y);
+            ctx.scale(state.scale, state.scale);
+
+            // 绘制图像
+            ctx.save();
+            ctx.translate(state.image.width / 2, state.image.height / 2);
+            ctx.rotate(state.rotationCount * Math.PI / 2);
+            ctx.translate(-state.image.width / 2, -state.image.height / 2);
+            ctx.drawImage(state.image, 0, 0);
+            ctx.restore();
+
+            // 绘制网格线（基于四角点）
+            drawGrid();
+
+            // 绘制四角点
+            drawCornerPoints();
+
+            ctx.restore();
+        }
+
+        // 绘制网格线
+        function drawGrid() {
+            const [lt, rt, rb, lb] = state.cornerPoints;
+
+            ctx.strokeStyle = 'rgba(0, 89, 132, 0.5)';
+            ctx.lineWidth = 1 / state.scale;
+
+            // 绘制四角连线
+            ctx.beginPath();
+            ctx.moveTo(lt.x, lt.y);
+            ctx.lineTo(rt.x, rt.y);
+            ctx.lineTo(rb.x, rb.y);
+            ctx.lineTo(lb.x, lb.y);
+            ctx.closePath();
+            ctx.stroke();
+
+            // 绘制内部网格（模拟 8x8）
+            ctx.strokeStyle = 'rgba(231, 237, 245, 0.2)';
+            
+            for (let i = 1; i < 8; i++) {
+                const t = i / 8;
+                
+                // 水平线
+                const leftX = lt.x + (lb.x - lt.x) * t;
+                const leftY = lt.y + (lb.y - lt.y) * t;
+                const rightX = rt.x + (rb.x - rt.x) * t;
+                const rightY = rt.y + (rb.y - rt.y) * t;
+                
+                ctx.beginPath();
+                ctx.moveTo(leftX, leftY);
+                ctx.lineTo(rightX, rightY);
+                ctx.stroke();
+
+                // 垂直线
+                const topX = lt.x + (rt.x - lt.x) * t;
+                const topY = lt.y + (rt.y - lt.y) * t;
+                const bottomX = lb.x + (rb.x - lb.x) * t;
+                const bottomY = lb.y + (rb.y - lb.y) * t;
+                
+                ctx.beginPath();
+                ctx.moveTo(topX, topY);
+                ctx.lineTo(bottomX, bottomY);
+                ctx.stroke();
+            }
+        }
+
+        // 绘制四角点
+        function drawCornerPoints() {
+            const points = state.cornerPoints;
+            const labels = ['LT', 'RT', 'RB', 'LB'];
+            const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444'];
+
+            points.forEach((p, i) => {
+                // 外圈
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 10 / state.scale, 0, Math.PI * 2);
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2 / state.scale;
+                ctx.stroke();
+
+                // 内圈
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4 / state.scale, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+
+                // 标签
+                ctx.fillStyle = colors[i];
+                ctx.font = `bold ${14 / state.scale}px sans-serif`;
+                ctx.fillText(labels[i], p.x + 12 / state.scale, p.y - 12 / state.scale);
+            });
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 鼠标事件
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('wheel', onWheel, { passive: false });
+
+            // 文件选择
+            document.getElementById('photoInput').addEventListener('change', onFileSelect);
+        }
+
+        // 获取 Canvas 坐标
+        function getCanvasPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left - state.offset.x) / state.scale,
+                y: (e.clientY - rect.top - state.offset.y) / state.scale
+            };
+        }
+
+        // 鼠标按下
+        function onMouseDown(e) {
+            if (!state.image) return;
+
+            const pos = getCanvasPos(e);
+
+            if (state.activeTool === 'select') {
+                // 查找最近的角点
+                let nearestIndex = -1;
+                let minDist = Infinity;
+
+                state.cornerPoints.forEach((p, i) => {
+                    const dist = Math.hypot(p.x - pos.x, p.y - pos.y);
+                    if (dist < minDist && dist < 20 / state.scale) {
+                        minDist = dist;
+                        nearestIndex = i;
+                    }
+                });
+
+                if (nearestIndex !== -1) {
+                    state.draggingPoint = nearestIndex;
+                    canvas.classList.add('dragging');
+                }
+            } else if (state.activeTool === 'pan') {
+                state.isPanning = true;
+                state.panStart = { x: e.clientX, y: e.clientY };
+                canvas.classList.add('panning');
+            }
+        }
+
+        // 鼠标移动
+        function onMouseMove(e) {
+            if (!state.image) return;
+
+            if (state.draggingPoint !== null) {
+                const pos = getCanvasPos(e);
+                
+                // 限制在图像范围内
+                const margin = 10;
+                state.cornerPoints[state.draggingPoint] = {
+                    x: Math.max(margin, Math.min(state.image.width - margin, pos.x)),
+                    y: Math.max(margin, Math.min(state.image.height - margin, pos.y))
+                };
+
+                updateCoordDisplay();
+                render();
+                updateThumbnails();
+            } else if (state.isPanning) {
+                const dx = e.clientX - state.panStart.x;
+                const dy = e.clientY - state.panStart.y;
+                state.offset.x += dx;
+                state.offset.y += dy;
+                state.panStart = { x: e.clientX, y: e.clientY };
+                render();
+            } else if (state.activeTool === 'select') {
+                // 检测是否悬浮在角点上
+                const pos = getCanvasPos(e);
+                let hoveringPoint = false;
+
+                state.cornerPoints.forEach((p) => {
+                    const dist = Math.hypot(p.x - pos.x, p.y - pos.y);
+                    if (dist < 20 / state.scale) {
+                        hoveringPoint = true;
+                    }
+                });
+
+                // 更新光标样式
+                if (hoveringPoint) {
+                    canvas.classList.add('hover-point');
+                } else {
+                    canvas.classList.remove('hover-point');
+                }
+            }
+        }
+
+        // 鼠标释放
+        function onMouseUp() {
+            state.draggingPoint = null;
+            state.isPanning = false;
+            canvas.classList.remove('dragging', 'panning');
+        }
+
+        // 滚轮缩放
+        function onWheel(e) {
+            e.preventDefault();
+            
+            if (!state.image) return;
+
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = state.scale * zoomFactor;
+
+            // 限制缩放范围
+            if (newScale < 0.1 || newScale > 5) return;
+
+            // 以鼠标位置为中心缩放
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            state.offset.x = mouseX - (mouseX - state.offset.x) * zoomFactor;
+            state.offset.y = mouseY - (mouseY - state.offset.y) * zoomFactor;
+            state.scale = newScale;
+
+            render();
+        }
+
+        // 文件选择
+        function onFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    resetCorners();
+                    resetView();
+                    render();
+                    updateThumbnails();
+                    document.getElementById('hint').textContent = '拖拽四角点到色盘边缘';
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 更新坐标显示
+        function updateCoordDisplay() {
+            const points = state.cornerPoints;
+            document.getElementById('ltCoord').textContent = points[0] ? `${Math.round(points[0].x)}, ${Math.round(points[0].y)}` : '-';
+            document.getElementById('rtCoord').textContent = points[1] ? `${Math.round(points[1].x)}, ${Math.round(points[1].y)}` : '-';
+            document.getElementById('rbCoord').textContent = points[2] ? `${Math.round(points[2].x)}, ${Math.round(points[2].y)}` : '-';
+            document.getElementById('lbCoord').textContent = points[3] ? `${Math.round(points[3].x)}, ${Math.round(points[3].y)}` : '-';
+        }
+
+        // 设置工具
+        function setTool(tool) {
+            state.activeTool = tool;
+            document.getElementById('selectTool').classList.toggle('active', tool === 'select');
+            document.getElementById('panTool').classList.toggle('active', tool === 'pan');
+            
+            // 更新 Canvas 样式类
+            canvas.classList.remove('select-mode', 'panning');
+            if (tool === 'select') {
+                canvas.classList.add('select-mode');
+            }
+        }
+
+        // 切换标签页
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (tab === 'sample') {
+                alert('样本提取标签页演示：显示校正后的图像和可交互的样本网格');
+            }
+        }
+
+        // 更新缩略图
+        function updateThumbnails() {
+            if (!state.image) return;
+
+            // 原图缩略图
+            const origCanvas = document.getElementById('thumbOriginalCanvas');
+            const origCtx = origCanvas.getContext('2d');
+            origCanvas.width = 120;
+            origCanvas.height = 60;
+            origCtx.drawImage(state.image, 0, 0, 120, 60);
+
+            // 校正后缩略图（简化版）
+            const warpedCanvas = document.getElementById('thumbWarpedCanvas');
+            const warpedCtx = warpedCanvas.getContext('2d');
+            warpedCanvas.width = 120;
+            warpedCanvas.height = 60;
+            warpedCtx.fillStyle = '#1a1f28';
+            warpedCtx.fillRect(0, 0, 120, 60);
+            // 这里应该应用透视变换，简化显示
+            warpedCtx.drawImage(state.image, 0, 0, 120, 60);
+
+            // 网格叠加缩略图
+            const overlayCanvas = document.getElementById('thumbOverlayCanvas');
+            const overlayCtx = overlayCanvas.getContext('2d');
+            overlayCanvas.width = 120;
+            overlayCanvas.height = 60;
+            overlayCtx.drawImage(state.image, 0, 0, 120, 60);
+            overlayCtx.strokeStyle = 'rgba(0, 89, 132, 0.5)';
+            overlayCtx.strokeRect(10, 5, 100, 50);
+        }
+
+        // 开始样本提取
+        function startSampleExtract() {
+            if (!state.image) {
+                alert('请先选择照片文件');
+                return;
+            }
+            alert('开始样本提取：使用当前四角坐标进行透视变换和样本提取');
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>

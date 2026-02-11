@@ -62,7 +62,7 @@ OpenColor/
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/UniverseEmbedded/OpenColor.git --depth 1
 cd OpenColor
 
 # Install all dependencies (Python + Node.js + C++)

@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenColor - JSON蓝图展示演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0b0d10;
+            --panel: #11151b;
+            --panel-elevated: #1a1f28;
+            --text: #e7edf5;
+            --text-muted: #94a3b8;
+            --accent: #005984;
+            --accent2: #fb6104;
+            --line: #2a3441;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 280px;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .file-item {
+            padding: 10px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            border-color: var(--accent);
+        }
+
+        .file-item.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .file-type {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .file-item.active .file-type {
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            height: 56px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 6px 14px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* 内容区 */
+        .content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* JSON展示区 */
+        .json-viewer {
+            flex: 1;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        /* 蓝图渲染样式 */
+        .bp-section {
+            margin-bottom: 24px;
+        }
+
+        .bp-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .bp-field {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 12px;
+            padding: 8px 0;
+        }
+
+        .bp-label {
+            min-width: 120px;
+            font-size: 13px;
+            color: var(--text-muted);
+            padding-top: 6px;
+        }
+
+        .bp-value {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 不同类型值的样式 */
+        .bp-string {
+            padding: 6px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            font-size: 13px;
+            min-width: 200px;
+            color: var(--text);
+        }
+
+        .bp-number {
+            padding: 6px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+            color: var(--accent2);
+            min-width: 80px;
+        }
+
+        .bp-boolean {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .bp-boolean input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .bp-boolean-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--line);
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+
+        .bp-boolean-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .bp-boolean input:checked + .bp-boolean-slider {
+            background: var(--accent);
+        }
+
+        .bp-boolean input:checked + .bp-boolean-slider:before {
+            transform: translateX(20px);
+        }
+
+        .bp-color {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bp-color-preview {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            border: 1px solid var(--line);
+        }
+
+        .bp-color-value {
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .bp-object {
+            flex: 1;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .bp-object-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .bp-object-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .bp-object-key {
+            font-size: 12px;
+            color: var(--text-muted);
+            min-width: 60px;
+        }
+
+        .bp-object-value {
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        /* 网格展示 */
+        .bp-grid {
+            flex: 1;
+        }
+
+        .bp-grid-info {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .bp-grid-visual {
+            display: grid;
+            gap: 2px;
+            background: var(--panel-elevated);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--line);
+        }
+
+        .bp-grid-cell {
+            aspect-ratio: 1;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            position: relative;
+        }
+
+        .bp-grid-cell:hover {
+            transform: scale(1.1);
+            z-index: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .bp-grid-cell:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        /* 数组展示 */
+        .bp-array {
+            flex: 1;
+        }
+
+        .bp-array-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .bp-array-index {
+            font-size: 11px;
+            color: var(--text-muted);
+            min-width: 30px;
+        }
+
+        /* 原始JSON对比区 */
+        .raw-json {
+            width: 400px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .raw-json-header {
+            padding: 12px 16px;
+            background: var(--panel-elevated);
+            border-bottom: 1px solid var(--line);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .raw-json-content {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+        }
+
+        .raw-json-content pre {
+            font-family: 'Maple Mono', 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
+        .json-key {
+            color: #9cdcfe;
+        }
+
+        .json-string {
+            color: #ce9178;
+        }
+
+        .json-number {
+            color: #b5cea8;
+        }
+
+        .json-boolean {
+            color: #569cd6;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 左侧文件列表 -->
+        <aside class="sidebar">
+            <div class="logo">JSON蓝图展示</div>
+            <div class="section-title">示例文件</div>
+            <div class="file-list">
+                <div class="file-item active" onclick="loadFile('boardSpec')">
+                    <div>8-Color Board A</div>
+                    <div class="file-type">board_spec.json</div>
+                </div>
+                <div class="file-item" onclick="loadFile('dataset')">
+                    <div>Dataset Cells</div>
+                    <div class="file-type">dataset_cells.json</div>
+                </div>
+                <div class="file-item" onclick="loadFile('colorModel')">
+                    <div>Color Model</div>
+                    <div class="file-type">color_model.json</div>
+                </div>
+                <div class="file-item" onclick="loadFile('maskManifest')">
+                    <div>Mask Manifest</div>
+                    <div class="file-type">mask_manifest.json</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main">
+            <header class="header">
+                <div class="header-title" id="headerTitle">8-Color Board A</div>
+                <div class="header-actions">
+                    <button class="btn" onclick="toggleRawJson()">切换原始JSON</button>
+                    <button class="btn primary">导出</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <!-- 蓝图渲染区 -->
+                <div class="json-viewer" id="jsonViewer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <div>选择左侧文件查看</div>
+                    </div>
+                </div>
+
+                <!-- 原始JSON区 -->
+                <div class="raw-json" id="rawJson" style="display: none;">
+                    <div class="raw-json-header">原始 JSON</div>
+                    <div class="raw-json-content">
+                        <pre id="rawJsonContent"></pre>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 蓝图定义
+        const blueprints = {
+            boardSpec: {
+                title: 'boardSpec.title',
+                sections: [
+                    {
+                        title: 'boardSpec.section.basic',
+                        fields: [
+                            { key: 'name', type: 'string', label: 'boardSpec.name', editable: true },
+                            { key: 'rows', type: 'number', label: 'boardSpec.rows' },
+                            { key: 'cols', type: 'number', label: 'boardSpec.cols' },
+                            { key: 'cellSizeMm', type: 'number', label: 'boardSpec.cellSizeMm', unit: 'mm' },
+                            { key: 'layerHeightMm', type: 'number', label: 'boardSpec.layerHeightMm', unit: 'mm' }
+                        ]
+                    },
+                    {
+                        title: 'boardSpec.section.cells',
+                        fields: [
+                            { key: 'cellMap', type: 'grid', label: 'boardSpec.cellMap', rowsKey: 'rows', colsKey: 'cols' }
+                        ]
+                    }
+                ]
+            },
+            dataset: {
+                title: 'dataset.title',
+                sections: [
+                    {
+                        title: 'dataset.section.basic',
+                        fields: [
+                            { key: 'version', type: 'string', label: 'dataset.version' },
+                            { key: 'specName', type: 'string', label: 'dataset.specName' },
+                            { key: 'rows', type: 'number', label: 'dataset.rows' },
+                            { key: 'cols', type: 'number', label: 'dataset.cols' }
+                        ]
+                    },
+                    {
+                        title: 'dataset.section.stats',
+                        fields: [
+                            { key: 'calibWhite', type: 'color', label: 'dataset.calibWhite' },
+                            { key: 'calibBlack', type: 'color', label: 'dataset.calibBlack' },
+                            { key: 'cells', type: 'array', label: 'dataset.cells', count: true }
+                        ]
+                    }
+                ]
+            },
+            colorModel: {
+                title: 'colorModel.title',
+                sections: [
+                    {
+                        title: 'colorModel.section.basic',
+                        fields: [
+                            { key: 'version', type: 'string', label: 'colorModel.version' },
+                            { key: 'materialGroup', type: 'string', label: 'colorModel.materialGroup' },
+                            { key: 'layerHeightMm', type: 'number', label: 'colorModel.layerHeightMm', unit: 'mm' }
+                        ]
+                    },
+                    {
+                        title: 'colorModel.section.stats',
+                        fields: [
+                            { key: 'trainingStats.epochs', type: 'number', label: 'colorModel.epochs' },
+                            { key: 'trainingStats.finalLoss', type: 'number', label: 'colorModel.finalLoss' },
+                            { key: 'trainingStats.avgDeltaE', type: 'number', label: 'colorModel.avgDeltaE' }
+                        ]
+                    }
+                ]
+            },
+            maskManifest: {
+                title: 'maskManifest.title',
+                sections: [
+                    {
+                        title: 'maskManifest.section.basic',
+                        fields: [
+                            { key: 'version', type: 'string', label: 'maskManifest.version' },
+                            { key: 'imageName', type: 'string', label: 'maskManifest.imageName' },
+                            { key: 'boardMm', type: 'number', label: 'maskManifest.boardMm', unit: 'mm' }
+                        ]
+                    },
+                    {
+                        title: 'maskManifest.section.dimensions',
+                        fields: [
+                            { key: 'pixelW', type: 'number', label: 'maskManifest.pixelW', unit: 'px' },
+                            { key: 'pixelH', type: 'number', label: 'maskManifest.pixelH', unit: 'px' },
+                            { key: 'nLayers', type: 'number', label: 'maskManifest.nLayers' }
+                        ]
+                    },
+                    {
+                        title: 'maskManifest.section.slots',
+                        fields: [
+                            { key: 'slotNames', type: 'array', label: 'maskManifest.slotNames' }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // i18n 定义
+        const i18n = {
+            'zh-CN': {
+                'boardSpec.title': '校准板规格',
+                'boardSpec.section.basic': '基本信息',
+                'boardSpec.section.cells': '格子映射',
+                'boardSpec.name': '规格名称',
+                'boardSpec.rows': '行数',
+                'boardSpec.cols': '列数',
+                'boardSpec.cellSizeMm': '格子尺寸',
+                'boardSpec.layerHeightMm': '层高',
+                'boardSpec.cellMap': '格子颜色分布',
+                
+                'dataset.title': '样本数据集',
+                'dataset.section.basic': '基本信息',
+                'dataset.section.stats': '校准统计',
+                'dataset.version': '版本',
+                'dataset.specName': '规格名称',
+                'dataset.rows': '行数',
+                'dataset.cols': '列数',
+                'dataset.calibWhite': '白场校准',
+                'dataset.calibBlack': '黑场校准',
+                'dataset.cells': '样本格子',
+                
+                'colorModel.title': '颜色模型',
+                'colorModel.section.basic': '基本信息',
+                'colorModel.section.stats': '训练统计',
+                'colorModel.version': '版本',
+                'colorModel.materialGroup': '材料组',
+                'colorModel.layerHeightMm': '层高',
+                'colorModel.epochs': '训练轮数',
+                'colorModel.finalLoss': '最终损失',
+                'colorModel.avgDeltaE': '平均DeltaE',
+                
+                'maskManifest.title': '叠色像素清单',
+                'maskManifest.section.basic': '基本信息',
+                'maskManifest.section.dimensions': '图像尺寸',
+                'maskManifest.section.slots': '槽位配置',
+                'maskManifest.version': '版本',
+                'maskManifest.imageName': '图像名称',
+                'maskManifest.boardMm': '板子尺寸',
+                'maskManifest.pixelW': '宽度',
+                'maskManifest.pixelH': '高度',
+                'maskManifest.nLayers': '层数',
+                'maskManifest.slotNames': '槽位名称'
+            }
+        };
+
+        const currentLocale = 'zh-CN';
+
+        // 翻译函数
+        function t(key) {
+            return i18n[currentLocale][key] || key;
+        }
+
+        // 示例数据
+        const sampleData = {
+            boardSpec: {
+                name: "8-Color Board A",
+                rows: 17,
+                cols: 17,
+                cellSizeMm: 3.5,
+                layerHeightMm: 0.2,
+                cellMap: generateCellMap(17, 17)
+            },
+            dataset: {
+                version: "calib_sample_build",
+                specName: "8-Color Board A",
+                rows: 17,
+                cols: 17,
+                calibWhite: { r: 245, g: 245, b: 245 },
+                calibBlack: { r: 15, g: 15, b: 15 },
+                cells: Array(289).fill(null).map((_, i) => ({
+                    row: Math.floor(i / 17),
+                    col: i % 17,
+                    enabled: Math.random() > 0.05,
+                    measuredRgb: { r: 100 + Math.random() * 100, g: 50 + Math.random() * 100, b: 30 + Math.random() * 80 },
+                    targetRgb: { r: 128, g: 64, b: 32 },
+                    recipe: { White: 2, Red: 3 }
+                }))
+            },
+            colorModel: {
+                version: "1.0",
+                materialGroup: "oc1_mg_MyPLA_4c",
+                layerHeightMm: 0.2,
+                trainingStats: {
+                    epochs: 100,
+                    finalLoss: 0.0234,
+                    avgDeltaE: 2.34
+                },
+                modelParams: {}
+            },
+            maskManifest: {
+                version: "gen_masks",
+                imageName: "dragon_girl.png",
+                pixelW: 1920,
+                pixelH: 1920,
+                boardMm: 60.0,
+                nLayers: 5,
+                slotNames: ["White", "Red", "Yellow", "Blue", "Black"]
+            }
+        };
+
+        // 生成格子映射数据
+        function generateCellMap(rows, cols) {
+            const map = {};
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const hue = ((r * cols + c) / (rows * cols)) * 360;
+                    const rgb = hsvToRgb(hue, 0.7, 0.9);
+                    map[`${r},${c}`] = {
+                        targetRgb: rgb,
+                        recipe: generateRecipe(r, c)
+                    };
+                }
+            }
+            return map;
+        }
+
+        function hsvToRgb(h, s, v) {
+            const c = v * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = v - c;
+            let r, g, b;
+            if (h < 60) [r, g, b] = [c, x, 0];
+            else if (h < 120) [r, g, b] = [x, c, 0];
+            else if (h < 180) [r, g, b] = [0, c, x];
+            else if (h < 240) [r, g, b] = [0, x, c];
+            else if (h < 300) [r, g, b] = [x, 0, c];
+            else [r, g, b] = [c, 0, x];
+            return {
+                r: Math.round((r + m) * 255),
+                g: Math.round((g + m) * 255),
+                b: Math.round((b + m) * 255)
+            };
+        }
+
+        function generateRecipe(row, col) {
+            const recipes = [
+                { White: 4 },
+                { White: 3, Red: 1 },
+                { White: 2, Red: 2 },
+                { White: 1, Red: 3 },
+                { Red: 4 },
+                { Red: 3, Yellow: 1 },
+                { Red: 2, Yellow: 2 },
+                { White: 2, Blue: 2 }
+            ];
+            return recipes[(row + col) % recipes.length];
+        }
+
+        // 获取嵌套值
+        function getNestedValue(obj, path) {
+            return path.split('.').reduce((current, key) => current?.[key], obj);
+        }
+
+        // 渲染字段
+        function renderField(field, data) {
+            const value = field.key.includes('.') 
+                ? getNestedValue(data, field.key) 
+                : data[field.key];
+            
+            switch (field.type) {
+                case 'string':
+                    return renderString(value, field);
+                case 'number':
+                    return renderNumber(value, field);
+                case 'boolean':
+                    return renderBoolean(value, field);
+                case 'color':
+                    return renderColor(value, field);
+                case 'object':
+                    return renderObject(value, field);
+                case 'array':
+                    return renderArray(value, field);
+                case 'grid':
+                    return renderGrid(value, field, data);
+                default:
+                    return `<span>${JSON.stringify(value)}</span>`;
+            }
+        }
+
+        function renderString(value, field) {
+            return `<input type="text" class="bp-string" value="${value}" ${field.editable ? '' : 'readonly'}>`;
+        }
+
+        function renderNumber(value, field) {
+            const unit = field.unit ? ` ${field.unit}` : '';
+            return `<div class="bp-number">${value}${unit}</div>`;
+        }
+
+        function renderBoolean(value, field) {
+            return `
+                <label class="bp-boolean">
+                    <input type="checkbox" ${value ? 'checked' : ''}>
+                    <span class="bp-boolean-slider"></span>
+                </label>
+            `;
+        }
+
+        function renderColor(value, field) {
+            const rgb = `rgb(${value.r}, ${value.g}, ${value.b})`;
+            return `
+                <div class="bp-color">
+                    <div class="bp-color-preview" style="background: ${rgb}"></div>
+                    <div class="bp-color-value">R:${value.r} G:${value.g} B:${value.b}</div>
+                </div>
+            `;
+        }
+
+        function renderObject(value, field) {
+            const entries = Object.entries(value).map(([k, v]) => `
+                <div class="bp-object-field">
+                    <span class="bp-object-key">${k}:</span>
+                    <span class="bp-object-value">${typeof v === 'object' ? JSON.stringify(v) : v}</span>
+                </div>
+            `).join('');
+            return `<div class="bp-object">${entries}</div>`;
+        }
+
+        function renderArray(value, field) {
+            if (field.count) {
+                return `<div class="bp-number">${value.length} 项</div>`;
+            }
+            const items = value.map((item, i) => `
+                <div class="bp-array-item">
+                    <span class="bp-array-index">[${i}]</span>
+                    <span>${item}</span>
+                </div>
+            `).join('');
+            return `<div class="bp-array">${items}</div>`;
+        }
+
+        function renderGrid(cellMap, field, data) {
+            const rows = data[field.rowsKey];
+            const cols = data[field.colsKey];
+            
+            let cells = '';
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = cellMap[`${r},${c}`];
+                    const rgb = cell ? `rgb(${cell.targetRgb.r}, ${cell.targetRgb.g}, ${cell.targetRgb.b})` : '#333';
+                    const tooltip = cell ? `Row ${r}, Col ${c}` : '';
+                    cells += `<div class="bp-grid-cell" style="background: ${rgb}" data-tooltip="${tooltip}"></div>`;
+                }
+            }
+            
+            return `
+                <div class="bp-grid">
+                    <div class="bp-grid-info">
+                        <span>${rows} × ${cols} = ${rows * cols} 个格子</span>
+                        <span>悬停查看详情</span>
+                    </div>
+                    <div class="bp-grid-visual" style="grid-template-columns: repeat(${cols}, 20px);">
+                        ${cells}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染蓝图
+        function renderBlueprint(blueprintKey, data) {
+            const blueprint = blueprints[blueprintKey];
+            if (!blueprint) return '<div>未知蓝图类型</div>';
+
+            const sections = blueprint.sections.map(section => {
+                const fields = section.fields.map(field => `
+                    <div class="bp-field">
+                        <div class="bp-label">${t(field.label)}</div>
+                        <div class="bp-value">${renderField(field, data)}</div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="bp-section">
+                        <div class="bp-section-title">${t(section.title)}</div>
+                        ${fields}
+                    </div>
+                `;
+            }).join('');
+
+            return sections;
+        }
+
+        // 语法高亮JSON
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            return json
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/(".*?"):/g, '<span class="json-key">$1</span>:')
+                .replace(/: "(.*?)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+                .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>');
+        }
+
+        // 加载文件
+        let currentFile = null;
+        function loadFile(fileKey) {
+            currentFile = fileKey;
+            
+            // 更新选中状态
+            document.querySelectorAll('.file-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            // 更新标题
+            const titles = {
+                boardSpec: '8-Color Board A',
+                dataset: 'Dataset Cells',
+                colorModel: 'Color Model',
+                maskManifest: 'Mask Manifest'
+            };
+            document.getElementById('headerTitle').textContent = titles[fileKey];
+            
+            // 渲染蓝图
+            const data = sampleData[fileKey];
+            document.getElementById('jsonViewer').innerHTML = renderBlueprint(fileKey, data);
+            
+            // 更新原始JSON
+            document.getElementById('rawJsonContent').innerHTML = syntaxHighlight(data);
+        }
+
+        // 切换原始JSON显示
+        function toggleRawJson() {
+            const rawJson = document.getElementById('rawJson');
+            rawJson.style.display = rawJson.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        // 初始加载
+        window.onload = () => {
+            loadFile('boardSpec');
+        };
+    </script>
+</body>
+</html>

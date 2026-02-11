@@ -1,34 +1,18 @@
-// Vite配置文件
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
-import { visualizer } from "rollup-plugin-visualizer";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    visualizer({
-      open: false,
-      filename: "stats.html",
-      gzipSize: true,
-      brotliSize: true,
-    }),
-  ],
+  plugins: [svelte()],
   server: {
     host: true,
-    port: 5173
+    port: 5173,
+    strictPort: true,
   },
-  test: {
-    // Vitest 配置
-    exclude: [
-      'node_modules',
-      'e2e/**/*', // 排除 Playwright E2E 测试
-      'src-tauri/**/*', // 排除 Rust 代码
-    ],
-    include: [
-      'test/**/*.{test,spec}.{js,ts}',
-      'src/**/*.{test,spec}.{js,ts}',
-    ],
-    globals: true,
-    environment: 'jsdom',
+  clearScreen: false,
+  envPrefix: ["VITE_", "TAURI_"],
+  build: {
+    target: process.env.TAURI_PLATFORM == "windows" ? "chrome105" : "safari13",
+    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    sourcemap: !!process.env.TAURI_DEBUG,
   },
 });

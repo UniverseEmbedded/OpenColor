@@ -62,7 +62,7 @@ OpenColor/
 
 ```bash
 # 克隆仓库
-git clone <repository-url>
+git clone https://github.com/UniverseEmbedded/OpenColor.git --depth 1
 cd OpenColor
 
 # 安装所有依赖（Python + Node.js + C++）

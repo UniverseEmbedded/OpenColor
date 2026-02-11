@@ -956,6 +956,9 @@ def _joint_refine_layers_icm(
     2. 结构保护：基于边缘检测降低平滑强度，保护线稿/细结构
     3. 更精确的blur更新：每次更新后重新计算局部blur
 
+    说明：本函数只负责“优化”，不在此处做额外的后置形态学清理。
+    原因是清理（连通域剔除、去噪）对细线/线端很敏感，容易把结构当噪声误删。
+
     Args:
         structure_protect: 是否启用结构保护
         structure_edge_threshold: 边缘检测阈值 (0-1)
@@ -1394,7 +1397,6 @@ def _joint_refine_layers_icm(
             )
     except Exception as e:
         logger.error(f"[错误] joint ICM 结束统计失败: {e}")
-        traceback.print_exc()
 
     return recipes
 
@@ -1447,6 +1449,7 @@ def _icm_update_layer(
     这解决了并行更新的不一致性问题。
     """
     moved = 0
+    pred_err = 0
 
     # 按边缘强度排序候选像素（先处理非边缘区域）
     if structure_protect and cand_idx.size > 0:
@@ -1499,8 +1502,10 @@ def _icm_update_layer(
         try:
             pred_new = solver._predict_batch(rec_new[::-1].reshape(1, -1))
             pred_new = np.asarray(pred_new, dtype=np.float32).reshape(3)
-        except Exception:
-            continue
+        except Exception as e:
+            pred_err += 1
+            logger.error(f"[错误] joint ICM 预测失败: L{z:02d} idx={int(idx)}, err={e}")
+            raise
 
         pred_cur = pred_lab_pix[idx]
         tgt_lab = tgt_lab_all[idx]

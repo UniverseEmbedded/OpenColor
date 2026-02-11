@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenColor - 照片校正与样本提取</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0b0d10;
+            --panel: #11151b;
+            --panel-elevated: #1a1f28;
+            --text: #e7edf5;
+            --text-muted: #94a3b8;
+            --accent: #005984;
+            --accent2: #fb6104;
+            --line: #2a3441;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 240px;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: 8px;
+            margin-right: 12px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .nav {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .nav-item:hover {
+            background: var(--panel-elevated);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
+        }
+
+        .nav-item i {
+            font-size: 18px;
+        }
+
+        .nav-sub {
+            padding-left: 32px;
+        }
+
+        .nav-sub-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .nav-sub-item:hover {
+            color: var(--text);
+        }
+
+        .nav-sub-item.active {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .workspace-selector {
+            padding: 16px;
+            border-top: 1px solid var(--line);
+        }
+
+        .workspace-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .workspace-name {
+            padding: 8px 12px;
+            background: var(--panel-elevated);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .help-button {
+            padding: 0 16px 16px 16px;
+        }
+
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            height: 56px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .breadcrumb {
+            font-size: 16px;
+        }
+
+        .breadcrumb span {
+            color: var(--text-muted);
+        }
+
+        .breadcrumb span.active {
+            color: var(--text);
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧配置面板 */
+        .config-panel {
+            width: 320px;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+        }
+
+        .form-select,
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .form-select:focus,
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--panel-elevated);
+            color: var(--text);
+            border: 1px solid var(--line);
+        }
+
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .status-card {
+            background: var(--panel-elevated);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .status-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            color: var(--text-muted);
+        }
+
+        .status-value {
+            color: var(--text);
+        }
+
+        /* 右侧图像区域 */
+        .image-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+
+        .image-toolbar {
+            padding: 12px 20px;
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .tool-btn {
+            padding: 6px 12px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .image-canvas {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .image-placeholder {
+            width: 600px;
+            height: 400px;
+            background: var(--panel-elevated);
+            border: 2px dashed var(--line);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .image-placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .image-thumbnails {
+            height: 100px;
+            background: var(--panel);
+            border-top: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 12px;
+        }
+
+        .thumbnail {
+            width: 80px;
+            height: 60px;
+            background: var(--panel-elevated);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .thumbnail.active {
+            border-color: var(--accent);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--line);
+            margin: 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <div class="logo-text">OpenColor</div>
+            </div>
+
+            <nav class="nav">
+                <!-- 校准 -->
+                <div class="nav-item active">
+                    <span>校准</span>
+                </div>
+                <div class="nav-sub">
+                    <div class="nav-sub-item">校准板生成</div>
+                    <div class="nav-sub-item active">照片校正与样本提取</div>
+                    <div class="nav-sub-item">模型训练</div>
+                </div>
+
+                <!-- 生成 -->
+                <div class="nav-item">
+                    <span>生成</span>
+                </div>
+
+                <!-- 素材库 -->
+                <div class="nav-item">
+                    <span>素材库</span>
+                </div>
+
+                <!-- 设置 -->
+                <div class="nav-item">
+                    <span>设置</span>
+                </div>
+            </nav>
+
+            <div class="workspace-selector">
+                <div class="workspace-label">当前工作区</div>
+                <div class="workspace-name">
+                    <span>默认工作区</span>
+                    <span>▼</span>
+                </div>
+            </div>
+
+            <div class="help-button">
+                <button class="btn btn-secondary btn-block">帮助</button>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main">
+            <!-- 页面标题栏 -->
+            <header class="header">
+                <div class="breadcrumb">
+                    <span>校准</span>
+                    <span> / </span>
+                    <span class="active">照片校正与样本提取</span>
+                </div>
+            </header>
+
+            <!-- 内容区 -->
+            <div class="content">
+                <!-- 左侧配置面板 -->
+                <aside class="config-panel">
+                    <!-- 文件选择 -->
+                    <div class="section">
+                        <div class="section-title">文件选择</div>
+                        <div class="form-group">
+                            <label class="form-label">规格文件</label>
+                            <select class="form-select">
+                                <option>8-Color Board A_spec.json</option>
+                                <option>8-Color Board B_spec.json</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">照片文件</label>
+                            <button class="btn btn-secondary btn-block">选择照片...</button>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- 操作按钮 -->
+                    <div class="section">
+                        <div class="section-title">操作</div>
+                        <div class="form-group">
+                            <button class="btn btn-secondary btn-block">顺时针旋转 90°</button>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- 状态显示 -->
+                    <div class="section">
+                        <div class="section-title">状态</div>
+                        <div class="status-card">
+                            <div class="status-row">
+                                <span class="status-label">当前步骤</span>
+                                <span class="status-value">校正</span>
+                            </div>
+                            <div class="status-row">
+                                <span class="status-label">左上坐标</span>
+                                <span class="status-value">100, 100</span>
+                            </div>
+                            <div class="status-row">
+                                <span class="status-label">右上坐标</span>
+                                <span class="status-value">900, 100</span>
+                            </div>
+                            <div class="status-row">
+                                <span class="status-label">右下坐标</span>
+                                <span class="status-value">900, 900</span>
+                            </div>
+                            <div class="status-row">
+                                <span class="status-label">左下坐标</span>
+                                <span class="status-value">100, 900</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- 下一步 -->
+                    <div class="section">
+                        <button class="btn btn-primary btn-block">开始样本提取</button>
+                    </div>
+                </aside>
+
+                <!-- 右侧图像区域 -->
+                <div class="image-area">
+                    <!-- 标签页 -->
+                    <div class="tabs">
+                        <div class="tab active">校正</div>
+                        <div class="tab">样本提取</div>
+                    </div>
+
+                    <!-- 工具栏 -->
+                    <div class="image-toolbar">
+                        <button class="tool-btn active">选择点</button>
+                        <button class="tool-btn">移动图像</button>
+                        <button class="tool-btn">重置视图</button>
+                    </div>
+
+                    <!-- 图像显示区 -->
+                    <div class="image-canvas">
+                        <div class="image-placeholder">
+                            <div class="image-placeholder-icon">🖼️</div>
+                            <div>请选择照片文件</div>
+                        </div>
+                    </div>
+
+                    <!-- 缩略图栏 -->
+                    <div class="image-thumbnails">
+                        <div class="thumbnail active">原图</div>
+                        <div class="thumbnail">校正后</div>
+                        <div class="thumbnail">网格叠加</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

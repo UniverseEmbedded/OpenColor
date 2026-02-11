@@ -4,7 +4,7 @@
 
 ## 本仓库许可证
 
-OpenColor 项目本身采用 **MIT 许可证**（或您指定的其他许可证），详见仓库根目录的 LICENSE 文件。
+OpenColor 项目本身采用 **AGPL 许可证**，详见仓库根目录的 LICENSE.txt 文件。
 
 ## 数据来源
 

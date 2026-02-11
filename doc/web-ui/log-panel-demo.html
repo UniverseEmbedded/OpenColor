@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenColor - 日志面板演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0b0d10;
+            --panel: #11151b;
+            --panel-elevated: #1a1f28;
+            --text: #e7edf5;
+            --text-muted: #94a3b8;
+            --accent: #005984;
+            --line: #2a3441;
+            --log-debug: #64748b;
+            --log-info: #3b82f6;
+            --log-warn: #f59e0b;
+            --log-error: #ef4444;
+        }
+
+        body {
+            font-family: 'Maple Mono', 'JetBrains Mono', 'Fira Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 240px;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: 8px;
+            margin-right: 12px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        /* 主内容区 */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            height: 56px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+        }
+
+        .log-panel.collapsed {
+            height: auto;
+        }
+
+        .log-header {
+            padding: 12px 16px;
+            background: var(--panel-elevated);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .log-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .log-title-text {
+            font-weight: 600;
+        }
+
+        .log-badge {
+            padding: 2px 8px;
+            background: var(--accent);
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .log-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .log-filter {
+            padding: 4px 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .log-search {
+            padding: 4px 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 13px;
+            width: 150px;
+        }
+
+        .log-search::placeholder {
+            color: var(--text-muted);
+        }
+
+        .log-toggle {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .log-toolbar {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .log-level-filters {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-level-btn {
+            padding: 4px 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-level-btn.active {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+
+        .log-level-btn.debug.active {
+            border-color: var(--log-debug);
+        }
+
+        .log-level-btn.info.active {
+            border-color: var(--log-info);
+        }
+
+        .log-level-btn.warn.active {
+            border-color: var(--log-warn);
+        }
+
+        .log-level-btn.error.active {
+            border-color: var(--log-error);
+        }
+
+        .log-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-action-btn {
+            padding: 4px 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .log-action-btn:hover {
+            color: var(--text);
+        }
+
+        .log-content {
+            flex: 1;
+            overflow: auto;
+            padding: 8px 0;
+        }
+
+        .log-list {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-width: fit-content;
+        }
+
+        .log-entry {
+            padding: 6px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            border-left: 3px solid transparent;
+            transition: background 0.1s;
+            min-width: fit-content;
+        }
+
+        .log-entry:hover {
+            background: var(--panel-elevated);
+        }
+
+        .log-entry.debug {
+            border-left-color: var(--log-debug);
+        }
+
+        .log-entry.info {
+            border-left-color: var(--log-info);
+        }
+
+        .log-entry.warn {
+            border-left-color: var(--log-warn);
+        }
+
+        .log-entry.error {
+            border-left-color: var(--log-error);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .log-entry.hidden {
+            display: none;
+        }
+
+        .log-timestamp {
+            color: var(--text-muted);
+            font-size: 12px;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .log-level {
+            min-width: 50px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .log-level.debug {
+            color: var(--log-debug);
+        }
+
+        .log-level.info {
+            color: var(--log-info);
+        }
+
+        .log-level.warn {
+            color: var(--log-warn);
+        }
+
+        .log-level.error {
+            color: var(--log-error);
+        }
+
+        .log-source {
+            color: var(--text-muted);
+            font-size: 12px;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .log-message {
+            flex: 1;
+            white-space: nowrap;
+            overflow: visible;
+        }
+
+        .log-message .highlight {
+            background: rgba(251, 97, 4, 0.3);
+            border-radius: 2px;
+        }
+
+        /* ANSI颜色支持 */
+        .ansi-black { color: #000; }
+        .ansi-red { color: #ef4444; }
+        .ansi-green { color: #22c55e; }
+        .ansi-yellow { color: #f59e0b; }
+        .ansi-blue { color: #3b82f6; }
+        .ansi-magenta { color: #a855f7; }
+        .ansi-cyan { color: #06b6d4; }
+        .ansi-white { color: #fff; }
+        .ansi-bright-black { color: #64748b; }
+
+        /* 虚拟滚动容器 */
+        .virtual-scroll-container {
+            position: relative;
+            overflow: auto;
+            height: 100%;
+        }
+
+        .virtual-scroll-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
+        /* 状态栏 */
+        .log-status {
+            padding: 8px 16px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .log-status-left {
+            display: flex;
+            gap: 16px;
+        }
+
+        .log-autoscroll {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        /* 模拟控制面板 */
+        .demo-controls {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .demo-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+        }
+
+        .demo-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .demo-btn {
+            padding: 8px 16px;
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .demo-btn:hover {
+            background: var(--accent);
+        }
+
+        .demo-btn.primary {
+            background: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <div class="logo-text">OpenColor</div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main">
+            <header class="header">
+                <div>模型训练 - 日志演示</div>
+            </header>
+
+            <div class="content">
+                <!-- 模拟控制面板 -->
+                <div class="demo-controls">
+                    <div class="demo-title">模拟控制</div>
+                    <div class="demo-buttons">
+                        <button class="demo-btn primary" onclick="startSimulation()">开始模拟训练</button>
+                        <button class="demo-btn" onclick="addRandomLog()">添加随机日志</button>
+                        <button class="demo-btn" onclick="addAnsiLog()">添加ANSI颜色日志</button>
+                        <button class="demo-btn" onclick="addBulkLogs()">批量添加1000条</button>
+                        <button class="demo-btn" onclick="clearLogs()">清空日志</button>
+                    </div>
+                </div>
+
+                <!-- 日志面板 -->
+                <div class="log-panel" id="logPanel">
+                    <div class="log-header" onclick="togglePanel()">
+                        <div class="log-title">
+                            <span class="log-title-text">训练日志</span>
+                            <span class="log-badge" id="logCount">0</span>
+                        </div>
+                        <div class="log-controls">
+                            <input type="text" class="log-search" id="searchInput" placeholder="搜索日志..." onkeyup="searchLogs()">
+                            <button class="log-toggle" id="toggleBtn">▼</button>
+                        </div>
+                    </div>
+
+                    <div class="log-toolbar">
+                        <div class="log-level-filters">
+                            <button class="log-level-btn debug active" onclick="toggleLevel('debug')">Debug</button>
+                            <button class="log-level-btn info active" onclick="toggleLevel('info')">Info</button>
+                            <button class="log-level-btn warn active" onclick="toggleLevel('warn')">Warn</button>
+                            <button class="log-level-btn error active" onclick="toggleLevel('error')">Error</button>
+                        </div>
+                        <div class="log-actions">
+                            <button class="log-action-btn" onclick="copyLogs()">复制</button>
+                            <button class="log-action-btn" onclick="downloadLogs()">下载</button>
+                        </div>
+                    </div>
+
+                    <div class="log-content" id="logContent">
+                        <div class="log-list" id="logList"></div>
+                    </div>
+
+                    <div class="log-status">
+                        <div class="log-status-left">
+                            <span id="logStats">0 条日志</span>
+                            <span id="logLevelStats">D:0 I:0 W:0 E:0</span>
+                        </div>
+                        <label class="log-autoscroll">
+                            <input type="checkbox" id="autoScroll" checked>
+                            <span>自动滚动</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 日志存储
+        let logs = [];
+        let logId = 0;
+        let activeLevels = new Set(['debug', 'info', 'warn', 'error']);
+        let isExpanded = true;
+
+        // 虚拟滚动配置
+        const ITEM_HEIGHT = 28; // 每条日志高度
+        const BUFFER_SIZE = 5;  // 缓冲区大小
+        let visibleStart = 0;
+        let visibleEnd = 0;
+
+        // 添加日志
+        function addLog(level, source, message, ansi = false) {
+            const log = {
+                id: logId++,
+                timestamp: new Date(),
+                level,
+                source,
+                message,
+                ansi
+            };
+            logs.push(log);
+            renderLogs();
+            updateStats();
+
+            // 自动滚动
+            if (document.getElementById('autoScroll').checked && isExpanded) {
+                scrollToBottom();
+            }
+        }
+
+        // 渲染日志（带虚拟滚动优化）
+        function renderLogs() {
+            const list = document.getElementById('logList');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            // 过滤日志
+            const filteredLogs = logs.filter(log => {
+                if (!activeLevels.has(log.level)) return false;
+                if (searchTerm) {
+                    return log.message.toLowerCase().includes(searchTerm) ||
+                           log.source.toLowerCase().includes(searchTerm);
+                }
+                return true;
+            });
+
+            // 虚拟滚动：只渲染可见区域
+            const container = document.getElementById('logContent');
+            const scrollTop = container.scrollTop;
+            const containerHeight = container.clientHeight;
+
+            visibleStart = Math.floor(scrollTop / ITEM_HEIGHT);
+            visibleEnd = Math.min(
+                visibleStart + Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER_SIZE,
+                filteredLogs.length
+            );
+
+            // 设置容器高度
+            list.style.height = `${filteredLogs.length * ITEM_HEIGHT}px`;
+
+            // 渲染可见条目
+            let html = '';
+            const visibleLogs = filteredLogs.slice(visibleStart, visibleEnd);
+
+            visibleLogs.forEach((log, index) => {
+                const actualIndex = visibleStart + index;
+                const top = actualIndex * ITEM_HEIGHT;
+                const timeStr = formatTime(log.timestamp);
+                const message = searchTerm
+                    ? highlightText(log.message, searchTerm)
+                    : log.message;
+
+                html += `
+                    <div class="log-entry ${log.level}" style="position: absolute; top: ${top}px; left: 0; right: 0; height: ${ITEM_HEIGHT}px;">
+                        <span class="log-timestamp">${timeStr}</span>
+                        <span class="log-level ${log.level}">${log.level}</span>
+                        <span class="log-source">[${log.source}]</span>
+                        <span class="log-message">${log.ansi ? parseAnsi(message) : message}</span>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+            document.getElementById('logCount').textContent = filteredLogs.length;
+        }
+
+        // 格式化时间（date-fns风格）
+        function formatTime(date) {
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            const ms = String(date.getMilliseconds()).padStart(3, '0');
+            return `${h}:${m}:${s}.${ms}`;
+        }
+
+        // ANSI颜色解析（ansi-to-html简化版）
+        function parseAnsi(text) {
+            const ansiRegex = /\x1b\[(\d+)m/g;
+            let result = text;
+            let colorClass = '';
+
+            result = result.replace(ansiRegex, (match, code) => {
+                const codeNum = parseInt(code);
+                if (codeNum === 0) return '</span>';
+                if (codeNum === 1) return '<span style="font-weight:bold">';
+                if (codeNum === 30) return '<span class="ansi-black">';
+                if (codeNum === 31) return '<span class="ansi-red">';
+                if (codeNum === 32) return '<span class="ansi-green">';
+                if (codeNum === 33) return '<span class="ansi-yellow">';
+                if (codeNum === 34) return '<span class="ansi-blue">';
+                if (codeNum === 35) return '<span class="ansi-magenta">';
+                if (codeNum === 36) return '<span class="ansi-cyan">';
+                if (codeNum === 37) return '<span class="ansi-white">';
+                if (codeNum === 90) return '<span class="ansi-bright-black">';
+                return '';
+            });
+
+            return result;
+        }
+
+        // 高亮搜索文本
+        function highlightText(text, term) {
+            const regex = new RegExp(`(${escapeRegex(term)})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // 更新统计
+        function updateStats() {
+            const stats = { debug: 0, info: 0, warn: 0, error: 0 };
+            logs.forEach(log => stats[log.level]++);
+            document.getElementById('logStats').textContent = `${logs.length} 条日志`;
+            document.getElementById('logLevelStats').textContent =
+                `D:${stats.debug} I:${stats.info} W:${stats.warn} E:${stats.error}`;
+        }
+
+        // 切换面板展开/收起
+        function togglePanel() {
+            isExpanded = !isExpanded;
+            document.getElementById('logPanel').classList.toggle('collapsed', !isExpanded);
+            document.getElementById('toggleBtn').textContent = isExpanded ? '▼' : '▶';
+        }
+
+        // 切换日志级别过滤
+        function toggleLevel(level) {
+            const btn = document.querySelector(`.log-level-btn.${level}`);
+            if (activeLevels.has(level)) {
+                activeLevels.delete(level);
+                btn.classList.remove('active');
+            } else {
+                activeLevels.add(level);
+                btn.classList.add('active');
+            }
+            renderLogs();
+        }
+
+        // 搜索日志
+        function searchLogs() {
+            renderLogs();
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            const container = document.getElementById('logContent');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 清空日志
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            updateStats();
+        }
+
+        // 复制日志
+        function copyLogs() {
+            const text = logs.map(log =>
+                `[${formatTime(log.timestamp)}] [${log.level.toUpperCase()}] [${log.source}] ${log.message}`
+            ).join('\n');
+            navigator.clipboard.writeText(text);
+        }
+
+        // 下载日志
+        function downloadLogs() {
+            const text = logs.map(log =>
+                `[${formatTime(log.timestamp)}] [${log.level.toUpperCase()}] [${log.source}] ${log.message}`
+            ).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `opencolor-logs-${Date.now()}.txt`;
+            a.click();
+        }
+
+        // 添加随机日志
+        function addRandomLog() {
+            const levels = ['debug', 'info', 'warn', 'error'];
+            const sources = ['engine', 'rust', 'web'];
+            const messages = [
+                '开始加载数据集',
+                '已加载 289 个样本',
+                '检测到 3 个禁用格子',
+                'GPU初始化失败，切换到CPU模式',
+                'Epoch 1/100, Loss: 0.2345',
+                '正在保存模型...',
+                '模型保存完成',
+                '内存使用: 1.2GB',
+                '开始矢量化处理',
+                '处理第 3/5 层掩码'
+            ];
+
+            const level = levels[Math.floor(Math.random() * levels.length)];
+            const source = sources[Math.floor(Math.random() * sources.length)];
+            const message = messages[Math.floor(Math.random() * messages.length)];
+
+            addLog(level, source, message);
+        }
+
+        // 添加ANSI颜色日志
+        function addAnsiLog() {
+            const message = '\x1b[32m成功\x1b[0m 加载模型，\x1b[33m警告\x1b[0m 检测到未校准格子，\x1b[31m错误\x1b[0m 数量: 0';
+            addLog('info', 'engine', message, true);
+        }
+
+        // 批量添加日志
+        function addBulkLogs() {
+            for (let i = 0; i < 1000; i++) {
+                addLog('debug', 'engine', `批量日志条目 #${i + 1}`);
+            }
+        }
+
+        // 模拟训练过程
+        let simulationInterval;
+        function startSimulation() {
+            clearInterval(simulationInterval);
+            clearLogs();
+
+            const stages = [
+                { level: 'info', source: 'engine', message: '开始模型训练' },
+                { level: 'info', source: 'engine', message: '加载数据集...' },
+                { level: 'info', source: 'engine', message: '已加载 289 个样本，15 个禁用' },
+                { level: 'debug', source: 'engine', message: '初始化RTS物理模型' },
+                { level: 'debug', source: 'engine', message: '初始化GPR残差模型' },
+                { level: 'warn', source: 'engine', message: 'GPU未检测到，使用CPU计算' },
+                { level: 'info', source: 'engine', message: '开始训练 Epoch 1/100' }
+            ];
+
+            let stageIndex = 0;
+            let epoch = 1;
+
+            stages.forEach((stage, i) => {
+                setTimeout(() => addLog(stage.level, stage.source, stage.message), i * 500);
+            });
+
+            setTimeout(() => {
+                simulationInterval = setInterval(() => {
+                    const loss = (0.5 + Math.random() * 0.3).toFixed(4);
+                    addLog('info', 'engine', `Epoch ${epoch}/100, Loss: ${loss}, DeltaE: ${(2 + Math.random() * 3).toFixed(2)}`);
+                    epoch++;
+
+                    if (epoch > 100) {
+                        clearInterval(simulationInterval);
+                        addLog('info', 'engine', '训练完成！');
+                        addLog('info', 'engine', '平均DeltaE: 2.34');
+                        addLog('info', 'engine', '模型已保存到: calib_model/color_model.json');
+                    }
+                }, 100);
+            }, stages.length * 500);
+        }
+
+        // 监听滚动进行虚拟滚动更新
+        document.getElementById('logContent').addEventListener('scroll', () => {
+            renderLogs();
+        });
+
+        // 初始添加一些日志
+        addLog('info', 'web', 'OpenColor 已启动');
+        addLog('info', 'rust', '当前工作区: /Users/zerun/Documents/OpenColor/default');
+    </script>
+</body>
+</html>

@@ -19,26 +19,23 @@ import cv2
 import numpy as np
 from PIL import Image
 
+# 首先配置简洁的日志格式
 from loguru import logger as _logger
+_logger.remove()
+_logger.add(sys.stderr, format="<level>{message}</level>", level="INFO", colorize=True)
 
 from oc_core_02.core.color_systems import ColorSystem
 from oc_core_02.utils.logger import get_logger
 from oc_core_02.utils.paths import RESOURCES, get_out_dir, make_out_subdir_name_for_file
 from oc_proto.gen_masks import _save_layer_total_contour_viz
-from oc_proto.gen_masks.joint_refinement import (
-    _joint_refine_layers,
-    _joint_refine_layers_icm,
-)
+from oc_proto.gen_masks import volumes_to_labels
+from oc_proto.gen_masks.joint_refinement import _joint_refine_layers, _joint_refine_layers_icm
 from oc_proto.gen_masks.main_preprocess import _load_model_and_setup, _preprocess_image
 from oc_proto.gen_masks.main_solve import _solve_and_optimize, _postprocess_masks, _generate_preview_and_error
 from oc_proto.gen_masks.solver_cpp_wrapper import CPP_AVAILABLE, create_solver
 from oc_proto.gen_masks.stats import print_layer_stats
 from oc_sdf.sdf_data_prep import generate_layer_volumes as _generate_layer_volumes
 from oc_xgb.color_space import rgb01_to_lab, delta_e_cie76
-
-# 首先配置简洁的日志格式
-_logger.remove()
-_logger.add(sys.stderr, format="<level>{message}</level>", level="INFO", colorize=True)
 
 logger = get_logger(__name__)
 
@@ -71,6 +68,7 @@ def _generate_postprocess_preview(
     from oc_xgb.color_space import lab_to_rgb01
 
     n_layers = len(list(volumes.values())[0])
+    n_slots = len(cs.slot_names)
 
     # 构建配方数组 (n_pixels, n_layers)
     # 只处理前景像素
@@ -80,7 +78,7 @@ def _generate_postprocess_preview(
 
     # 构建配方: 对于每个像素，每层选择哪个slot
     # 注意：generate_layer_volumes / solver 侧的层序都是 bottom_first：第 0 层是底层，第 n_layers-1 层是顶层
-    logger.info("[预览生成] 开始构建配方数组...")
+    logger.info(f"[预览生成] 开始构建配方数组...")
     recipes = np.zeros((n_pix, n_layers), dtype=np.int32)
     for z in range(n_layers):
         for slot_idx, slot_name in enumerate(cs.slot_names):
@@ -92,7 +90,7 @@ def _generate_postprocess_preview(
     # 预测
     logger.info(f"[预览生成] 开始预测 {n_pix} 个像素的颜色...")
     pred_labs = solver._predict_batch(recipes)
-    logger.info("[预览生成] 预测完成，转换颜色空间...")
+    logger.info(f"[预览生成] 预测完成，转换颜色空间...")
     pred_rgb01 = lab_to_rgb01(pred_labs)
     pred_u8 = np.clip(pred_rgb01 * 255.0 + 0.5, 0, 255).astype(np.uint8)
 
@@ -437,12 +435,14 @@ def run(
             rgb_for_solver_u8 = optimize_first_layer_color(rgb_for_solver_u8, mask_match)
         except Exception as e:
             logger.error(f"[错误] 首层颜色偏向失败: {e}")
+            traceback.print_exc()
             raise
 
     try:
         Image.fromarray(rgb_for_solver_u8).save(input_dir / "03_preprocessed_for_solver.png")
     except Exception as e:
         logger.error(f"[错误] 写出求解输入图失败: {e}")
+        traceback.print_exc()
         raise
 
     # 创建求解器
@@ -515,9 +515,7 @@ def run(
     # 生成体积数据
     volumes_raw = _generate_layer_volumes(params, cs, ys, xs, inverse, h, w, recipe_digits=recipe_digits)
 
-    # 联合优化（默认关闭）
-    # 说明：当前默认只做“首层（L0）联合优化”，并且只在你显式打开开关时才执行。
-    # 经验上，全层像素级联合优化更容易引入断线/块状伪结构；首层优化的风险更可控。
+    # 联合优化
     if bool(joint_l0_enabled) and int(n_layers) > 0:
         logger.info(f"[优化] 首层联合优化: enabled=True, passes={int(joint_l0_passes)}, use_icm={bool(joint_l0_use_icm)}")
 
@@ -600,9 +598,8 @@ def run(
                 )
 
             # 将优化后的像素级配方映射回唯一颜色级配方
-            # 说明：主流程以“唯一颜色”为基本单位（更稳定、也更省内存），因此这里需要把像素级更新折叠回去。
-            # 这一步相当于对像素级决策做一次“按颜色聚合的投票”，避免下游出现不一致的数据结构。
-            logger.info("[信息] 开始将像素级配方映射回唯一颜色级配方...")
+            # 对于每个唯一颜色，找到对应的所有像素，取众数
+            logger.info(f"[信息] 开始将像素级配方映射回唯一颜色级配方...")
             logger.info(f"[信息] 唯一颜色数: {len(recipe_digits)}, 像素数: {len(recipes_per_pixel)}")
 
             n_colors = int(len(recipe_digits))
@@ -697,10 +694,10 @@ def run(
                     volumes_raw, cs, solver, rgb_u8, full_mask, h, w, out_run_dir,
                     suffix="after_joint"
                 )
-                logger.info("[信息] 已生成联合优化后的预测预览图")
+                logger.info(f"[信息] 已生成联合优化后的预测预览图")
             except Exception as e2:
                 logger.error(f"[警告] 生成联合优化后的预测预览图失败: {e2}")
-
+                traceback.print_exc()
 
         except Exception as e:
             logger.error(f"[错误] 首层联合优化失败: {e}")
@@ -762,9 +759,10 @@ def run(
             volumes, cs, solver, rgb_u8, full_mask, h, w, out_run_dir,
             suffix="after_postprocess"
         )
-        logger.info("[信息] 已生成后处理后的预测预览图")
+        logger.info(f"[信息] 已生成后处理后的预测预览图")
     except Exception as e:
         logger.error(f"[警告] 生成后处理后的预测预览图失败: {e}")
+        traceback.print_exc()
 
     # 分析偏差
     try:
@@ -777,6 +775,7 @@ def run(
         )
     except Exception as e:
         logger.error(f"[警告] 偏差分析失败: {e}")
+        traceback.print_exc()
 
     # 保存清单
     manifest = {
@@ -795,28 +794,11 @@ def run(
             "first_print_layer_bias_enabled": bool(first_print_layer_bias_enabled),
             "first_print_layer_bias_slack_de76": float(first_print_layer_bias_slack_de76),
             "joint_l0_enabled": bool(joint_l0_enabled),
-            "joint_l0_use_icm": bool(joint_l0_use_icm),
             "joint_l0_passes": int(joint_l0_passes),
             "joint_l0_lambda_smooth": float(joint_l0_lambda_smooth),
             "joint_l0_color_weight": float(joint_l0_color_weight),
             "joint_l0_slack_de76": float(joint_l0_slack_de76),
             "joint_l0_edge_beta": float(joint_l0_edge_beta),
-            "joint_l0_max_candidates": int(joint_l0_max_candidates),
-            "joint_l0_proposal_radius": int(joint_l0_proposal_radius),
-            "joint_l0_proposal_eps": float(joint_l0_proposal_eps),
-            "joint_l0_proposal_min_soft_margin": float(joint_l0_proposal_min_soft_margin),
-            "joint_l0_proposal_despeckle_iters": int(joint_l0_proposal_despeckle_iters),
-            "joint_l0_mix_sigma": float(joint_l0_mix_sigma),
-            "joint_l0_mix_weight": float(joint_l0_mix_weight),
-            "joint_l0_mix_max_increase_de76": float(joint_l0_mix_max_increase_de76),
-            "joint_l0_mix_base_slack_de76": float(joint_l0_mix_base_slack_de76),
-            "joint_l0_island_weight": float(joint_l0_island_weight),
-            "joint_l0_island_alpha": float(joint_l0_island_alpha),
-            "joint_l0_remove_islands_max_area_px": int(joint_l0_remove_islands_max_area_px),
-            "joint_l0_remove_islands_connectivity": int(joint_l0_remove_islands_connectivity),
-            "joint_l0_remove_islands_passes": int(joint_l0_remove_islands_passes),
-            "joint_l0_structure_protect": bool(joint_l0_structure_protect),
-            "joint_l0_structure_protect_strength": float(joint_l0_structure_protect_strength),
             "mode": str(postprocess_mode),
             "postprocess_conv_kernel": int(postprocess_conv_kernel),
             "postprocess_conv_passes": int(postprocess_conv_passes),
@@ -870,7 +852,7 @@ def main():
     parser.add_argument("--first-print-layer-bias", action="store_true", help="启用首层贴近原图优化")
     parser.add_argument("--first-print-layer-bias-slack", type=float, default=0.3, help="首层贴近原图优化松弛量")
 
-    # 联合优化参数（默认关闭；需要时手动打开）
+    # 联合优化参数
     parser.add_argument("--joint-l0-enabled", action="store_true", help="启用首层联合优化")
     parser.add_argument("--joint-l0-use-icm", action="store_true", default=True, help="使用ICM顺序更新模式（默认启用）")
     parser.add_argument("--joint-l0-use-batch", action="store_true", help="使用批量更新模式（旧版）")
