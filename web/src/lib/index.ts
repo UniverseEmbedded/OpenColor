@@ -8,6 +8,7 @@ export * from './types';
 // 状态管理
 export { settingsStore } from './stores/settings.svelte';
 export { navigationStore, navItems } from './stores/navigation.svelte';
+export { workspaceStore, type WorkspaceInfo } from './stores/workspace.svelte';
 
 // 国际化
 export { _, locale, setLanguage, getCurrentLanguage } from './i18n';

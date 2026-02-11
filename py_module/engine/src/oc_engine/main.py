@@ -12,11 +12,19 @@ logger.info("Python engine starting...", file=sys.stderr)
 sys.stderr.flush()
 
 from oc_engine.handlers.health import handle_health_ping
-from oc_engine.handlers.board import handle_board_generate, handle_board_export_from_spec, handle_quick_calib_card_generate
+from oc_engine.handlers.board import (
+    handle_board_generate,
+    handle_board_export_from_spec,
+    handle_quick_calib_card_generate,
+)
 from oc_engine.handlers.lut import handle_lut_extract, handle_lut_detect
 from oc_engine.handlers.bitmap import handle_bitmap_export
 from oc_engine.handlers.svg import handle_svg_export
-from oc_engine.handlers.dataset import handle_dataset_create, handle_dataset_add_observation, handle_dataset_aggregate
+from oc_engine.handlers.dataset import (
+    handle_dataset_create,
+    handle_dataset_add_observation,
+    handle_dataset_aggregate,
+)
 from oc_engine.jobs import JobManager
 from oc_engine.protocol import make_response, parse_json_line, write_json_line
 from oc_engine.schema import (
@@ -47,7 +55,13 @@ def _dispatch(job_mgr: JobManager, req_dict: Dict[str, Any]) -> None:
         req = JsonRpcRequest.model_validate(req_dict)
     except Exception as e:
         id_ = req_dict.get("id") if isinstance(req_dict, dict) else ""
-        write_json_line({"jsonrpc": "2.0", "id": id_ or "", "error": {"code": "E_BAD_REQUEST", "message": f"请求格式不正确: {e}"}})
+        write_json_line(
+            {
+                "jsonrpc": "2.0",
+                "id": id_ or "",
+                "error": {"code": "E_BAD_REQUEST", "message": f"请求格式不正确: {e}"},
+            }
+        )
         return
 
     id_ = req.id
@@ -62,7 +76,13 @@ def _dispatch(job_mgr: JobManager, req_dict: Dict[str, Any]) -> None:
     if method == "job.cancel":
         job_id = params.get("job_id")
         if not job_id:
-            write_json_line({"jsonrpc": "2.0", "id": str(id_), "error": {"code": "E_BAD_PARAMS", "message": "缺少 job_id 参数"}})
+            write_json_line(
+                {
+                    "jsonrpc": "2.0",
+                    "id": str(id_),
+                    "error": {"code": "E_BAD_PARAMS", "message": "缺少 job_id 参数"},
+                }
+            )
             return
         cancelled = job_mgr.cancel_job(job_id)
         write_json_line(make_response(str(id_), {"cancelled": cancelled}))
@@ -74,11 +94,17 @@ def _dispatch(job_mgr: JobManager, req_dict: Dict[str, Any]) -> None:
     handlers = {
         "board.generate": (handle_board_generate, BoardGenerateParams),
         "board.export_from_spec": (handle_board_export_from_spec, BoardExportParams),
-        "quick_calib.generate_card": (handle_quick_calib_card_generate, BoardGenerateParams),
+        "quick_calib.generate_card": (
+            handle_quick_calib_card_generate,
+            BoardGenerateParams,
+        ),
         "lut.extract_from_photo": (handle_lut_extract, LutExtractParams),
         "lut.detect_points": (handle_lut_detect, LutDetectParams),
         "dataset.create": (handle_dataset_create, DatasetCreateParams),
-        "dataset.add_observation": (handle_dataset_add_observation, DatasetAddObservationParams),
+        "dataset.add_observation": (
+            handle_dataset_add_observation,
+            DatasetAddObservationParams,
+        ),
         "dataset.aggregate": (handle_dataset_aggregate, DatasetAggregateParams),
         "bitmap.export": (handle_bitmap_export, BitmapExportParams),
         "svg.export": (handle_svg_export, SvgExportParams),
@@ -89,12 +115,26 @@ def _dispatch(job_mgr: JobManager, req_dict: Dict[str, Any]) -> None:
         try:
             validated_params = param_model.model_validate(params).model_dump()
             job_mgr.run_async(job, lambda j, p: handler_func(j, validated_params, p))
-            write_json_line(make_response(str(id_), {"job_id": job.job_id, "out_dir": job.out_dir}))
+            write_json_line(
+                make_response(str(id_), {"job_id": job.job_id, "out_dir": job.out_dir})
+            )
         except Exception as e:
-            write_json_line({"jsonrpc": "2.0", "id": str(id_), "error": {"code": "E_BAD_PARAMS", "message": f"参数校验失败: {e}"}})
+            write_json_line(
+                {
+                    "jsonrpc": "2.0",
+                    "id": str(id_),
+                    "error": {"code": "E_BAD_PARAMS", "message": f"参数校验失败: {e}"},
+                }
+            )
         return
 
-    write_json_line({"jsonrpc": "2.0", "id": str(id_), "error": {"code": "E_METHOD", "message": "未知方法"}})
+    write_json_line(
+        {
+            "jsonrpc": "2.0",
+            "id": str(id_),
+            "error": {"code": "E_METHOD", "message": "未知方法"},
+        }
+    )
 
 
 def main() -> None:
@@ -114,7 +154,13 @@ def main() -> None:
             sys.stderr.write(f"[错误] 引擎处理异常: {e}\n")
             sys.stderr.flush()
             id_ = req.get("id") if isinstance(req, dict) else ""
-            write_json_line({"jsonrpc": "2.0", "id": id_ or "", "error": {"code": "E_INTERNAL", "message": "引擎内部错误"}})
+            write_json_line(
+                {
+                    "jsonrpc": "2.0",
+                    "id": id_ or "",
+                    "error": {"code": "E_INTERNAL", "message": "引擎内部错误"},
+                }
+            )
 
 
 if __name__ == "__main__":

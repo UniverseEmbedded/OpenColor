@@ -58,13 +58,15 @@ def is_code_file(file_path: Path) -> bool:
     return file_path.suffix.lower() in CODE_EXTENSIONS
 
 
-def get_git_tracked_files(directory: Path, project_root: Path = PROJECT_ROOT) -> List[Path]:
+def get_git_tracked_files(
+    directory: Path, project_root: Path = PROJECT_ROOT
+) -> List[Path]:
     """使用 git ls-files 获取被 git 追踪的文件列表
-    
+
     Args:
         directory: 要筛选的目录，只返回该目录下的文件
         project_root: 项目根目录，用于执行git命令
-        
+
     Returns:
         指定目录下被git追踪的文件路径列表
     """
@@ -75,13 +77,13 @@ def get_git_tracked_files(directory: Path, project_root: Path = PROJECT_ROOT) ->
             ["git", "-c", "core.quotepath=false", "ls-files", "-z"],
             cwd=project_root,
             capture_output=True,
-            check=True
+            check=True,
         )
         # 解码并按 NUL 分隔，过滤掉空字符串
         # git ls-files -z 输出的是字节流，文件名按 utf-8 编码
-        output = result.stdout.decode('utf-8')
-        files = [project_root / f for f in output.split('\0') if f]
-        
+        output = result.stdout.decode("utf-8")
+        files = [project_root / f for f in output.split("\0") if f]
+
         # 过滤出在指定目录下的文件
         return [f for f in files if f.is_relative_to(directory)]
     except subprocess.CalledProcessError as e:
@@ -94,10 +96,10 @@ def get_git_tracked_files(directory: Path, project_root: Path = PROJECT_ROOT) ->
 
 def format_size(size_bytes: int) -> str:
     """格式化文件大小
-    
+
     Args:
         size_bytes: 文件大小（字节）
-        
+
     Returns:
         格式化后的大小字符串（如 "16.00 KB"）
     """
@@ -113,10 +115,10 @@ def format_size(size_bytes: int) -> str:
 
 def get_report_output_dir(report_type: str) -> Path:
     """获取报告输出目录
-    
+
     Args:
         report_type: 报告类型（如 "filesize", "filename", "densedir" 等）
-        
+
     Returns:
         报告输出目录路径
     """

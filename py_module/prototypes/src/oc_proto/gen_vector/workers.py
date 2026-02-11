@@ -11,10 +11,11 @@ from shapely.ops import unary_union
 from oc_core_02.utils.vtracer_bridge import vectorize_mask_to_mm_polys
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _vectorize_slot_worker(
     *,
     mask_path: str,
@@ -129,7 +130,9 @@ def _rasterize_slot_worker(
         # 标准分辨率栅格化
         raster = rasterize_geometry(final_poly, pixel_w, pixel_h, board_mm, px_per_mm)
         if raster is not None:
-            Image.fromarray((raster * 255).astype(np.uint8)).save(poly_dir / f"{prefix}_poly_raster.png")
+            Image.fromarray((raster * 255).astype(np.uint8)).save(
+                poly_dir / f"{prefix}_poly_raster.png"
+            )
 
         # 4倍超采样栅格化
         raster_4x = rasterize_geometry_soft(
@@ -141,11 +144,14 @@ def _rasterize_slot_worker(
             supersample=1,
         )
         if raster_4x is not None:
-            Image.fromarray((raster_4x * 255).astype(np.uint8)).save(poly_dir / f"{prefix}_poly_raster_4x.png")
+            Image.fromarray((raster_4x * 255).astype(np.uint8)).save(
+                poly_dir / f"{prefix}_poly_raster_4x.png"
+            )
 
         return prefix, perf_counter() - t0
     except Exception as e:
         logger.error(f"[错误] 栅格化任务失败: {prefix}, 原因={e}")
         import traceback
+
         traceback.print_exc()
         raise

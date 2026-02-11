@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
+  
+  interface Props {
+    children?: Snippet;
+  }
+  
+  let { children }: Props = $props();
   
   onMount(() => {
     console.log('[OpenColor] Svelte 5 应用已启动');

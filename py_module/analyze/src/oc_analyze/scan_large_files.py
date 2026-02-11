@@ -27,49 +27,55 @@ OUTPUT_DIR = get_report_output_dir("filesize")
 def scan_directory(directory: Path, size_threshold: int) -> List[Dict[str, Any]]:
     """扫描目录，找出大于阈值的代码文件"""
     large_files = []
-    
+
     if not directory.exists():
         logger.warning(f"警告：目录不存在 - {directory}")
         return large_files
-    
+
     logger.info(f"正在扫描目录：{directory} (仅扫描 git 追踪的文件)")
-    
+
     try:
         tracked_files = get_git_tracked_files(directory)
-        
+
         for file_path in tracked_files:
             try:
                 if is_code_file(file_path):
                     if not file_path.exists():
                         continue
-                        
+
                     file_size = file_path.stat().st_size
-                    
+
                     if file_size > size_threshold:
-                        large_files.append({
-                            'path': file_path,
-                            'size': file_size,
-                            'size_formatted': format_size(file_size),
-                            'extension': file_path.suffix,
-                            'scan_root': directory,
-                            'relative_path': file_path.relative_to(directory),
-                        })
+                        large_files.append(
+                            {
+                                "path": file_path,
+                                "size": file_size,
+                                "size_formatted": format_size(file_size),
+                                "extension": file_path.suffix,
+                                "scan_root": directory,
+                                "relative_path": file_path.relative_to(directory),
+                            }
+                        )
             except OSError as e:
                 logger.warning(f"警告：无法访问文件 {file_path} - {e}")
-                    
+
     except Exception as e:
         logger.error(f"错误：扫描目录 {directory} 时发生异常 - {e}")
         raise
-    
-    logger.info(f"在 {directory} 中找到 {len(large_files)} 个大于{format_size(size_threshold)}的代码文件")
+
+    logger.info(
+        f"在 {directory} 中找到 {len(large_files)} 个大于{format_size(size_threshold)}的代码文件"
+    )
     return large_files
 
 
-def generate_report(all_files: List[Dict[str, Any]], scan_dirs: List[Path], size_threshold: int) -> str:
+def generate_report(
+    all_files: List[Dict[str, Any]], scan_dirs: List[Path], size_threshold: int
+) -> str:
     """生成markdown报告"""
     files_by_dir = {}
     for file_info in all_files:
-        scan_root = file_info.get('scan_root')
+        scan_root = file_info.get("scan_root")
         if not isinstance(scan_root, Path):
             scan_root = None
 
@@ -81,7 +87,7 @@ def generate_report(all_files: List[Dict[str, Any]], scan_dirs: List[Path], size
         if dir_name not in files_by_dir:
             files_by_dir[dir_name] = []
         files_by_dir[dir_name].append(file_info)
-    
+
     # 生成报告内容
     report_lines = [
         "# 代码文件大小报告",
@@ -99,92 +105,100 @@ def generate_report(all_files: List[Dict[str, Any]], scan_dirs: List[Path], size
         report_lines.append("### 未找到大于阈值的代码文件")
         report_lines.append("")
         return "\n".join(report_lines)
-    
+
     # 按目录生成报告
     for dir_name in sorted(files_by_dir.keys()):
         files = files_by_dir[dir_name]
         # 按文件大小降序排序
-        files_sorted = sorted(files, key=lambda x: x['size'], reverse=True)
-        
-        report_lines.extend([
-            f"## {dir_name}",
-            "",
-            f"找到 {len(files)} 个大于{format_size(size_threshold)}的代码文件",
-            "",
-            "| 文件路径 | 大小 | 类型 |",
-            "|---------|------|------|",
-        ])
-        
+        files_sorted = sorted(files, key=lambda x: x["size"], reverse=True)
+
+        report_lines.extend(
+            [
+                f"## {dir_name}",
+                "",
+                f"找到 {len(files)} 个大于{format_size(size_threshold)}的代码文件",
+                "",
+                "| 文件路径 | 大小 | 类型 |",
+                "|---------|------|------|",
+            ]
+        )
+
         for file_info in files_sorted:
             report_lines.append(
                 f"| `{file_info['relative_path']}` | {file_info['size_formatted']} | {file_info['extension']} |"
             )
-        
+
         report_lines.append("")
         report_lines.append("---")
         report_lines.append("")
-    
+
     # 统计信息
-    report_lines.extend([
-        "## 统计信息",
-        "",
-        "### 按文件类型统计",
-        "",
-        "| 文件类型 | 数量 |",
-        "|---------|------|",
-    ])
-    
+    report_lines.extend(
+        [
+            "## 统计信息",
+            "",
+            "### 按文件类型统计",
+            "",
+            "| 文件类型 | 数量 |",
+            "|---------|------|",
+        ]
+    )
+
     ext_count = {}
     for file_info in all_files:
-        ext = file_info['extension']
+        ext = file_info["extension"]
         ext_count[ext] = ext_count.get(ext, 0) + 1
-    
+
     for ext in sorted(ext_count.keys(), key=lambda x: ext_count[x], reverse=True):
         report_lines.append(f"| {ext} | {ext_count[ext]} |")
-    
+
     report_lines.append("")
-    
+
     # 按大小范围统计
-    report_lines.extend([
-        "### 按大小范围统计",
-        "",
-        "| 大小范围 | 数量 |",
-        "|---------|------|",
-    ])
+    report_lines.extend(
+        [
+            "### 按大小范围统计",
+            "",
+            "| 大小范围 | 数量 |",
+            "|---------|------|",
+        ]
+    )
 
     size_ranges = [
         (size_threshold, 50 * 1024, f"{int(size_threshold / 1024)}KB - 50KB"),
         (50 * 1024, 100 * 1024, "50KB - 100KB"),
         (100 * 1024, 500 * 1024, "100KB - 500KB"),
         (500 * 1024, 1024 * 1024, "500KB - 1MB"),
-        (1024 * 1024, float('inf'), "> 1MB"),
+        (1024 * 1024, float("inf"), "> 1MB"),
     ]
-    
+
     for min_size, max_size, range_name in size_ranges:
-        count = sum(1 for f in all_files if min_size <= f['size'] < max_size)
+        count = sum(1 for f in all_files if min_size <= f["size"] < max_size)
         report_lines.append(f"| {range_name} | {count} |")
-    
+
     report_lines.append("")
-    
+
     # 最大的10个文件
-    report_lines.extend([
-        "### 最大的10个文件",
-        "",
-        "| 排名 | 文件路径 | 大小 |",
-        "|------|---------|------|",
-    ])
-    
-    top_files = sorted(all_files, key=lambda x: x['size'], reverse=True)[:10]
+    report_lines.extend(
+        [
+            "### 最大的10个文件",
+            "",
+            "| 排名 | 文件路径 | 大小 |",
+            "|------|---------|------|",
+        ]
+    )
+
+    top_files = sorted(all_files, key=lambda x: x["size"], reverse=True)[:10]
     for idx, file_info in enumerate(top_files, 1):
-        scan_root = file_info.get('scan_root')
+        scan_root = file_info.get("scan_root")
         if isinstance(scan_root, Path):
             display_path = f"{scan_root.name}/{file_info['relative_path']}"
         else:
-            display_path = str(file_info['relative_path'])
+            display_path = str(file_info["relative_path"])
         report_lines.append(
             f"| {idx} | `{display_path}` | {file_info['size_formatted']} |"
         )
-    
+
     return "\n".join(report_lines)
 
 
@@ -228,54 +242,56 @@ def main():
     logger.info("=" * 60)
     logger.info("开始扫描代码文件大小")
     logger.info("=" * 60)
-    logger.info()
+    logger.info("")
 
     logger.info(f"扫描目录数：{len(scan_dirs)}")
     logger.info(f"文件大小阈值：{format_size(size_threshold)}")
     logger.info(f"报告输出目录：{output_dir}")
-    logger.info()
-    
+    logger.info("")
+
     all_large_files = []
-    
+
     # 扫描所有目录
     for scan_dir in scan_dirs:
         try:
             files = scan_directory(scan_dir, size_threshold)
             all_large_files.extend(files)
-            logger.info()
+            logger.info("")
         except Exception as e:
             logger.error(f"错误：扫描目录 {scan_dir} 失败 - {e}")
             continue
-    
+
     # 生成报告
     if all_large_files:
-        logger.info(f"总共找到 {len(all_large_files)} 个大于{format_size(size_threshold)}的代码文件")
+        logger.info(
+            f"总共找到 {len(all_large_files)} 个大于{format_size(size_threshold)}的代码文件"
+        )
     else:
         logger.info(f"没有找到大于{format_size(size_threshold)}的代码文件")
-    logger.info()
-    
+    logger.info("")
+
     try:
         report_content = generate_report(all_large_files, scan_dirs, size_threshold)
-        
+
         # 生成带时间戳的文件名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_filename = f"file_size_report_{timestamp}.md"
         report_path = output_dir / report_filename
-        
+
         # 确保输出目录存在
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 写入报告
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(report_content)
-        
+
         logger.info(f"报告已生成：{report_path}")
-        logger.info()
-        
+        logger.info("")
+
     except Exception as e:
         logger.error(f"错误：生成报告失败 - {e}")
         raise
-    
+
     logger.info("=" * 60)
     logger.info("扫描完成")
     logger.info("=" * 60)

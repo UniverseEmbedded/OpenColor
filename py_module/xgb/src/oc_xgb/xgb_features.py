@@ -85,7 +85,9 @@ def build_layer_sequences(
     """
     order = str(layer_names_order).strip().lower()
     if order not in {"bottom_first", "top_first"}:
-        raise ValueError(f"未知的层序方向: {layer_names_order}，仅支持 bottom_first 或 top_first")
+        raise ValueError(
+            f"未知的层序方向: {layer_names_order}，仅支持 bottom_first 或 top_first"
+        )
 
     out: List[List[str]] = []
     for r in recipes:
@@ -190,7 +192,7 @@ def _encode_sequence_features(
     for p in range(n_layers):
         for c in range(n_classes):
             cname = "EMPTY" if c == empty_idx else str(material_keys[c])
-            names.append(f"pos{p+1}:{cname}")
+            names.append(f"pos{p + 1}:{cname}")
     # 对名称
     for a in range(n_classes):
         an = "EMPTY" if a == empty_idx else str(material_keys[a])
@@ -242,12 +244,20 @@ def build_gpr_features(
     s = X_main.sum(axis=1, keepdims=True)
     eps = 1e-8
     rel_X = X_main / (s + eps) if m > 0 else X_main
-    mx = X_main.max(axis=1, keepdims=True) if m > 0 else np.zeros((n, 1), dtype=np.float32)
+    mx = (
+        X_main.max(axis=1, keepdims=True)
+        if m > 0
+        else np.zeros((n, 1), dtype=np.float32)
+    )
     nz = (X_main > 0).sum(axis=1, keepdims=True).astype(np.float32)
 
     # 有序序列
-    seqs = build_layer_sequences(recipes, material_keys, n_layers=n_layers, layer_names_order=layer_names_order)
-    seq_feats, seq_names = _encode_sequence_features(seqs, material_keys, n_layers=n_layers)
+    seqs = build_layer_sequences(
+        recipes, material_keys, n_layers=n_layers, layer_names_order=layer_names_order
+    )
+    seq_feats, seq_names = _encode_sequence_features(
+        seqs, material_keys, n_layers=n_layers
+    )
 
     feats = [rel_X, s, mx, nz, base_pred_lab.astype(np.float32), seq_feats]
     names = (

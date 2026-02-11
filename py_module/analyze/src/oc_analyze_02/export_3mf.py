@@ -97,14 +97,14 @@ def main(out_path: str = "colored_cubes.3mf"):
     color_group = model.AddColorGroup()
 
     rgba_list = [
-        (255, 0, 0, 255),      # red
-        (0, 255, 0, 255),      # green
-        (0, 0, 255, 255),      # blue
-        (255, 255, 0, 255),    # yellow
-        (255, 0, 255, 255),    # magenta
-        (0, 255, 255, 255),    # cyan
-        (255, 128, 0, 255),    # orange
-        (160, 32, 240, 255),   # purple
+        (255, 0, 0, 255),  # red
+        (0, 255, 0, 255),  # green
+        (0, 0, 255, 255),  # blue
+        (255, 255, 0, 255),  # yellow
+        (255, 0, 255, 255),  # magenta
+        (0, 255, 255, 255),  # cyan
+        (255, 128, 0, 255),  # orange
+        (160, 32, 240, 255),  # purple
     ]
 
     color_property_ids = []
@@ -137,7 +137,9 @@ def main(out_path: str = "colored_cubes.3mf"):
         mesh_object.SetName(f"Cube_{i}")
 
         vertices, triangles = to_lib3mf_geometry(m)
-        mesh_object.SetGeometry(vertices, triangles)  # same pattern as PyPI cube example :contentReference[oaicite:8]{index=8}
+        mesh_object.SetGeometry(
+            vertices, triangles
+        )  # same pattern as PyPI cube example :contentReference[oaicite:8]{index=8}
 
         color_pid = color_property_ids[i % len(color_property_ids)]
         mesh_object.SetObjectLevelProperty(color_group_rid, color_pid)

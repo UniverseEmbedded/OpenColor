@@ -35,9 +35,11 @@ from svgpathtools import Path, parse_path  # type: ignore
 # 颜色工具
 # ---------------------------
 
+
 def srgb_to_linear01(x: np.ndarray) -> np.ndarray:
     a = 0.055
     return np.where(x <= 0.04045, x / 12.92, ((x + a) / (1 + a)) ** 2.4)
+
 
 def parse_color_to_rgb255(s: str) -> Optional[Tuple[int, int, int]]:
     if not s:
@@ -77,6 +79,7 @@ def parse_color_to_rgb255(s: str) -> Optional[Tuple[int, int, int]]:
     }
     return named.get(s, None)
 
+
 def parse_fill_from_attrs(attrs: Dict[str, str]) -> Optional[Tuple[int, int, int]]:
     fill = attrs.get("fill", "") or ""
     rgb = parse_color_to_rgb255(fill)
@@ -100,12 +103,24 @@ def _local_name(tag: str) -> str:
     return tag.split("}")[-1] if "}" in tag else tag
 
 
-def _iter_svg_paths_with_group_transform(svg_path: str) -> Tuple[Dict[str, str], List[Tuple[Path, Dict[str, str], np.ndarray, bool, Optional[Tuple[int, int, int]]]]]:
+def _iter_svg_paths_with_group_transform(
+    svg_path: str,
+) -> Tuple[
+    Dict[str, str],
+    List[Tuple[Path, Dict[str, str], np.ndarray, bool, Optional[Tuple[int, int, int]]]],
+]:
     root = ET.parse(svg_path).getroot()
     svg_attrs: Dict[str, str] = {str(k): str(v) for k, v in root.attrib.items()}
-    out: List[Tuple[Path, Dict[str, str], np.ndarray, bool, Optional[Tuple[int, int, int]]]] = []
+    out: List[
+        Tuple[Path, Dict[str, str], np.ndarray, bool, Optional[Tuple[int, int, int]]]
+    ] = []
 
-    def walk(node: ET.Element, M_parent: np.ndarray, fill_set: bool, fill_value: Optional[Tuple[int, int, int]]) -> None:
+    def walk(
+        node: ET.Element,
+        M_parent: np.ndarray,
+        fill_set: bool,
+        fill_value: Optional[Tuple[int, int, int]],
+    ) -> None:
         attrs: Dict[str, str] = {str(k): str(v) for k, v in node.attrib.items()}
         M_local = parse_transform_attr(attrs.get("transform", "") or "")
         M_here = _mat_mul(M_parent, M_local)
@@ -133,10 +148,12 @@ def _iter_svg_paths_with_group_transform(svg_path: str) -> Tuple[Dict[str, str],
 # 调色板
 # ---------------------------
 
+
 @dataclass(frozen=True)
 class Material:
     key: str
     rgb255: Tuple[int, int, int]
+
 
 DEFAULT_RGBW = {
     "R": Material("R", (255, 0, 0)),
@@ -144,6 +161,7 @@ DEFAULT_RGBW = {
     "B": Material("B", (0, 0, 255)),
     "W": Material("W", (255, 255, 255)),
 }
+
 
 def classify_rgb_to_rgbw_nearest(rgb255: Tuple[int, int, int]) -> str:
     rgb = np.array(rgb255, dtype=np.float32) / 255.0
@@ -156,7 +174,10 @@ def classify_rgb_to_rgbw_nearest(rgb255: Tuple[int, int, int]) -> str:
     d2 = np.sum((pal_lin - rgb_lin[None, :]) ** 2, axis=1)
     return keys[int(np.argmin(d2))]
 
-def classify_rgb_to_rgbw_strict(rgb255: Tuple[int, int, int], tol: int = 0) -> Optional[str]:
+
+def classify_rgb_to_rgbw_strict(
+    rgb255: Tuple[int, int, int], tol: int = 0
+) -> Optional[str]:
     # tol=0表示精确匹配；tol>0允许小差异（例如导出器有扰动时）
     for k, mat in DEFAULT_RGBW.items():
         r0, g0, b0 = mat.rgb255
@@ -169,6 +190,7 @@ def classify_rgb_to_rgbw_strict(rgb255: Tuple[int, int, int], tol: int = 0) -> O
 # ---------------------------
 # SVG viewBox + 变换
 # ---------------------------
+
 
 def get_viewbox(svg_attrs: Dict[str, str]) -> Tuple[float, float, float, float]:
     vb = svg_attrs.get("viewBox") or svg_attrs.get("viewbox")
@@ -187,26 +209,25 @@ def get_viewbox(svg_attrs: Dict[str, str]) -> Tuple[float, float, float, float]:
     h = parse_len(svg_attrs.get("height", "100"))
     return (0.0, 0.0, w, h)
 
+
 def _mat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return a @ b
 
+
 def _mat_translate(tx: float, ty: float) -> np.ndarray:
-    return np.array([[1.0, 0.0, tx],
-                     [0.0, 1.0, ty],
-                     [0.0, 0.0, 1.0]], dtype=np.float64)
+    return np.array([[1.0, 0.0, tx], [0.0, 1.0, ty], [0.0, 0.0, 1.0]], dtype=np.float64)
+
 
 def _mat_scale(sx: float, sy: float) -> np.ndarray:
-    return np.array([[sx, 0.0, 0.0],
-                     [0.0, sy, 0.0],
-                     [0.0, 0.0, 1.0]], dtype=np.float64)
+    return np.array([[sx, 0.0, 0.0], [0.0, sy, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
+
 
 def _mat_rotate(deg: float) -> np.ndarray:
     th = math.radians(deg)
     c = math.cos(th)
     s = math.sin(th)
-    return np.array([[c, -s, 0.0],
-                     [s,  c, 0.0],
-                     [0.0, 0.0, 1.0]], dtype=np.float64)
+    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
+
 
 def parse_transform_attr(s: str) -> np.ndarray:
     """
@@ -230,9 +251,7 @@ def parse_transform_attr(s: str) -> np.ndarray:
 
         if fn == "matrix" and len(vals) == 6:
             a, b, c, d, e, f = vals
-            T = np.array([[a, c, e],
-                          [b, d, f],
-                          [0.0, 0.0, 1.0]], dtype=np.float64)
+            T = np.array([[a, c, e], [b, d, f], [0.0, 0.0, 1.0]], dtype=np.float64)
             M = _mat_mul(M, T)
         elif fn == "translate" and len(vals) >= 1:
             tx = vals[0]
@@ -257,7 +276,10 @@ def parse_transform_attr(s: str) -> np.ndarray:
 
     return M
 
-def apply_affine_to_points(pts: List[Tuple[float, float]], M: np.ndarray) -> List[Tuple[float, float]]:
+
+def apply_affine_to_points(
+    pts: List[Tuple[float, float]], M: np.ndarray
+) -> List[Tuple[float, float]]:
     if M is None:
         return pts
     out: List[Tuple[float, float]] = []
@@ -271,6 +293,7 @@ def apply_affine_to_points(pts: List[Tuple[float, float]], M: np.ndarray) -> Lis
 # 几何构建
 # ---------------------------
 
+
 def ring_area_xy(coords: List[Tuple[float, float]]) -> float:
     a = 0.0
     for i in range(len(coords) - 1):
@@ -279,7 +302,10 @@ def ring_area_xy(coords: List[Tuple[float, float]]) -> float:
         a += x1 * y2 - x2 * y1
     return 0.5 * a
 
-def approx_closed_rings_from_path(path: Path, tol_units: float, M: np.ndarray) -> List[List[Tuple[float, float]]]:
+
+def approx_closed_rings_from_path(
+    path: Path, tol_units: float, M: np.ndarray
+) -> List[List[Tuple[float, float]]]:
     rings: List[List[Tuple[float, float]]] = []
     for sub in path.continuous_subpaths():
         if len(sub) == 0:
@@ -306,6 +332,7 @@ def approx_closed_rings_from_path(path: Path, tol_units: float, M: np.ndarray) -
             rings.append(pts)
     return rings
 
+
 def build_polygons_from_rings(rings: List[List[Tuple[float, float]]]) -> List[Polygon]:
     if not rings:
         return []
@@ -318,12 +345,14 @@ def build_polygons_from_rings(rings: List[List[Tuple[float, float]]]) -> List[Po
         if poly.is_empty or poly.area <= 1e-10:
             continue
         area_signed = ring_area_xy(pts)
-        ring_infos.append({
-            "pts": pts,
-            "poly": poly,
-            "abs_area": abs(area_signed),
-            "sign": 1 if area_signed >= 0 else -1,
-        })
+        ring_infos.append(
+            {
+                "pts": pts,
+                "poly": poly,
+                "abs_area": abs(area_signed),
+                "sign": 1 if area_signed >= 0 else -1,
+            }
+        )
 
     if not ring_infos:
         return []
@@ -363,7 +392,10 @@ def build_polygons_from_rings(rings: List[List[Tuple[float, float]]]) -> List[Po
 
     return polys
 
-def transform_svg_units_to_mm(poly: Polygon, vb_minx: float, vb_miny: float, vb_h: float, scale_mm_per_unit: float) -> Polygon:
+
+def transform_svg_units_to_mm(
+    poly: Polygon, vb_minx: float, vb_miny: float, vb_h: float, scale_mm_per_unit: float
+) -> Polygon:
     # 将SVG坐标映射到毫米并翻转Y轴，使+Y在打印空间中为"向上"
     xys = np.asarray(poly.exterior.coords, dtype=np.float64)
     x = (xys[:, 0] - vb_minx) * scale_mm_per_unit
@@ -382,6 +414,7 @@ def transform_svg_units_to_mm(poly: Polygon, vb_minx: float, vb_miny: float, vb_
         p = p.buffer(0)
     return p
 
+
 def extrude_polygon_to_mesh(geom, height_mm: float):
     # trimesh.creation.extrude_polygon 支持Polygon；对于MultiPolygon请在外面做并集
     if geom.is_empty:
@@ -395,6 +428,7 @@ def extrude_polygon_to_mesh(geom, height_mm: float):
         return mesh
     except Exception:
         return None
+
 
 def union_clean(polys: List[Polygon], simplify_mm: float, min_area_mm2: float):
     if not polys:
@@ -423,24 +457,53 @@ def union_clean(polys: List[Polygon], simplify_mm: float, min_area_mm2: float):
 # 主程序
 # ---------------------------
 
+
 def main():
-    ap = argparse.ArgumentParser(description="SVG -> 4个STL（R,G,B,W），按矢量区域（无堆叠）。")
+    ap = argparse.ArgumentParser(
+        description="SVG -> 4个STL（R,G,B,W），按矢量区域（无堆叠）。"
+    )
     ap.add_argument("svg", help="输入SVG")
     ap.add_argument("--outdir", default="out_svg4stl", help="输出目录")
     ap.add_argument("--name", default=None, help="基础名称")
     ap.add_argument("--width-mm", type=float, default=80.0, help="目标宽度（毫米）")
-    ap.add_argument("--thickness-mm", type=float, default=0.8, help="所有区域的挤压厚度")
-    ap.add_argument("--tol-mm", type=float, default=0.2, help="采样容差（毫米等效，控制多边形复杂度）")
-    ap.add_argument("--simplify-mm", type=float, default=0.15, help="shapely简化容差（毫米）")
-    ap.add_argument("--min-area-mm2", type=float, default=0.2, help="丢弃小于此面积（平方毫米）的微小岛屿")
-    ap.add_argument("--strict-palette", action="store_true", help="只接受精确的RGBW填充颜色（测试推荐）")
-    ap.add_argument("--palette-tol", type=int, default=0, help="严格匹配的RGB容差（0-255每通道）")
-    ap.add_argument("--nearest-palette", action="store_true", help="将任意填充分类到最近的RGBW（谨慎使用）")
+    ap.add_argument(
+        "--thickness-mm", type=float, default=0.8, help="所有区域的挤压厚度"
+    )
+    ap.add_argument(
+        "--tol-mm",
+        type=float,
+        default=0.2,
+        help="采样容差（毫米等效，控制多边形复杂度）",
+    )
+    ap.add_argument(
+        "--simplify-mm", type=float, default=0.15, help="shapely简化容差（毫米）"
+    )
+    ap.add_argument(
+        "--min-area-mm2",
+        type=float,
+        default=0.2,
+        help="丢弃小于此面积（平方毫米）的微小岛屿",
+    )
+    ap.add_argument(
+        "--strict-palette",
+        action="store_true",
+        help="只接受精确的RGBW填充颜色（测试推荐）",
+    )
+    ap.add_argument(
+        "--palette-tol", type=int, default=0, help="严格匹配的RGB容差（0-255每通道）"
+    )
+    ap.add_argument(
+        "--nearest-palette",
+        action="store_true",
+        help="将任意填充分类到最近的RGBW（谨慎使用）",
+    )
     ap.add_argument("--export-metadata", action="store_true")
     args = ap.parse_args()
 
     if args.nearest_palette and args.strict_palette:
-        logger.error("错误：请只选择 --strict-palette 或 --nearest-palette 之一，不要同时选择。")
+        logger.error(
+            "错误：请只选择 --strict-palette 或 --nearest-palette 之一，不要同时选择。"
+        )
         raise SystemExit(2)
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -482,7 +545,9 @@ def main():
             key = classify_rgb_to_rgbw_strict(fill, tol=args.palette_tol)
             if key is None:
                 if not warned_unsupported:
-                    logger.warning("警告：发现非RGBW填充。使用 --nearest-palette 自动分类或 --strict-palette 跳过它们。")
+                    logger.warning(
+                        "警告：发现非RGBW填充。使用 --nearest-palette 自动分类或 --strict-palette 跳过它们。"
+                    )
                     warned_unsupported = True
                 skipped += 1
                 continue
@@ -506,7 +571,9 @@ def main():
             )
 
     for key in ["R", "G", "B", "W"]:
-        g = union_clean(buckets[key], simplify_mm=args.simplify_mm, min_area_mm2=args.min_area_mm2)
+        g = union_clean(
+            buckets[key], simplify_mm=args.simplify_mm, min_area_mm2=args.min_area_mm2
+        )
         if g is None:
             logger.info(f"{key}: 空")
             continue
@@ -551,7 +618,10 @@ def main():
 
     if skipped:
         logger.info(f"跳过了 {skipped} 个路径（无填充/非调色板填充/未闭合）。")
-    logger.info("注意：clipPath、渐变、文本、描边不会被展开。导出为带纯色填充的路径以获得最佳效果。")
+    logger.info(
+        "注意：clipPath、渐变、文本、描边不会被展开。导出为带纯色填充的路径以获得最佳效果。"
+    )
+
 
 if __name__ == "__main__":
     main()

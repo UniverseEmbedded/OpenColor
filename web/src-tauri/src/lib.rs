@@ -9,6 +9,8 @@ mod engine;
 mod file_utils;
 mod utils;
 mod cpp_bridge;
+mod workspace;
+mod calibrate;
 
 // 重新导出库模块的公共类型
 pub use library::{LibraryItem, LibraryIndex, parse_oc_short, display_from_short};
@@ -55,6 +57,16 @@ pub fn run() {
             // 管理引擎管理器状态
             app.manage(EngineManager::new(app.handle().clone()));
             
+            // 初始化工作区
+            match workspace::init_workspace(app.handle()) {
+                Ok(ws) => {
+                    println!("[初始化] 工作区初始化成功: {}", ws.name);
+                }
+                Err(e) => {
+                    eprintln!("[错误] 工作区初始化失败: {e}");
+                }
+            }
+            
             println!("[初始化] Tauri 设置完成，耗时 {} ms", setup_start.elapsed().as_millis());
             println!("[初始化] 应用准备就绪，耗时 {} ms", start.elapsed().as_millis());
             Ok(())
@@ -64,22 +76,44 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             ping,
+            // 工作区 API
+            workspace::workspace_get_current,
+            workspace::workspace_set_current,
+            workspace::workspace_create,
+            workspace::workspace_list_recent,
+            workspace::workspace_remove_from_recent,
+            // 引擎 API
             engine::engine_request,
             engine::engine_restart,
             cpp_bridge::cpp_probe,
+            // 文件系统 API
             file_utils::read_file_base64,
             file_utils::read_text_file,
             file_utils::save_text_file,
             file_utils::create_dir,
+            file_utils::file_exists,
+            file_utils::file_select_dialog,
+            file_utils::file_select_folder_dialog,
+            file_utils::file_save_dialog,
             file_utils::save_settings,
             file_utils::load_settings,
+            // 素材库 API
             library::init_library,
             library::get_library_index,
             library::list_album_files,
             library::list_library_files,
             library::import_to_library,
             library::get_library_paths,
-            library::upsert_library_item
+            library::upsert_library_item,
+            // 校准环节 API
+            calibrate::board_gen,
+            calibrate::photo_warp,
+            calibrate::sample_extract,
+            calibrate::sample_update_cell,
+            calibrate::model_train_start,
+            calibrate::model_train_cancel,
+            calibrate::library_list_boards,
+            calibrate::library_list_models,
         ])
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败")

@@ -5,6 +5,7 @@ use base64::Engine;
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
+use tauri_plugin_dialog::{DialogExt, FilePath};
 
 /// Base64 编码的文件数据
 #[derive(Serialize)]
@@ -21,6 +22,11 @@ pub fn guess_mime(path: &Path) -> String {
         "jpg" | "jpeg" => "image/jpeg",
         "webp" => "image/webp",
         "svg" => "image/svg+xml",
+        "json" => "application/json",
+        "txt" => "text/plain",
+        "md" => "text/markdown",
+        "stl" => "model/stl",
+        "3mf" => "model/3mf",
         _ => "application/octet-stream",
     }
     .to_string()
@@ -80,6 +86,120 @@ pub fn create_dir(path: String) -> Result<(), String> {
         msg
     })?;
     Ok(())
+}
+
+/// 检查文件是否存在
+#[tauri::command]
+pub fn file_exists(path: String) -> Result<bool, String> {
+    Ok(Path::new(&path).exists())
+}
+
+/// 打开文件选择对话框
+#[tauri::command]
+pub async fn file_select_dialog(
+    app: AppHandle,
+    title: Option<String>,
+    filters: Option<Vec<(String, Vec<String>)>>,
+    multiple: Option<bool>,
+) -> Result<Option<Vec<String>>, String> {
+    let mut dialog = app.dialog().file();
+    
+    // 设置标题
+    if let Some(t) = title {
+        dialog = dialog.set_title(&t);
+    }
+    
+    // 设置文件过滤器 - 将 Vec<String> 转换为 &[&str]
+    if let Some(f) = filters {
+        for (name, extensions) in f {
+            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+            dialog = dialog.add_filter(name, &ext_refs);
+        }
+    }
+    
+    // 打开对话框
+    let result = dialog.blocking_pick_file();
+    
+    match result {
+        Some(FilePath::Path(path)) => {
+            Ok(Some(vec![path.to_string_lossy().to_string()]))
+        }
+        Some(FilePath::Url(url)) => {
+            Ok(Some(vec![url.to_string()]))
+        }
+        None => Ok(None),
+    }
+}
+
+/// 打开文件夹选择对话框
+#[tauri::command]
+pub async fn file_select_folder_dialog(
+    app: AppHandle,
+    title: Option<String>,
+) -> Result<Option<String>, String> {
+    let dialog = app.dialog().file();
+    
+    // 设置标题
+    let dialog = if let Some(t) = title {
+        dialog.set_title(&t)
+    } else {
+        dialog
+    };
+    
+    // 打开对话框
+    let result = dialog.blocking_pick_folder();
+    
+    match result {
+        Some(FilePath::Path(path)) => {
+            Ok(Some(path.to_string_lossy().to_string()))
+        }
+        Some(FilePath::Url(url)) => {
+            Ok(Some(url.to_string()))
+        }
+        None => Ok(None),
+    }
+}
+
+/// 保存文件对话框
+#[tauri::command]
+pub async fn file_save_dialog(
+    app: AppHandle,
+    title: Option<String>,
+    default_name: Option<String>,
+    filters: Option<Vec<(String, Vec<String>)>>,
+) -> Result<Option<String>, String> {
+    let mut dialog = app.dialog().file();
+    
+    // 设置标题
+    if let Some(t) = title {
+        dialog = dialog.set_title(&t);
+    }
+    
+    // 设置默认文件名
+    if let Some(name) = default_name {
+        dialog = dialog.set_file_name(&name);
+    }
+    
+    // 设置文件过滤器 - 将 Vec<String> 转换为 &[&str]
+    if let Some(f) = filters {
+        for (name, extensions) in f {
+            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+            dialog = dialog.add_filter(name, &ext_refs);
+        }
+    }
+    
+    // 打开对话框
+    let result = dialog.blocking_save_file();
+    
+    match result {
+        Some(FilePath::Path(path)) => {
+            Ok(Some(path.to_string_lossy().to_string()))
+        }
+        Some(FilePath::Url(url)) => {
+            Ok(Some(url.to_string()))
+        }
+        None => Ok(None),
+    }
 }
 
 /// 保存应用设置

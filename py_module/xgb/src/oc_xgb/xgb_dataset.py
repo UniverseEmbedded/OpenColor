@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 class Cell:
     """
     数据集单元格数据类
-    
+
     属性:
         row: 行索引
         col: 列索引
@@ -25,6 +25,7 @@ class Cell:
         measured_rgb: 测量得到的RGB值，None表示未测量
         target_rgb: 目标RGB值，None表示无目标
     """
+
     row: int
     col: int
     enabled: bool
@@ -37,10 +38,10 @@ class Cell:
 def _to_rgb_tuple(x: Any) -> Optional[Tuple[int, int, int]]:
     """
     将输入转换为RGB元组
-    
+
     参数:
         x: 输入数据，可以是列表、元组或None
-        
+
     返回:
         RGB元组(r, g, b)或None
     """
@@ -58,10 +59,10 @@ def _to_rgb_tuple(x: Any) -> Optional[Tuple[int, int, int]]:
 def _to_recipe_dict(x: Any) -> Dict[str, float]:
     """
     将输入转换为配方字典
-    
+
     参数:
         x: 输入数据，应为字典类型
-        
+
     返回:
         键为字符串、值为浮点数的配方字典
     """
@@ -79,13 +80,13 @@ def _to_recipe_dict(x: Any) -> Dict[str, float]:
 def load_dataset_cells(dataset_path: Path) -> List[Cell]:
     """
     加载由calib_sample_build生成的dataset_cells.json文件
-    
+
     参数:
         dataset_path: dataset_cells.json文件的路径
-        
+
     返回:
         Cell对象列表
-        
+
     异常:
         ValueError: 当JSON文件中'cells'键对应的值不是列表时抛出
     """
@@ -104,5 +105,15 @@ def load_dataset_cells(dataset_path: Path) -> List[Cell]:
         recipe = _to_recipe_dict(c.get("recipe"))
         measured_rgb = _to_rgb_tuple(c.get("measured_rgb"))
         target_rgb = _to_rgb_tuple(c.get("target_rgb"))
-        cells.append(Cell(row=row, col=col, enabled=enabled, has_recipe=has_recipe, recipe=recipe, measured_rgb=measured_rgb, target_rgb=target_rgb))
+        cells.append(
+            Cell(
+                row=row,
+                col=col,
+                enabled=enabled,
+                has_recipe=has_recipe,
+                recipe=recipe,
+                measured_rgb=measured_rgb,
+                target_rgb=target_rgb,
+            )
+        )
     return cells

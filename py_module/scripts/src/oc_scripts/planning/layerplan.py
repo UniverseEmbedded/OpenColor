@@ -116,7 +116,7 @@ def _loss(rgb_pred: Vec3, rgb_target: Vec3, w_luma: float = 0.35) -> float:
     dg = rgb_pred[1] - rgb_target[1]
     db = rgb_pred[2] - rgb_target[2]
     # 线性空间中的近似亮度
-    dl = (0.2126 * dr + 0.7152 * dg + 0.0722 * db)
+    dl = 0.2126 * dr + 0.7152 * dg + 0.0722 * db
     return (dr * dr + dg * dg + db * db) + w_luma * (dl * dl)
 
 
@@ -310,7 +310,9 @@ def solve_layers(
         if "T" in counts:
             counts["T"] = layers
         seq = _sequence_from_counts(tokens, [counts[t] for t in tokens], pattern)
-        rgb_pred = _predict_rgb_from_counts(mats, [counts[t] for t in tokens], layer_height)
+        rgb_pred = _predict_rgb_from_counts(
+            mats, [counts[t] for t in tokens], layer_height
+        )
         return LayerPlan(
             mode=mode_key,
             rgba_in=rgba,
@@ -386,7 +388,11 @@ def _interactive_loop(args: argparse.Namespace) -> int:
         if s.lower() in ("q", "quit", "exit"):
             break
         try:
-            if s.startswith("#") or all(c in "0123456789abcdefABCDEF" for c in s) and len(s) in (6, 8):
+            if (
+                s.startswith("#")
+                or all(c in "0123456789abcdefABCDEF" for c in s)
+                and len(s) in (6, 8)
+            ):
                 rgba = _parse_hex_rgba(s)
             else:
                 rgba = _parse_rgba_list(s)
@@ -400,9 +406,13 @@ def _interactive_loop(args: argparse.Namespace) -> int:
                 forbid=tuple(args.forbid or []),
             )
             logic = "-".join(plan.sequence)
-            logger.info(f"  模式={plan.mode} 层数={plan.layers} 高度={plan.layer_height}mm")
-            logger.info(f"  输入={plan.rgba_in}  预测RGB={plan.rgb_pred_srgb}  损失={plan.loss:.6f}")
-            logger.info(f"  计数={ {k:v for k,v in plan.counts.items() if v>0} }")
+            logger.info(
+                f"  模式={plan.mode} 层数={plan.layers} 高度={plan.layer_height}mm"
+            )
+            logger.info(
+                f"  输入={plan.rgba_in}  预测RGB={plan.rgb_pred_srgb}  损失={plan.loss:.6f}"
+            )
+            logger.info(f"  计数={ {k: v for k, v in plan.counts.items() if v > 0} }")
             logger.info(f"  序列={logic}\n")
         except Exception as e:
             logger.error(f"  错误: {e}\n")
@@ -411,11 +421,23 @@ def _interactive_loop(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="RGBA -> 层叠逻辑规划器")
-    p.add_argument("--mode", default="rgbw", choices=list(MATERIAL_PRESETS.keys()), help="材料集合")
+    p.add_argument(
+        "--mode", default="rgbw", choices=list(MATERIAL_PRESETS.keys()), help="材料集合"
+    )
     p.add_argument("--layers", type=int, default=5, help="微层数量")
     p.add_argument("--layer-height", type=float, default=0.08, help="每微层毫米数")
-    p.add_argument("--pattern", default="balanced", choices=["balanced", "grouped"], help="序列排序方式")
-    p.add_argument("--alpha-background", default="white", choices=["white", "black"], help="alpha合成背景")
+    p.add_argument(
+        "--pattern",
+        default="balanced",
+        choices=["balanced", "grouped"],
+        help="序列排序方式",
+    )
+    p.add_argument(
+        "--alpha-background",
+        default="white",
+        choices=["white", "black"],
+        help="alpha合成背景",
+    )
     p.add_argument("--forbid", nargs="*", default=[], help="禁用的标记，如 K T")
 
     g = p.add_mutually_exclusive_group()
@@ -447,7 +469,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     logic = "-".join(plan.sequence)
     logger.info(logic)
     logger.info(f"预测RGB={plan.rgb_pred_srgb} 损失={plan.loss:.6f}")
-    logger.info(f"计数={ {k:v for k,v in plan.counts.items() if v>0} }")
+    logger.info(f"计数={ {k: v for k, v in plan.counts.items() if v > 0} }")
     return 0
 
 

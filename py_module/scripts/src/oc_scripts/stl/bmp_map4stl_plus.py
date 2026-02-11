@@ -32,9 +32,11 @@ from sklearn.cluster import MiniBatchKMeans  # type: ignore
 # 辅助函数
 # ---------------------------
 
+
 def srgb_to_linear01(x: np.ndarray) -> np.ndarray:
     a = 0.055
     return np.where(x <= 0.04045, x / 12.92, ((x + a) / (1 + a)) ** 2.4)
+
 
 def classify_rgba_to_rgbw_nearest(rgb255: Tuple[int, int, int]) -> str:
     # 在线性RGB中最近
@@ -47,9 +49,12 @@ def classify_rgba_to_rgbw_nearest(rgb255: Tuple[int, int, int]) -> str:
     rgb = np.array(rgb255, dtype=np.float32) / 255.0
     rgb_lin = srgb_to_linear01(rgb)
     keys = ["R", "G", "B", "W"]
-    pal_lin = srgb_to_linear01(np.array([pal[k] for k in keys], dtype=np.float32) / 255.0)
+    pal_lin = srgb_to_linear01(
+        np.array([pal[k] for k in keys], dtype=np.float32) / 255.0
+    )
     d2 = np.sum((pal_lin - rgb_lin[None, :]) ** 2, axis=1)
     return keys[int(np.argmin(d2))]
+
 
 def connected_components_4n(mask: np.ndarray) -> np.ndarray:
     # 返回标签0..K，0表示背景
@@ -66,12 +71,18 @@ def connected_components_4n(mask: np.ndarray) -> np.ndarray:
             stack.append((y, x))
             while stack:
                 yy, xx = stack.pop()
-                for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
-                    ny, nx = yy+dy, xx+dx
-                    if 0 <= ny < H and 0 <= nx < W and mask[ny, nx] and lbl[ny, nx] == 0:
+                for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    ny, nx = yy + dy, xx + dx
+                    if (
+                        0 <= ny < H
+                        and 0 <= nx < W
+                        and mask[ny, nx]
+                        and lbl[ny, nx] == 0
+                    ):
                         lbl[ny, nx] = cur
                         stack.append((ny, nx))
     return lbl
+
 
 def build_region_adjacency(region_id: np.ndarray, n_regions: int) -> List[List[int]]:
     H, W = region_id.shape
@@ -85,12 +96,15 @@ def build_region_adjacency(region_id: np.ndarray, n_regions: int) -> List[List[i
             if x + 1 < W:
                 b = region_id[y, x + 1]
                 if b != 0 and b != a:
-                    adj[a].add(b); adj[b].add(a)
+                    adj[a].add(b)
+                    adj[b].add(a)
             if y + 1 < H:
                 b = region_id[y + 1, x]
                 if b != 0 and b != a:
-                    adj[a].add(b); adj[b].add(a)
+                    adj[a].add(b)
+                    adj[b].add(a)
     return [sorted(list(s)) for s in adj]
+
 
 def dsatur_4color(adj: List[List[int]], n_regions: int) -> Dict[int, int]:
     # DSATUR图着色，4色（0..3）
@@ -131,6 +145,7 @@ def dsatur_4color(adj: List[List[int]], n_regions: int) -> Dict[int, int]:
 
     return colors
 
+
 def _rings_from_mask(mask: np.ndarray, simplify_tol: float) -> List[np.ndarray]:
     # 在0.5处的轮廓，返回(x,y)像素坐标中的Nx2数组列表
     rings = []
@@ -150,6 +165,7 @@ def _rings_from_mask(mask: np.ndarray, simplify_tol: float) -> List[np.ndarray]:
                 pts = np.vstack([pts, pts[0]])
         rings.append(pts)
     return rings
+
 
 def mask_to_multipolygon(mask: np.ndarray, min_area: float) -> MultiPolygon:
     """
@@ -215,14 +231,18 @@ def mask_to_multipolygon(mask: np.ndarray, min_area: float) -> MultiPolygon:
         return MultiPolygon([g])
     return g
 
+
 def extrude_geom_to_mesh(geom, height_mm: float, pixel_mm: float):
     if geom is None or geom.is_empty:
         return None
+
     # 将像素坐标转换为毫米
     # shapely通过乘以坐标手动缩放
     def scale_poly(p: Polygon) -> Polygon:
         ext = [(x * pixel_mm, y * pixel_mm) for x, y in p.exterior.coords]
-        holes = [[(x * pixel_mm, y * pixel_mm) for x, y in r.coords] for r in p.interiors]
+        holes = [
+            [(x * pixel_mm, y * pixel_mm) for x, y in r.coords] for r in p.interiors
+        ]
         q = Polygon(ext, holes)
         if not q.is_valid:
             q = q.buffer(0)
@@ -241,15 +261,19 @@ def extrude_geom_to_mesh(geom, height_mm: float, pixel_mm: float):
     except Exception:
         return None
 
+
 def save_debug_png(color_map: np.ndarray, out_path: str):
     # color_map是HxW，值0..3
     # 0:R 1:G 2:B 3:W（仅用于可视化）
-    palette = np.array([
-        [255, 0, 0],
-        [0, 255, 0],
-        [0, 0, 255],
-        [255, 255, 255],
-    ], dtype=np.uint8)
+    palette = np.array(
+        [
+            [255, 0, 0],
+            [0, 255, 0],
+            [0, 0, 255],
+            [255, 255, 255],
+        ],
+        dtype=np.uint8,
+    )
     img = palette[color_map]
     Image.fromarray(img, mode="RGB").save(out_path)
 
@@ -258,18 +282,34 @@ def save_debug_png(color_map: np.ndarray, out_path: str):
 # 主程序
 # ---------------------------
 
+
 def main():
-    ap = argparse.ArgumentParser(description="位图 -> 4个STL（R,G,B,W），按矢量区域（无堆叠，无重叠）。")
+    ap = argparse.ArgumentParser(
+        description="位图 -> 4个STL（R,G,B,W），按矢量区域（无堆叠，无重叠）。"
+    )
     ap.add_argument("image", help="输入位图（png/jpg）")
     ap.add_argument("--outdir", default="out_bmp4stl", help="输出目录")
     ap.add_argument("--name", default=None, help="基础名称")
     ap.add_argument("--width-mm", type=float, default=80.0, help="目标物理宽度（毫米）")
-    ap.add_argument("--pixel-mm", type=float, default=0.5, help="每像素采样大小（毫米）")
-    ap.add_argument("--thickness-mm", type=float, default=0.8, help="所有区域的挤压厚度")
-    ap.add_argument("--alpha-threshold", type=int, default=1, help="alpha <= 阈值视为空")
-    ap.add_argument("--blur", type=float, default=0.0, help="量化前高斯模糊半径（像素）")
+    ap.add_argument(
+        "--pixel-mm", type=float, default=0.5, help="每像素采样大小（毫米）"
+    )
+    ap.add_argument(
+        "--thickness-mm", type=float, default=0.8, help="所有区域的挤压厚度"
+    )
+    ap.add_argument(
+        "--alpha-threshold", type=int, default=1, help="alpha <= 阈值视为空"
+    )
+    ap.add_argument(
+        "--blur", type=float, default=0.0, help="量化前高斯模糊半径（像素）"
+    )
     ap.add_argument("--k", type=int, default=16, help="区域提取前的kmeans调色板大小")
-    ap.add_argument("--min-area-mm2", type=float, default=0.2, help="丢弃小于此面积（平方毫米）的岛屿")
+    ap.add_argument(
+        "--min-area-mm2",
+        type=float,
+        default=0.2,
+        help="丢弃小于此面积（平方毫米）的岛屿",
+    )
     ap.add_argument("--debug-png", action="store_true", help="写入4色分配的调试PNG")
     ap.add_argument("--export-metadata", action="store_true")
     args = ap.parse_args()
@@ -304,14 +344,18 @@ def main():
 
     # kmeans量化
     k = max(2, int(args.k))
-    km = MiniBatchKMeans(n_clusters=min(k, rgb_valid.shape[0]), random_state=0, n_init="auto")
+    km = MiniBatchKMeans(
+        n_clusters=min(k, rgb_valid.shape[0]), random_state=0, n_init="auto"
+    )
     km.fit(rgb_valid)
     centers = km.cluster_centers_.astype(np.float32)  # K x 3
     labels = np.full((H * W,), -1, dtype=np.int32)
     labels[valid_flat] = km.predict(rgb_valid)
 
     # 将kmeans中心映射到RGBW（最近）
-    center_to_rgbw = [classify_rgba_to_rgbw_nearest(tuple(map(int, c))) for c in centers]
+    center_to_rgbw = [
+        classify_rgba_to_rgbw_nearest(tuple(map(int, c))) for c in centers
+    ]
 
     # 为每个（kmeans标签）构建区域掩码，然后分割CC到区域
     region_id = np.zeros((H, W), dtype=np.int32)
@@ -320,7 +364,7 @@ def main():
     rid_to_center_rgb255: Dict[int, Tuple[int, int, int]] = {}
 
     for li in range(centers.shape[0]):
-        m = (labels.reshape(H, W) == li)
+        m = labels.reshape(H, W) == li
         if not m.any():
             continue
         cc = connected_components_4n(m)
@@ -330,7 +374,11 @@ def main():
             region_id[cc == cci] = rid
             rid_to_rgbw[rid] = center_to_rgbw[li]
             c = centers[li]
-            rid_to_center_rgb255[rid] = (int(round(float(c[0]))), int(round(float(c[1]))), int(round(float(c[2]))))
+            rid_to_center_rgb255[rid] = (
+                int(round(float(c[0]))),
+                int(round(float(c[1]))),
+                int(round(float(c[2]))),
+            )
 
     n_regions = rid
     if n_regions == 0:
@@ -345,7 +393,7 @@ def main():
     # 我们将在4个输出通道中累积多边形
     out_polys: List[List[Polygon]] = [[], [], [], []]
 
-    min_area_px2 = args.min_area_mm2 / (args.pixel_mm ** 2)
+    min_area_px2 = args.min_area_mm2 / (args.pixel_mm**2)
 
     # 为了速度：为每个rid预计算bbox
     ys, xs = np.where(region_id > 0)
@@ -359,10 +407,12 @@ def main():
         x0, x1 = int(xx.min()), int(xx.max()) + 1
         # 为轮廓稳定性填充2像素
         pad = 2
-        y0p = max(0, y0 - pad); y1p = min(H, y1 + pad)
-        x0p = max(0, x0 - pad); x1p = min(W, x1 + pad)
+        y0p = max(0, y0 - pad)
+        y1p = min(H, y1 + pad)
+        x0p = max(0, x0 - pad)
+        x1p = min(W, x1 + pad)
 
-        sub = (region_id[y0p:y1p, x0p:x1p] == r)
+        sub = region_id[y0p:y1p, x0p:x1p] == r
         if sub.sum() < 4:
             continue
 
@@ -374,7 +424,9 @@ def main():
         shifted_parts = []
         for p in geom.geoms:
             ext = [(x + x0p, y + y0p) for x, y in p.exterior.coords]
-            holes = [[(x + x0p, y + y0p) for x, y in ring.coords] for ring in p.interiors]
+            holes = [
+                [(x + x0p, y + y0p) for x, y in ring.coords] for ring in p.interiors
+            ]
             q = Polygon(ext, holes)
             if not q.is_valid:
                 q = q.buffer(0)
@@ -391,7 +443,11 @@ def main():
         regions_meta.append(
             {
                 "region_id": int(r),
-                "center_rgb255": [int(rid_to_center_rgb255[r][0]), int(rid_to_center_rgb255[r][1]), int(rid_to_center_rgb255[r][2])],
+                "center_rgb255": [
+                    int(rid_to_center_rgb255[r][0]),
+                    int(rid_to_center_rgb255[r][1]),
+                    int(rid_to_center_rgb255[r][2]),
+                ],
                 "class_rgbw": str(rid_to_rgbw[r]),
                 "channel": int(cidx),
                 "bbox_px": [int(x0), int(y0), int(x1), int(y1)],
@@ -414,7 +470,11 @@ def main():
     for i in range(4):
         if unions[i] is None or unions[i].is_empty:
             continue
-        others = [unions[j] for j in range(4) if j != i and unions[j] is not None and not unions[j].is_empty]
+        others = [
+            unions[j]
+            for j in range(4)
+            if j != i and unions[j] is not None and not unions[j].is_empty
+        ]
         if others:
             unions[i] = unions[i].difference(unary_union(others)).buffer(0)
 
@@ -436,7 +496,9 @@ def main():
         if g is None or g.is_empty:
             logger.info(f"{ch_names[i]}: 空")
             continue
-        mesh = extrude_geom_to_mesh(g, height_mm=args.thickness_mm, pixel_mm=args.pixel_mm)
+        mesh = extrude_geom_to_mesh(
+            g, height_mm=args.thickness_mm, pixel_mm=args.pixel_mm
+        )
         if mesh is None:
             logger.error(f"{ch_names[i]}: 挤压失败（earcut安装？无效几何？）")
             continue
@@ -472,6 +534,7 @@ def main():
 
     logger.info("注意：此脚本将区域分区为4个非重叠STL通道用于测试流程和几何。")
     logger.info("      它尚未实现RGBW每层堆叠；旨在作为几何流程验证器。")
+
 
 if __name__ == "__main__":
     main()

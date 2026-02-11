@@ -13,10 +13,10 @@ import numpy as np
 def srgb255_to_lab(rgb255: np.ndarray) -> np.ndarray:
     """
     将sRGB(0-255)颜色空间转换为CIE Lab颜色空间
-    
+
     参数:
         rgb255: 输入数组，形状为(...,3)，数据类型为uint8或float，表示sRGB颜色值(0-255)
-        
+
     返回:
         Lab颜色数组，形状为(...,3)，数据类型为float32
         L通道范围[0, 100]，a/b通道范围[-128, 127]
@@ -31,10 +31,10 @@ def srgb255_to_lab(rgb255: np.ndarray) -> np.ndarray:
 def lab_to_srgb255(lab: np.ndarray) -> np.ndarray:
     """
     将CIE Lab颜色空间转换为sRGB(0-255)颜色空间
-    
+
     参数:
         lab: 输入数组，形状为(...,3)，数据类型为float32，表示OpenCV格式的Lab颜色值
-        
+
     返回:
         sRGB颜色数组，形状为(...,3)，数据类型为uint8，值范围[0, 255]
     """

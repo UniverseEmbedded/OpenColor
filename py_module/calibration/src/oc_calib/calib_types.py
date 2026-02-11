@@ -10,22 +10,23 @@ from typing import Dict, List, Tuple, Any
 @dataclass
 class Observation:
     """单张照片的分析结果 (Observation)"""
+
     board_id: str  # 指向 BoardSpec
     photo_id: str
     photo_path: str
-    
+
     # 用户手调的四角点
     warp_corners: List[Tuple[float, float]]
-    
+
     # 算法参数
     warp_params: Dict[str, Any] = field(default_factory=dict)
-    
+
     # cell_id -> {rgb: [r,g,b], ...}
     cell_measurements: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    
+
     # 诊断信息
     diagnostics: Dict[str, str] = field(default_factory=dict)
-    
+
     timestamp: float = field(default_factory=lambda: 0.0)
 
     def to_json(self) -> str:

@@ -1,4 +1,5 @@
 """互斥裁剪模块 - 提供图层互斥裁剪功能"""
+
 import traceback
 from time import perf_counter
 
@@ -66,7 +67,9 @@ def _loops_to_evenodd_polygon(loops):
         if p.geom_type == "Polygon":
             rings.append(p)
         else:
-            rings.extend([g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9])
+            rings.extend(
+                [g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9]
+            )
 
     if not rings:
         return Polygon()
@@ -80,8 +83,17 @@ def _loops_to_evenodd_polygon(loops):
 _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT: float | None = None
 
 
-def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: float, *, use_cpp: bool, progress: bool, tag: str) -> dict:
+def _make_layer_exclusive(
+    layer_polys: dict,
+    ordered_slots: list,
+    grid_size: float,
+    *,
+    use_cpp: bool,
+    progress: bool,
+    tag: str,
+) -> dict:
     """使图层多边形互斥（不重叠）"""
+
     def _python_impl() -> dict:
         layer_occupied = None
         out = {}
@@ -97,7 +109,12 @@ def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: flo
                 return it
             return tqdm(it, total=total, desc=desc, dynamic_ncols=True)
 
-        it = _tqdm(ordered_slots, total=len(ordered_slots), desc=f"{tag} 互斥裁剪(Python)", enabled=progress)
+        it = _tqdm(
+            ordered_slots,
+            total=len(ordered_slots),
+            desc=f"{tag} 互斥裁剪(Python)",
+            enabled=progress,
+        )
         for slot_name in it:
             if slot_name not in layer_polys:
                 continue
@@ -107,7 +124,9 @@ def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: flo
                 try:
                     p = _to_polygonal(p.difference(occ, grid_size=grid_size))
                 except GEOSException as e:
-                    logger.error(f"  [警告] 互斥裁剪(difference)启用grid_size失败，已回退到普通差集。slot={slot_name}，原因={e}")
+                    logger.error(
+                        f"  [警告] 互斥裁剪(difference)启用grid_size失败，已回退到普通差集。slot={slot_name}，原因={e}"
+                    )
                     p = _to_polygonal(p.difference(occ))
             if not p.is_empty:
                 if not p.is_valid:
@@ -118,9 +137,13 @@ def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: flo
                 else:
                     occ = _to_polygonal(layer_occupied)
                     try:
-                        layer_occupied = _to_polygonal(occ.union(p, grid_size=grid_size))
+                        layer_occupied = _to_polygonal(
+                            occ.union(p, grid_size=grid_size)
+                        )
                     except GEOSException as e:
-                        logger.error(f"  [警告] 更新占用区域(union)启用grid_size失败，已回退到普通并集。slot={slot_name}，原因={e}")
+                        logger.error(
+                            f"  [警告] 更新占用区域(union)启用grid_size失败，已回退到普通并集。slot={slot_name}，原因={e}"
+                        )
                         layer_occupied = _to_polygonal(occ.union(p))
         dt = perf_counter() - t0
         logger.info(f"{tag} 互斥裁剪(Python)完成，用时 {dt:.3f}s")
@@ -128,7 +151,9 @@ def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: flo
 
     if (not use_cpp) or (cpp_geometry is None):
         if use_cpp and (cpp_geometry is None):
-            raise RuntimeError(f"{tag} 互斥裁剪：已选择 C++ 实现，但未能加载 opencolor_geometry")
+            raise RuntimeError(
+                f"{tag} 互斥裁剪：已选择 C++ 实现，但未能加载 opencolor_geometry"
+            )
         return _python_impl()
 
     global _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT
@@ -157,7 +182,11 @@ def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: flo
     dt = perf_counter() - t0
     if n > 0:
         per = dt / float(n)
-        _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT = per if _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT is None else (0.8 * _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT + 0.2 * per)
+        _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT = (
+            per
+            if _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT is None
+            else (0.8 * _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT + 0.2 * per)
+        )
     logger.info(f"{tag} 互斥裁剪(C++)完成，用时 {dt:.3f}s")
 
     out = {}
@@ -176,21 +205,33 @@ def _make_layer_exclusive(layer_polys: dict, ordered_slots: list, grid_size: flo
                 if gt == "Polygon":
                     built.append(p)
                 elif gt == "MultiPolygon":
-                    built.extend([g for g in p.geoms if (not getattr(g, "is_empty", True)) and getattr(g, "geom_type", "") == "Polygon"])
+                    built.extend(
+                        [
+                            g
+                            for g in p.geoms
+                            if (not getattr(g, "is_empty", True))
+                            and getattr(g, "geom_type", "") == "Polygon"
+                        ]
+                    )
             if built:
                 g = built[0] if len(built) == 1 else MultiPolygon(built)
                 if not getattr(g, "is_valid", True):
                     try:
                         from shapely import make_valid
+
                         g = make_valid(g)
                     except Exception as e:
-                        logger.error(f"  [警告] C++互斥裁剪结果 make_valid 失败: slot={slot_name}，原因={e}")
+                        logger.error(
+                            f"  [警告] C++互斥裁剪结果 make_valid 失败: slot={slot_name}，原因={e}"
+                        )
                         traceback.print_exc()
                         g = g.buffer(0)
             else:
                 g = Polygon()
         except Exception as e:
-            logger.error(f"  [错误] C++互斥裁剪结果重建失败: slot={slot_name}，原因={e}")
+            logger.error(
+                f"  [错误] C++互斥裁剪结果重建失败: slot={slot_name}，原因={e}"
+            )
             traceback.print_exc()
             raise
 

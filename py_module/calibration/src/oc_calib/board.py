@@ -64,6 +64,7 @@ def _normalize_materials(materials: Any) -> List[Dict[str, Any]]:
 @dataclass
 class BoardParams:
     """校准板参数"""
+
     color_system: str = "RYBW"
     n_layers: int = 5
     cell_size_mm: float = 0.42
@@ -79,7 +80,7 @@ class BoardParams:
     primary_tag_id: int = 0
     secondary_tag_id: int = 1
     tag_module_size: int = 2  # 每个 Tag 像素占用 2x2 个单元格 (2 * 0.42 = 0.84mm)
-    tag_padding: int = 1      # Tag 与核心数据区域之间的间隔
+    tag_padding: int = 1  # Tag 与核心数据区域之间的间隔
 
     @property
     def tag_total_cells(self) -> int:
@@ -99,6 +100,7 @@ class BoardParams:
             return 0
         return self.tag_total_cells + self.tag_padding
 
+
 def get_apriltag_36h11_pattern(tag_id: int) -> np.ndarray:
     """使用 cv2.aruco 返回 tag36h11 的 8x8 位矩阵 (0=黑, 1=白)"""
     dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11)
@@ -109,11 +111,13 @@ def get_apriltag_36h11_pattern(tag_id: int) -> np.ndarray:
     pattern = (marker_img > 127).astype(np.int8)
     return pattern
 
+
 def get_apriltag_16h5_pattern(tag_id: int) -> np.ndarray:
     dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_16h5)
     marker_img = dictionary.generateImageMarker(tag_id, 6)
     pattern = (marker_img > 127).astype(np.int8)
     return pattern
+
 
 def build_board_volumes(params: BoardParams) -> Dict[str, np.ndarray]:
     """构建校准板的体素体积数据
@@ -130,8 +134,8 @@ def build_board_volumes(params: BoardParams) -> Dict[str, np.ndarray]:
     data = params.data_cells
     offset = params.data_offset
 
-    all_digits = np.zeros((4 ** n, n), dtype=np.int8)
-    for idx in range(4 ** n):
+    all_digits = np.zeros((4**n, n), dtype=np.int8)
+    for idx in range(4**n):
         all_digits[idx] = np.array(int_to_recipe(idx, n).layers, dtype=np.int8)
 
     board_digits = np.zeros((total, total, n), dtype=np.int8)
@@ -173,7 +177,7 @@ def build_board_volumes(params: BoardParams) -> Dict[str, np.ndarray]:
                 slot = white_slot if val == 1 else black_slot
                 for dy in range(ms):
                     for dx in range(ms):
-                        board_digits[my*ms + dy, mx*ms + dx] = slot
+                        board_digits[my * ms + dy, mx * ms + dx] = slot
 
         s_start = total - ts
         for my in range(8):
@@ -182,7 +186,9 @@ def build_board_volumes(params: BoardParams) -> Dict[str, np.ndarray]:
                 slot = white_slot if val == 1 else black_slot
                 for dy in range(ms):
                     for dx in range(ms):
-                        board_digits[s_start + my*ms + dy, s_start + mx*ms + dx] = slot
+                        board_digits[s_start + my * ms + dy, s_start + mx * ms + dx] = (
+                            slot
+                        )
 
     volumes: Dict[str, np.ndarray] = {}
     for slot_name in cs.slot_names:
@@ -259,12 +265,20 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
             elif (x, y) == (0, total - 1):
                 color = cs.slot_preview_rgb[cs.corner_marker_by_corner["BL"]]
             # AprilTag override (Top Layer)
-            elif params.enable_apriltag and 2 <= x < 2 + params.tag_size_cells and 2 <= y < 2 + params.tag_size_cells:
+            elif (
+                params.enable_apriltag
+                and 2 <= x < 2 + params.tag_size_cells
+                and 2 <= y < 2 + params.tag_size_cells
+            ):
                 p_pattern = get_apriltag_36h11_pattern(params.primary_tag_id)
                 val = p_pattern[y - 2, x - 2]
                 # 在预览图中强制使用纯黑白，确保检测器能识别
                 color = (255, 255, 255) if val == 1 else (0, 0, 0)
-            elif params.enable_apriltag and (total - 2 - params.tag_size_cells) <= x < (total - 2) and (total - 2 - params.tag_size_cells) <= y < (total - 2):
+            elif (
+                params.enable_apriltag
+                and (total - 2 - params.tag_size_cells) <= x < (total - 2)
+                and (total - 2 - params.tag_size_cells) <= y < (total - 2)
+            ):
                 s_pattern = get_apriltag_36h11_pattern(params.secondary_tag_id)
                 ts = params.tag_size_cells
                 start_s = total - 2 - ts
@@ -282,7 +296,9 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
 
             x0 = x * px_per_cell
             y0 = y * px_per_cell
-            draw.rectangle([x0, y0, x0 + px_per_cell - 1, y0 + px_per_cell - 1], fill=color)
+            draw.rectangle(
+                [x0, y0, x0 + px_per_cell - 1, y0 + px_per_cell - 1], fill=color
+            )
 
     # grid (skip tag areas)
     ts = params.tag_size_cells
@@ -290,26 +306,34 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
     p_end = 2 + ts
     s_start = total - 2 - ts
     s_end = total - 2
-    
+
     for i in range(total + 1):
         pos = i * px_per_cell
-        
+
         # Vertical lines
         if params.enable_apriltag:
             # Check if line i is within primary or secondary tag x-range
-            in_p_x = (p_start <= i <= p_end)
-            in_s_x = (s_start <= i <= s_end)
-            
+            in_p_x = p_start <= i <= p_end
+            in_s_x = s_start <= i <= s_end
+
             if in_p_x:
                 # Top part (above primary tag)
                 draw.line([pos, 0, pos, p_start * px_per_cell], fill=(0, 0, 0), width=1)
                 # Bottom part (below primary tag)
-                draw.line([pos, p_end * px_per_cell, pos, total * px_per_cell], fill=(0, 0, 0), width=1)
+                draw.line(
+                    [pos, p_end * px_per_cell, pos, total * px_per_cell],
+                    fill=(0, 0, 0),
+                    width=1,
+                )
             elif in_s_x:
                 # Top part (above secondary tag)
                 draw.line([pos, 0, pos, s_start * px_per_cell], fill=(0, 0, 0), width=1)
                 # Bottom part (below secondary tag)
-                draw.line([pos, s_end * px_per_cell, pos, total * px_per_cell], fill=(0, 0, 0), width=1)
+                draw.line(
+                    [pos, s_end * px_per_cell, pos, total * px_per_cell],
+                    fill=(0, 0, 0),
+                    width=1,
+                )
             else:
                 draw.line([pos, 0, pos, total * px_per_cell], fill=(0, 0, 0), width=1)
         else:
@@ -317,19 +341,27 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
 
         # Horizontal lines
         if params.enable_apriltag:
-            in_p_y = (p_start <= i <= p_end)
-            in_s_y = (s_start <= i <= s_end)
-            
+            in_p_y = p_start <= i <= p_end
+            in_s_y = s_start <= i <= s_end
+
             if in_p_y:
                 # Left part
                 draw.line([0, pos, p_start * px_per_cell, pos], fill=(0, 0, 0), width=1)
                 # Right part
-                draw.line([p_end * px_per_cell, pos, total * px_per_cell, pos], fill=(0, 0, 0), width=1)
+                draw.line(
+                    [p_end * px_per_cell, pos, total * px_per_cell, pos],
+                    fill=(0, 0, 0),
+                    width=1,
+                )
             elif in_s_y:
                 # Left part
                 draw.line([0, pos, s_start * px_per_cell, pos], fill=(0, 0, 0), width=1)
                 # Right part
-                draw.line([s_end * px_per_cell, pos, total * px_per_cell, pos], fill=(0, 0, 0), width=1)
+                draw.line(
+                    [s_end * px_per_cell, pos, total * px_per_cell, pos],
+                    fill=(0, 0, 0),
+                    width=1,
+                )
             else:
                 draw.line([0, pos, total * px_per_cell, pos], fill=(0, 0, 0), width=1)
         else:
@@ -357,10 +389,8 @@ def export_board_stls(params: BoardParams, out_dir: Path) -> Dict[str, Any]:
     spec_path = out_dir / "board_spec.json"
     spec.save(spec_path)
 
-    return {
-        "stls": stl_paths,
-        "spec": spec_path
-    }
+    return {"stls": stl_paths, "spec": spec_path}
+
 
 def create_board_spec(params: BoardParams) -> BoardSpec:
     """根据参数创建 BoardSpec"""
@@ -377,8 +407,8 @@ def create_board_spec(params: BoardParams) -> BoardSpec:
             "TL": (0, 0),
             "TR": (total - 1, 0),
             "BR": (total - 1, total - 1),
-            "BL": (0, total - 1)
-        }
+            "BL": (0, total - 1),
+        },
     )
 
     # 填充 cell_map
@@ -389,7 +419,7 @@ def create_board_spec(params: BoardParams) -> BoardSpec:
                 recipe = int_to_recipe(idx, n)
                 spec.cell_map[f"{y},{x}"] = {
                     "recipe_index": idx,
-                    "layers": recipe.layers
+                    "layers": recipe.layers,
                 }
 
     # 添加 AprilTag 信息
@@ -408,8 +438,8 @@ def create_board_spec(params: BoardParams) -> BoardSpec:
                 [p_x, p_y],
                 [p_x + tag_size, p_y],
                 [p_x + tag_size, p_y + tag_size],
-                [p_x, p_y + tag_size]
-            ]
+                [p_x, p_y + tag_size],
+            ],
         }
 
         # Secondary Tag (右下)
@@ -422,13 +452,13 @@ def create_board_spec(params: BoardParams) -> BoardSpec:
                 [s_x, s_y],
                 [s_x + tag_size, s_y],
                 [s_x + tag_size, s_y + tag_size],
-                [s_x, s_y + tag_size]
-            ]
+                [s_x, s_y + tag_size],
+            ],
         }
         spec.apriltag["id_encoding"] = {
             "scheme": "default",
             "primary_id": params.primary_tag_id,
-            "secondary_id": params.secondary_tag_id
+            "secondary_id": params.secondary_tag_id,
         }
 
     return spec
@@ -449,14 +479,21 @@ def build_board_meshes_from_volumes(
     return meshes
 
 
-def build_board_volumes_from_spec(spec: BoardSpec) -> tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+def build_board_volumes_from_spec(
+    spec: BoardSpec,
+) -> tuple[Dict[str, np.ndarray], Dict[str, Any]]:
     """根据校准板规格构建体素体积数据"""
     pp = spec.print_profile or {}
     materials = pp.get("materials")
     slot_names = pp.get("slot_names")
     cs: ColorSystem | None = None
     color_system = None
-    if not (isinstance(materials, list) and isinstance(slot_names, list) and len(materials) == len(slot_names) and len(slot_names) > 0):
+    if not (
+        isinstance(materials, list)
+        and isinstance(slot_names, list)
+        and len(materials) == len(slot_names)
+        and len(slot_names) > 0
+    ):
         color_system = str(pp.get("color_system") or "RYBW")
         cs = ALL_SYSTEMS[color_system]
         slot_names = list(cs.slot_names)
@@ -465,7 +502,9 @@ def build_board_volumes_from_spec(spec: BoardSpec) -> tuple[Dict[str, np.ndarray
     cell_size_mm = float(spec.cell_size_mm or 0.42)
     layer_height_mm = float(pp.get("layer_height_mm") or 0.2)
 
-    volumes: Dict[str, np.ndarray] = {str(name): np.zeros((n, total, total), dtype=bool) for name in slot_names}
+    volumes: Dict[str, np.ndarray] = {
+        str(name): np.zeros((n, total, total), dtype=bool) for name in slot_names
+    }
 
     for slot_name in slot_names:
         volumes[slot_name][:, :, :] = False
@@ -559,9 +598,13 @@ def export_board_standard_3mf(params: BoardParams, out_3mf: Path) -> Path:
         layer_height_mm=params.layer_height_mm,
     )
 
-    materials = _normalize_materials(params.materials) if params.materials is not None else None
+    materials = (
+        _normalize_materials(params.materials) if params.materials is not None else None
+    )
     if materials is not None:
-        slot_names_all = [str(m.get("name") or f"M{i}") for i, m in enumerate(materials)]
+        slot_names_all = [
+            str(m.get("name") or f"M{i}") for i, m in enumerate(materials)
+        ]
         slot_colors: Dict[str, Tuple[int, int, int, int]] = {}
         for i, m in enumerate(materials):
             name = slot_names_all[i]
@@ -570,7 +613,9 @@ def export_board_standard_3mf(params: BoardParams, out_3mf: Path) -> Path:
         slot_names_used = [
             sn
             for sn in slot_names_all
-            if meshes.get(sn) is not None and getattr(meshes[sn], "faces", None) is not None and len(meshes[sn].faces) > 0
+            if meshes.get(sn) is not None
+            and getattr(meshes[sn], "faces", None) is not None
+            and len(meshes[sn].faces) > 0
         ]
 
         export_standard_3mf_from_meshes(
@@ -586,10 +631,17 @@ def export_board_standard_3mf(params: BoardParams, out_3mf: Path) -> Path:
     slot_names_used = [
         sn
         for sn in cs.slot_names
-        if meshes.get(sn) is not None and getattr(meshes[sn], "faces", None) is not None and len(meshes[sn].faces) > 0
+        if meshes.get(sn) is not None
+        and getattr(meshes[sn], "faces", None) is not None
+        and len(meshes[sn].faces) > 0
     ]
     slot_colors: Dict[str, Tuple[int, int, int, int]] = {
-        sn: (int(cs.slot_preview_rgb[sn][0]), int(cs.slot_preview_rgb[sn][1]), int(cs.slot_preview_rgb[sn][2]), 255)
+        sn: (
+            int(cs.slot_preview_rgb[sn][0]),
+            int(cs.slot_preview_rgb[sn][1]),
+            int(cs.slot_preview_rgb[sn][2]),
+            255,
+        )
         for sn in cs.slot_names
         if sn in cs.slot_preview_rgb
     }
@@ -608,7 +660,12 @@ def export_board_standard_3mf_from_spec(spec: BoardSpec, out_3mf: Path) -> Path:
     volumes, info = build_board_volumes_from_spec(spec)
     mats = info.get("materials")
     slot_names_any = info.get("slot_names")
-    if isinstance(mats, list) and isinstance(slot_names_any, list) and len(mats) == len(slot_names_any) and len(slot_names_any) > 0:
+    if (
+        isinstance(mats, list)
+        and isinstance(slot_names_any, list)
+        and len(mats) == len(slot_names_any)
+        and len(slot_names_any) > 0
+    ):
         slot_colors: Dict[str, Tuple[int, int, int, int]] = {}
         for i, m in enumerate(mats):
             name = str(slot_names_any[i])
@@ -625,7 +682,9 @@ def export_board_standard_3mf_from_spec(spec: BoardSpec, out_3mf: Path) -> Path:
         slot_names_used = [
             sn
             for sn in slot_names_any
-            if meshes.get(sn) is not None and getattr(meshes[sn], "faces", None) is not None and len(meshes[sn].faces) > 0
+            if meshes.get(sn) is not None
+            and getattr(meshes[sn], "faces", None) is not None
+            and len(meshes[sn].faces) > 0
         ]
 
         export_standard_3mf_from_meshes(
@@ -647,10 +706,17 @@ def export_board_standard_3mf_from_spec(spec: BoardSpec, out_3mf: Path) -> Path:
     slot_names_used = [
         sn
         for sn in cs.slot_names
-        if meshes.get(sn) is not None and getattr(meshes[sn], "faces", None) is not None and len(meshes[sn].faces) > 0
+        if meshes.get(sn) is not None
+        and getattr(meshes[sn], "faces", None) is not None
+        and len(meshes[sn].faces) > 0
     ]
     slot_colors: Dict[str, Tuple[int, int, int, int]] = {
-        sn: (int(cs.slot_preview_rgb[sn][0]), int(cs.slot_preview_rgb[sn][1]), int(cs.slot_preview_rgb[sn][2]), 255)
+        sn: (
+            int(cs.slot_preview_rgb[sn][0]),
+            int(cs.slot_preview_rgb[sn][1]),
+            int(cs.slot_preview_rgb[sn][2]),
+            255,
+        )
         for sn in cs.slot_names
         if sn in cs.slot_preview_rgb
     }
@@ -669,7 +735,11 @@ def export_board_stls_from_spec(spec: BoardSpec, out_dir: Path) -> Dict[str, Pat
     volumes, info = build_board_volumes_from_spec(spec)
     mats = info.get("materials")
     slot_names_any = info.get("slot_names")
-    if isinstance(mats, list) and isinstance(slot_names_any, list) and len(slot_names_any) > 0:
+    if (
+        isinstance(mats, list)
+        and isinstance(slot_names_any, list)
+        and len(slot_names_any) > 0
+    ):
         meshes = build_board_meshes_from_volumes(
             volumes=volumes,
             cell_size_mm=float(info.get("cell_size_mm") or 0.42),

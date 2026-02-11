@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class SDFParams:
     """SDF 算法特有参数（默认偏“稳”和“顺”，宁可略厚也不要空洞）。"""
+
     # SDF 平滑强度：相当于“扩散半径”。数值越大边界越顺，但也更容易吞掉细线。
     # 建议范围：1.2 ~ 2.0
     smooth_sigma: float = 1.5

@@ -9,6 +9,7 @@ import traceback
 from pathlib import Path
 
 from loguru import logger as _logger
+
 _logger.remove()
 _logger.add(sys.stderr, format="<level>{message}</level>", level="INFO", colorize=True)
 
@@ -29,7 +30,8 @@ def main():
     # 获取所有图片文件
     image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp"}
     image_files = [
-        f for f in image_dir.iterdir()
+        f
+        for f in image_dir.iterdir()
         if f.is_file() and f.suffix.lower() in image_extensions
     ]
 
@@ -46,9 +48,9 @@ def main():
     fail_count = 0
 
     for img_path in sorted(image_files):
-        logger.info(f"\n{'='*70}")
+        logger.info(f"\n{'=' * 70}")
         logger.info(f"开始处理: {img_path.name}")
-        logger.info(f"{'='*70}")
+        logger.info(f"{'=' * 70}")
 
         try:
             result = run(
@@ -78,11 +80,11 @@ def main():
             fail_count += 1
 
     # 汇总报告
-    logger.info(f"\n{'='*70}")
+    logger.info(f"\n{'=' * 70}")
     logger.info(f"批量处理完成!")
-    logger.info(f"{'='*70}")
+    logger.info(f"{'=' * 70}")
     logger.info(f"成功={success_count}, 失败={fail_count}")
-    logger.info(f"{'='*70}")
+    logger.info(f"{'=' * 70}")
 
 
 if __name__ == "__main__":

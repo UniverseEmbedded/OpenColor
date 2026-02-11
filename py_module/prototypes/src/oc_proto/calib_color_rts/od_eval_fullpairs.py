@@ -6,10 +6,11 @@ import os
 import numpy as np
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def srgb_to_linear(u):
     """将sRGB值转换为线性RGB值"""
     u = np.clip(u, 0, 1)
@@ -25,11 +26,14 @@ def linear_to_srgb(u):
 
 
 # sRGB到XYZ的转换矩阵（D65白点）
-M_RGB2XYZ = np.array([
-    [0.4124564, 0.3575761, 0.1804375],
-    [0.2126729, 0.7151522, 0.0721750],
-    [0.0193339, 0.1191920, 0.9503041]
-], dtype=np.float64)
+M_RGB2XYZ = np.array(
+    [
+        [0.4124564, 0.3575761, 0.1804375],
+        [0.2126729, 0.7151522, 0.0721750],
+        [0.0193339, 0.1191920, 0.9503041],
+    ],
+    dtype=np.float64,
+)
 # D65白点XYZ值
 WHITE_D65 = np.array([0.95047, 1.0, 1.08883], dtype=np.float64)
 
@@ -56,23 +60,25 @@ def deltaE76(l1, l2):
 
 def load_palette(path, L=5):
     """从JSON文件加载调色板数据"""
-    d = json.load(open(path, 'r'))
+    d = json.load(open(path, "r"))
     cells = []
-    for c in d['cells']:
-        if not c.get('enabled', True):
+    for c in d["cells"]:
+        if not c.get("enabled", True):
             continue
-        if not c.get('has_recipe', True):
+        if not c.get("has_recipe", True):
             continue
-        ln = c.get('layer_names')
+        ln = c.get("layer_names")
         if not ln:
             continue
         ln = list(ln)
         # 填充或截断到固定层数
         if len(ln) < L:
-            ln += ['EMPTY'] * (L - len(ln))
+            ln += ["EMPTY"] * (L - len(ln))
         else:
             ln = ln[:L]
-        meas_u8 = np.clip(np.array(c['measured_rgb'], dtype=np.float64) + 0.5, 0, 255).astype(np.uint8)
+        meas_u8 = np.clip(
+            np.array(c["measured_rgb"], dtype=np.float64) + 0.5, 0, 255
+        ).astype(np.uint8)
         meas = meas_u8.astype(np.float64) / 255.0
         cells.append((ln, meas))
     return cells
@@ -80,7 +86,7 @@ def load_palette(path, L=5):
 
 def build_mats(palettes):
     """构建所有使用到的材料集合"""
-    mats = set(['EMPTY'])
+    mats = set(["EMPTY"])
     for cells in palettes.values():
         for ln, _ in cells:
             mats.update(ln)
@@ -91,10 +97,10 @@ def stats(meas, pred):
     """计算预测误差的统计信息"""
     de = deltaE76(rgb_srgb_to_lab(meas), rgb_srgb_to_lab(pred))
     return {
-        'mean': float(de.mean()),
-        'median': float(np.median(de)),
-        'p95': float(np.quantile(de, 0.95)),
-        'max': float(de.max())
+        "mean": float(de.mean()),
+        "median": float(np.median(de)),
+        "p95": float(np.quantile(de, 0.95)),
+        "max": float(de.max()),
     }
 
 
@@ -152,10 +158,10 @@ def predict_fullpairs(seqs, coef, mi, mats, pairs):
     pair_start = 1 + L * M
     for i, seq in enumerate(seqs):
         for p, m in enumerate(seq):
-            X[i, unary_start + p * M + mi.get(m, mi['EMPTY'])] += 1.0
+            X[i, unary_start + p * M + mi.get(m, mi["EMPTY"])] += 1.0
         for k, (p, q) in enumerate(pairs):
-            a = mi.get(seq[p], mi['EMPTY'])
-            b = mi.get(seq[q], mi['EMPTY'])
+            a = mi.get(seq[p], mi["EMPTY"])
+            b = mi.get(seq[q], mi["EMPTY"])
             X[i, pair_start + k * M * M + a * M + b] += 1.0
     y_log = X @ coef
     y_srgb = linear_to_srgb(np.exp(y_log))
@@ -164,14 +170,16 @@ def predict_fullpairs(seqs, coef, mi, mats, pairs):
 
 def main():
     """主函数 - 加载数据并评估模型"""
-    base = '/mnt/data/calib_extracted/out'
-    palettes = {pid: load_palette(os.path.join(base, f'Board_{pid}', 'dataset_cells.json'))
-                for pid in ['A', 'B', 'C', 'D', 'E']}
+    base = "/mnt/data/calib_extracted/out"
+    palettes = {
+        pid: load_palette(os.path.join(base, f"Board_{pid}", "dataset_cells.json"))
+        for pid in ["A", "B", "C", "D", "E"]
+    }
     mats = build_mats(palettes)
-    seqA = [ln for ln, _ in palettes['A']]
-    measA = np.stack([rgb for _, rgb in palettes['A']], axis=0)
+    seqA = [ln for ln, _ in palettes["A"]]
+    measA = np.stack([rgb for _, rgb in palettes["A"]], axis=0)
     coef, mi, pairs = fit_fullpairs(seqA, measA, mats, ridge=5e-1)
-    logger.info('params', coef.shape[0], 'mats', len(mats), 'pairs', len(pairs))
+    logger.info("params", coef.shape[0], "mats", len(mats), "pairs", len(pairs))
     for pid, cells in palettes.items():
         seq = [ln for ln, _ in cells]
         meas = np.stack([rgb for _, rgb in cells], axis=0)
@@ -179,5 +187,5 @@ def main():
         logger.info(pid, stats(meas, pred))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

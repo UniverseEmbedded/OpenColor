@@ -23,16 +23,19 @@ from .main_utils import (
 )
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _load_json(path: Path) -> dict:
     """加载JSON文件"""
     return json.loads(path.read_text(encoding="utf-8", errors="replace"))
 
 
-def _resolve_warped_image_path(board_dir: Path, photos_root: Path, cache_dir: Path, *, rows: int, cols: int) -> Path | None:
+def _resolve_warped_image_path(
+    board_dir: Path, photos_root: Path, cache_dir: Path, *, rows: int, cols: int
+) -> Path | None:
     """解析变换后的图像路径"""
     warped = board_dir / "board_warped.png"
     if warped.exists():
@@ -56,7 +59,11 @@ def _resolve_warped_image_path(board_dir: Path, photos_root: Path, cache_dir: Pa
 
     warp = _load_json(warp_json)
     points = warp.get("points")
-    if not (isinstance(points, list) and len(points) == 4 and all(isinstance(p, list) and len(p) == 2 for p in points)):
+    if not (
+        isinstance(points, list)
+        and len(points) == 4
+        and all(isinstance(p, list) and len(p) == 2 for p in points)
+    ):
         logger.error(f"[错误] warp.json 格式不正确: {warp_json}")
         return None
 
@@ -64,7 +71,9 @@ def _resolve_warped_image_path(board_dir: Path, photos_root: Path, cache_dir: Pa
     rotation_count = int(warp.get("rotation_count") or 0) % 4
     point_order = str(warp.get("point_order") or "TL_TR_BR_BL")
     if point_order != "TL_TR_BR_BL":
-        logger.warning(f"[警告] 暂未实现 point_order={point_order}，将按 TL_TR_BR_BL 处理: {warp_json}")
+        logger.warning(
+            f"[警告] 暂未实现 point_order={point_order}，将按 TL_TR_BR_BL 处理: {warp_json}"
+        )
 
     img_bgr = cv2.imread(str(raw_img), cv2.IMREAD_COLOR)
     if img_bgr is None:
@@ -76,17 +85,35 @@ def _resolve_warped_image_path(board_dir: Path, photos_root: Path, cache_dir: Pa
         use_inset = inset_mode
     else:
         if rows == 17 and cols == 17:
-            use_inset = _choose_inset_mode(img_bgr, points, dst_size=dst_size, rotation_count=rotation_count, rows=rows, cols=cols)
-            logger.info(f"[信息] 自动判定 inset_mode={use_inset} (rows={rows}, cols={cols})")
+            use_inset = _choose_inset_mode(
+                img_bgr,
+                points,
+                dst_size=dst_size,
+                rotation_count=rotation_count,
+                rows=rows,
+                cols=cols,
+            )
+            logger.info(
+                f"[信息] 自动判定 inset_mode={use_inset} (rows={rows}, cols={cols})"
+            )
         else:
             use_inset = False
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    out_warped = cache_dir / f"{board_dir.name}_board_warped_dst{dst_size}_rot{rotation_count}_inset{int(use_inset)}_r{rows}c{cols}.png"
-    if out_warped.exists() and out_warped.stat().st_mtime >= warp_json.stat().st_mtime and out_warped.stat().st_mtime >= raw_img.stat().st_mtime:
+    out_warped = (
+        cache_dir
+        / f"{board_dir.name}_board_warped_dst{dst_size}_rot{rotation_count}_inset{int(use_inset)}_r{rows}c{cols}.png"
+    )
+    if (
+        out_warped.exists()
+        and out_warped.stat().st_mtime >= warp_json.stat().st_mtime
+        and out_warped.stat().st_mtime >= raw_img.stat().st_mtime
+    ):
         return out_warped
 
-    warped_bgr = _perspective_warp_bgr(img_bgr, points, dst_size, inset_mode=use_inset, rows=rows, cols=cols)
+    warped_bgr = _perspective_warp_bgr(
+        img_bgr, points, dst_size, inset_mode=use_inset, rows=rows, cols=cols
+    )
     warped_bgr = _apply_rotation(warped_bgr, rotation_count)
 
     try:
@@ -95,7 +122,9 @@ def _resolve_warped_image_path(board_dir: Path, photos_root: Path, cache_dir: Pa
         logger.error(f"[错误] 写入失败: {out_warped} ({e})")
         return None
 
-    logger.info(f"[信息] 已从 {raw_img.name}+warp.json 生成输入: {out_warped} (inset_mode={use_inset}, rotation_count={rotation_count})")
+    logger.info(
+        f"[信息] 已从 {raw_img.name}+warp.json 生成输入: {out_warped} (inset_mode={use_inset}, rotation_count={rotation_count})"
+    )
     return out_warped
 
 
@@ -112,7 +141,9 @@ def _resolve_board_spec_path(board_dir: Path) -> Path | None:
             m = _load_json(manifest_path)
             spec_name = (m.get("params") or {}).get("spec")
         except Exception as e:
-            logger.error(f"[警告] 读取 manifest.json 失败，将回退到按目录名推断 spec: {manifest_path} ({e})")
+            logger.error(
+                f"[警告] 读取 manifest.json 失败，将回退到按目录名推断 spec: {manifest_path} ({e})"
+            )
 
     if not spec_name and board_dir.name.startswith("Board_"):
         suffix = board_dir.name.removeprefix("Board_")
@@ -126,9 +157,13 @@ def _resolve_board_spec_path(board_dir: Path) -> Path | None:
     gen_dir = Path(__file__).resolve().parent.parent / "calib_board_gen"
     src = gen_dir / "out" / f"{spec_id}_board_spec.json"
     if not src.exists():
-        logger.info(f"[信息] 未找到规格文件: {src}，正在尝试通过 calib_board_gen 生成...")
+        logger.info(
+            f"[信息] 未找到规格文件: {src}，正在尝试通过 calib_board_gen 生成..."
+        )
         try:
-            subprocess.run([sys.executable, "-m", "oc_proto.calib_board_gen.main"], check=True)
+            subprocess.run(
+                [sys.executable, "-m", "oc_proto.calib_board_gen.main"], check=True
+            )
         except Exception as e:
             logger.error(f"[错误] 生成规格文件失败: {e}")
             return None
@@ -161,6 +196,7 @@ def ensure_board_spec(target_spec: Path):
     if gen_out_spec.exists():
         target_spec.parent.mkdir(parents=True, exist_ok=True)
         import shutil
+
         shutil.copy2(gen_out_spec, target_spec)
         logger.info(f"[信息] 已同步规格文件: {target_spec}")
         return True

@@ -21,7 +21,9 @@ from .planner_models import (
 from .planner_io import load_materials, predict_fast_rgb_and_opacity
 
 
-def mode_tokens(lib: MaterialLibrary, mode: str, forbid: Sequence[str] = ()) -> List[str]:
+def mode_tokens(
+    lib: MaterialLibrary, mode: str, forbid: Sequence[str] = ()
+) -> List[str]:
     """获取指定模式下的可用材料标记列表
 
     Args:
@@ -67,7 +69,9 @@ def _compositions(total: int, parts: int) -> Iterable[List[int]]:
         yield comp
 
 
-def _sequence_from_counts(tokens: List[str], counts: List[int], pattern: str) -> List[str]:
+def _sequence_from_counts(
+    tokens: List[str], counts: List[int], pattern: str
+) -> List[str]:
     """根据材料数量和模式生成序列
 
     Args:
@@ -106,7 +110,9 @@ def _sequence_from_counts(tokens: List[str], counts: List[int], pattern: str) ->
     return seq
 
 
-def _build_heights(layers: int, first_layer_height: float, layer_height: float) -> List[float]:
+def _build_heights(
+    layers: int, first_layer_height: float, layer_height: float
+) -> List[float]:
     """构建层高度列表
 
     Args:
@@ -173,7 +179,9 @@ def _fast_candidates(
     tokens = mode_tokens(lib, mode, forbid=forbid)
     mats_fast = lib.fast
 
-    heights = _build_heights(layers, first_layer_height=first_layer_height, layer_height=layer_height)
+    heights = _build_heights(
+        layers, first_layer_height=first_layer_height, layer_height=layer_height
+    )
 
     rgb_target, opacity_target = rgba_targets(rgba, alpha_background=alpha_background)
     if opacity_weight is None:
@@ -190,11 +198,17 @@ def _fast_candidates(
             rgb_pred, opacity_pred = predict_fast_rgb_and_opacity(
                 mats_fast, s0, heights, view=view, backing=backing
             )
-            L = loss_rgba_like(rgb_pred, rgb_target, opacity_pred, opacity_target, float(opacity_weight))
+            L = loss_rgba_like(
+                rgb_pred,
+                rgb_target,
+                opacity_pred,
+                opacity_target,
+                float(opacity_weight),
+            )
             scored.append((L, s0, rgb_pred))
         scored.sort(key=lambda x: x[0])
         out: List[Tuple[List[str], List[float], Vec3, float]] = []
-        for L, s0, rgb_pred in scored[:max(1, int(max_candidates))]:
+        for L, s0, rgb_pred in scored[: max(1, int(max_candidates))]:
             out.append((s0, heights, rgb_pred, L))
         return out
 
@@ -210,11 +224,17 @@ def _fast_candidates(
             rgb_pred, opacity_pred = predict_fast_rgb_and_opacity(
                 mats_fast, s0, heights, view=view, backing=backing
             )
-            L = loss_rgba_like(rgb_pred, rgb_target, opacity_pred, opacity_target, float(opacity_weight))
+            L = loss_rgba_like(
+                rgb_pred,
+                rgb_target,
+                opacity_pred,
+                opacity_target,
+                float(opacity_weight),
+            )
             scored.append((L, s0, rgb_pred))
         scored.sort(key=lambda x: x[0])
         out: List[Tuple[List[str], List[float], Vec3, float]] = []
-        for L, s0, rgb_pred in scored[:max(1, int(max_candidates))]:
+        for L, s0, rgb_pred in scored[: max(1, int(max_candidates))]:
             out.append((s0, heights, rgb_pred, L))
         return out
 
@@ -223,8 +243,12 @@ def _fast_candidates(
     comps: List[Tuple[float, List[int]]] = []
     for comp in _compositions(layers, len(toks_sorted)):
         seq0 = _sequence_from_counts(toks_sorted, comp, pattern=pattern)
-        rgb_pred, opacity_pred = predict_fast_rgb_and_opacity(mats_fast, seq0, heights, view=view, backing=backing)
-        L = loss_rgba_like(rgb_pred, rgb_target, opacity_pred, opacity_target, float(opacity_weight))
+        rgb_pred, opacity_pred = predict_fast_rgb_and_opacity(
+            mats_fast, seq0, heights, view=view, backing=backing
+        )
+        L = loss_rgba_like(
+            rgb_pred, rgb_target, opacity_pred, opacity_target, float(opacity_weight)
+        )
         comps.append((L, comp))
     comps.sort(key=lambda x: x[0])
 
@@ -239,8 +263,12 @@ def _fast_candidates(
         if key in seen:
             return
         seen.add(key)
-        rgb_pred, opacity_pred = predict_fast_rgb_and_opacity(mats_fast, s0, heights, view=view, backing=backing)
-        L = loss_rgba_like(rgb_pred, rgb_target, opacity_pred, opacity_target, float(opacity_weight))
+        rgb_pred, opacity_pred = predict_fast_rgb_and_opacity(
+            mats_fast, s0, heights, view=view, backing=backing
+        )
+        L = loss_rgba_like(
+            rgb_pred, rgb_target, opacity_pred, opacity_target, float(opacity_weight)
+        )
         scored2.append((L, s0, rgb_pred))
 
     # 基于最佳组合生成变体
@@ -278,6 +306,6 @@ def _fast_candidates(
     # 排序并返回最佳候选
     scored2.sort(key=lambda x: x[0])
     out: List[Tuple[List[str], List[float], Vec3, float]] = []
-    for L, s0, rgb_pred in scored2[:max(1, int(max_candidates))]:
+    for L, s0, rgb_pred in scored2[: max(1, int(max_candidates))]:
         out.append((s0, heights, rgb_pred, L))
     return out

@@ -25,6 +25,7 @@ import trimesh
 def ensure_earcut():
     try:
         import mapbox_earcut  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -60,7 +61,11 @@ def build_region_ids(rgba: np.ndarray, alpha_threshold: int):
     reg = np.zeros((H, W), dtype=np.int32)
     next_id = 1
 
-    keys = np.unique(key[printable]) if np.any(printable) else np.array([], dtype=np.uint32)
+    keys = (
+        np.unique(key[printable])
+        if np.any(printable)
+        else np.array([], dtype=np.uint32)
+    )
     for kv in keys:
         mask = printable & (key == kv)
         if not np.any(mask):
@@ -89,9 +94,11 @@ def build_adjacency(reg: np.ndarray) -> Dict[int, Set[int]]:
         a = left[diff].ravel()
         b = right[diff].ravel()
         for u, v in zip(a, b):
-            u = int(u); v = int(v)
+            u = int(u)
+            v = int(v)
             if u != v:
-                adj[u].add(v); adj[v].add(u)
+                adj[u].add(v)
+                adj[v].add(u)
 
     up = reg[:-1, :]
     down = reg[1:, :]
@@ -100,9 +107,11 @@ def build_adjacency(reg: np.ndarray) -> Dict[int, Set[int]]:
         a = up[diff].ravel()
         b = down[diff].ravel()
         for u, v in zip(a, b):
-            u = int(u); v = int(v)
+            u = int(u)
+            v = int(v)
             if u != v:
-                adj[u].add(v); adj[v].add(u)
+                adj[u].add(v)
+                adj[v].add(u)
 
     return adj
 
@@ -211,10 +220,16 @@ def geom_to_polygons(geom) -> List[Polygon]:
         return [geom]
     if isinstance(geom, MultiPolygon):
         return list(geom.geoms)
-    return [g for g in getattr(geom, "geoms", []) if isinstance(g, Polygon) and not g.is_empty]
+    return [
+        g
+        for g in getattr(geom, "geoms", [])
+        if isinstance(g, Polygon) and not g.is_empty
+    ]
 
 
-def extrude_geom(geom, thickness_mm: float, simplify_mm: float, min_area_mm2: float) -> Optional[trimesh.Trimesh]:
+def extrude_geom(
+    geom, thickness_mm: float, simplify_mm: float, min_area_mm2: float
+) -> Optional[trimesh.Trimesh]:
     if geom is None or geom.is_empty:
         return None
 
@@ -229,7 +244,9 @@ def extrude_geom(geom, thickness_mm: float, simplify_mm: float, min_area_mm2: fl
         if part.is_empty or part.area < min_area_mm2:
             continue
         try:
-            m = trimesh.creation.extrude_polygon(part, height=thickness_mm, engine="earcut")
+            m = trimesh.creation.extrude_polygon(
+                part, height=thickness_mm, engine="earcut"
+            )
             meshes.append(m)
         except Exception:
             continue
@@ -243,7 +260,9 @@ def extrude_geom(geom, thickness_mm: float, simplify_mm: float, min_area_mm2: fl
 
 
 def main():
-    ap = argparse.ArgumentParser(description="位图 -> 4色平面映射 -> 4个STL（A,B,C,D），相同位置，无重叠。")
+    ap = argparse.ArgumentParser(
+        description="位图 -> 4色平面映射 -> 4个STL（A,B,C,D），相同位置，无重叠。"
+    )
     ap.add_argument("--in", dest="inp", required=True, help="输入位图（png/jpg/...）")
     ap.add_argument("--outdir", default="out_map4", help="输出目录")
     ap.add_argument("--name", default="map", help="基础名称")
@@ -251,9 +270,15 @@ def main():
     ap.add_argument("--pixel-mm", type=float, default=0.35, help="采样间距（毫米）")
     ap.add_argument("--thickness-mm", type=float, default=0.4, help="拉伸厚度")
     ap.add_argument("--quant", type=int, default=16, help="颜色量化级别")
-    ap.add_argument("--blur-sigma-px", type=float, default=0.0, help="可选模糊半径（像素）")
-    ap.add_argument("--alpha-threshold", type=int, default=16, help="低于此值的Alpha为背景")
-    ap.add_argument("--gap-mm", type=float, default=0.0, help="区域内缩（可选）。0保持精确平铺。")
+    ap.add_argument(
+        "--blur-sigma-px", type=float, default=0.0, help="可选模糊半径（像素）"
+    )
+    ap.add_argument(
+        "--alpha-threshold", type=int, default=16, help="低于此值的Alpha为背景"
+    )
+    ap.add_argument(
+        "--gap-mm", type=float, default=0.0, help="区域内缩（可选）。0保持精确平铺。"
+    )
     ap.add_argument("--simplify-mm", type=float, default=0.15, help="多边形简化容差")
     ap.add_argument("--min-area-mm2", type=float, default=1.0, help="丢弃微小区域")
     args = ap.parse_args()
@@ -274,7 +299,9 @@ def main():
 
     reg, nreg = build_region_ids(rgba, alpha_threshold=args.alpha_threshold)
     logger.info(f"已加载 {args.inp}")
-    logger.info(f"栅格 {W} x {H} 像素, 像素 {pixel_mm:.4f} 毫米, 物理尺寸 {args.width_mm:.2f} x {height_mm:.2f} 毫米")
+    logger.info(
+        f"栅格 {W} x {H} 像素, 像素 {pixel_mm:.4f} 毫米, 物理尺寸 {args.width_mm:.2f} x {height_mm:.2f} 毫米"
+    )
     logger.info(f"区域数: {nreg}")
     if nreg == 0:
         logger.info("无可打印区域。")
@@ -286,7 +313,7 @@ def main():
     # 构建每色多边形列表（每区域保留孔洞）
     buckets_mm: Dict[int, List[Polygon]] = {0: [], 1: [], 2: [], 3: []}
     for rid, col in rid_to_col.items():
-        mask = (reg == rid)
+        mask = reg == rid
         poly_px = mask_to_polygon_with_holes(mask)
         if poly_px is None:
             continue
@@ -311,14 +338,23 @@ def main():
     for c in range(4):
         if geoms[c] is None or geoms[c].is_empty:
             continue
-        others = [geoms[d] for d in range(4) if d != c and geoms.get(d) is not None and (not geoms[d].is_empty)]
+        others = [
+            geoms[d]
+            for d in range(4)
+            if d != c and geoms.get(d) is not None and (not geoms[d].is_empty)
+        ]
         if others:
             other_u = unary_union(others).buffer(0)
             geoms[c] = geoms[c].difference(other_u).buffer(0)
 
     keys = {0: "A", 1: "B", 2: "C", 3: "D"}
     for c in range(4):
-        mesh = extrude_geom(geoms[c], thickness_mm=args.thickness_mm, simplify_mm=args.simplify_mm, min_area_mm2=args.min_area_mm2)
+        mesh = extrude_geom(
+            geoms[c],
+            thickness_mm=args.thickness_mm,
+            simplify_mm=args.simplify_mm,
+            min_area_mm2=args.min_area_mm2,
+        )
         if mesh is None:
             logger.info(f"{keys[c]}: 空")
             continue

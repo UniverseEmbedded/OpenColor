@@ -18,11 +18,10 @@ from .model_analysis import analyze_mesh, analyze_3mf_lib3mf
 logger = get_logger(__name__)
 
 
-
-
 @dataclass
 class BitmapParams:
     """位图处理参数"""
+
     color_system: str = "RYBW"
     nozzle_width_mm: float = 0.42
     target_width_mm: float = 60.0
@@ -40,7 +39,9 @@ def _resize_nearest_rgba(img_rgba: np.ndarray, new_w: int, new_h: int) -> np.nda
     return np.array(pil, dtype=np.uint8)
 
 
-def _mask_transparency_and_bg(img_rgba: np.ndarray, alpha_threshold: int, auto_bg_remove: bool, bg_tol: int) -> np.ndarray:
+def _mask_transparency_and_bg(
+    img_rgba: np.ndarray, alpha_threshold: int, auto_bg_remove: bool, bg_tol: int
+) -> np.ndarray:
     """根据透明度和背景色创建遮罩。
 
     说明：
@@ -57,13 +58,14 @@ def _mask_transparency_and_bg(img_rgba: np.ndarray, alpha_threshold: int, auto_b
     bg = img_rgba[0, 0, :3].astype(np.int16)
     rgb = img_rgba[..., :3].astype(np.int16)
     diff = np.abs(rgb - bg)
-    close = (diff.max(axis=-1) <= int(bg_tol))
+    close = diff.max(axis=-1) <= int(bg_tol)
 
     # 仅移除与边界连通的 close 区域（Flood Fill）
     h, w = close.shape
     visited = np.zeros_like(close, dtype=bool)
 
     from collections import deque
+
     q: deque[tuple[int, int]] = deque()
 
     def try_push(y: int, x: int) -> None:
@@ -104,13 +106,17 @@ def _flatten_lut(lut: np.ndarray) -> np.ndarray:
         if os.environ.get("OC_DEBUG") == "1":
             logger.debug(
                 "检测到 LUT 可能是 0..1 范围，将自动缩放到 0..255：min={:.6f}, max={:.6f}, dtype={}",
-                min_v, max_v, lut.dtype
+                min_v,
+                max_v,
+                lut.dtype,
             )
         lut_f = lut_f * 255.0
     return lut_f.reshape(-1, 3)
 
 
-def match_pixels_to_lut(rgb_pixels: np.ndarray, lut_flat_rgb: np.ndarray, chunk: int = 8000) -> np.ndarray:
+def match_pixels_to_lut(
+    rgb_pixels: np.ndarray, lut_flat_rgb: np.ndarray, chunk: int = 8000
+) -> np.ndarray:
     """为每个像素匹配最近的LUT索引
 
     rgb_pixels: (N,3) float32
@@ -136,8 +142,8 @@ def _precompute_base_m_digits(n_layers: int, m: int) -> np.ndarray:
 
     digits[idx, z] 给出层 z 的材料索引 (0..M-1)。
     """
-    n = m ** n_layers
-    if n > 1000000: # 避免内存爆炸
+    n = m**n_layers
+    if n > 1000000:  # 避免内存爆炸
         return np.zeros((0, n_layers), dtype=np.int8)
     digits = np.zeros((n, n_layers), dtype=np.int8)
     for idx in range(n):
@@ -176,7 +182,9 @@ def process_bitmap(
 
     rgba_small = _resize_nearest_rgba(rgba, target_w_px, target_h_px)
 
-    mask = _mask_transparency_and_bg(rgba_small, params.alpha_threshold, params.auto_bg_remove, params.bg_tol)
+    mask = _mask_transparency_and_bg(
+        rgba_small, params.alpha_threshold, params.auto_bg_remove, params.bg_tol
+    )
 
     lut = np.load(lut_path)
     lut_flat = _flatten_lut(lut)
@@ -206,7 +214,9 @@ def process_bitmap(
     # per-material voxel volumes
     digits = _precompute_base4_digits(params.n_layers)
     h, w = target_h_px, target_w_px
-    volumes: Dict[str, np.ndarray] = {name: np.zeros((params.n_layers, h, w), dtype=bool) for name in cs.slot_names}
+    volumes: Dict[str, np.ndarray] = {
+        name: np.zeros((params.n_layers, h, w), dtype=bool) for name in cs.slot_names
+    }
 
     # fill volumes
     for k in range(ys.size):
@@ -221,7 +231,11 @@ def process_bitmap(
     meshes_for_3mf: Dict[str, trimesh.Trimesh] = {}
     slot_colors_for_3mf: Dict[str, Tuple[int, int, int, int]] = {}
 
-    voxel_size = (params.nozzle_width_mm, params.nozzle_width_mm, params.layer_height_mm)
+    voxel_size = (
+        params.nozzle_width_mm,
+        params.nozzle_width_mm,
+        params.layer_height_mm,
+    )
     for slot_name in cs.slot_names:
         grid = VoxelGrid(volume=volumes[slot_name], voxel_size=voxel_size)
         mesh = voxel_grid_to_mesh(grid)
@@ -249,7 +263,13 @@ def process_bitmap(
         try:
             # 寻找模板文件
             # 假设在项目根目录下的特定位置
-            template_path = Path(__file__).parents[5] / "py_module" / "model_export" / "assets" / "type32_cubes.3mf"
+            template_path = (
+                Path(__file__).parents[5]
+                / "py_module"
+                / "model_export"
+                / "assets"
+                / "type32_cubes.3mf"
+            )
             if template_path.exists():
                 bambu_3mf_path = out_dir / f"{Path(image_path).stem}_bambu.3mf"
                 _export_standard_3mf_from_meshes_lib3mf(
@@ -276,12 +296,14 @@ def process_bitmap(
     return results
 
 
-def _export_glb_column_preview(matched_rgb: np.ndarray, mask: np.ndarray, params: BitmapParams, path: Path) -> None:
+def _export_glb_column_preview(
+    matched_rgb: np.ndarray, mask: np.ndarray, params: BitmapParams, path: Path
+) -> None:
     """创建 GLB 预览：每个像素一个柱体，带有顶点颜色"""
     h, w = matched_rgb.shape[:2]
-    
+
     # 如果像素过多，跳过 GLB 导出以防止崩溃
-    MAX_PIXELS = 100000 # 10万像素大概是上限了
+    MAX_PIXELS = 100000  # 10万像素大概是上限了
     active_pixels = np.sum(mask)
     if active_pixels > MAX_PIXELS:
         logger.info("跳过 3D 预览导出: 像素过多 ({} > {})", active_pixels, MAX_PIXELS)
@@ -299,18 +321,30 @@ def _export_glb_column_preview(matched_rgb: np.ndarray, mask: np.ndarray, params
             color = matched_rgb[y, x]
             # trimesh 期望每个顶点有 RGBA (0..255)
             rgba = np.array([color[0], color[1], color[2], 255], dtype=np.uint8)
-            box = trimesh.creation.box(extents=[params.nozzle_width_mm, params.nozzle_width_mm, col_h])
+            box = trimesh.creation.box(
+                extents=[params.nozzle_width_mm, params.nozzle_width_mm, col_h]
+            )
             # 放置使底部位于 z=0，x 向右，y 向下
             tx = x * params.nozzle_width_mm
             ty = (h - 1 - y) * params.nozzle_width_mm
             tz = col_h / 2.0
-            box.apply_translation([tx + params.nozzle_width_mm / 2.0, ty + params.nozzle_width_mm / 2.0, tz])
+            box.apply_translation(
+                [
+                    tx + params.nozzle_width_mm / 2.0,
+                    ty + params.nozzle_width_mm / 2.0,
+                    tz,
+                ]
+            )
             # 顶点颜色
             box.visual.vertex_colors = np.tile(rgba, (box.vertices.shape[0], 1))
             boxes.append(box)
 
     if not boxes:
-        empty = trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=np.int64), process=False)
+        empty = trimesh.Trimesh(
+            vertices=np.zeros((0, 3)),
+            faces=np.zeros((0, 3), dtype=np.int64),
+            process=False,
+        )
         export_glb(empty, path)
         return
 

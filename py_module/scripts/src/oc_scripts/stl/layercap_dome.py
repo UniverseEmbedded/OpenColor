@@ -34,7 +34,7 @@ import sys
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'planning'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "planning"))
 import planner
 
 
@@ -42,7 +42,12 @@ def clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
 
-def add_mesh_accum(verts_acc: List[np.ndarray], faces_acc: List[np.ndarray], v: np.ndarray, f: np.ndarray) -> None:
+def add_mesh_accum(
+    verts_acc: List[np.ndarray],
+    faces_acc: List[np.ndarray],
+    v: np.ndarray,
+    f: np.ndarray,
+) -> None:
     if len(v) == 0 or len(f) == 0:
         return
     offset = 0
@@ -52,7 +57,9 @@ def add_mesh_accum(verts_acc: List[np.ndarray], faces_acc: List[np.ndarray], v: 
     faces_acc.append(f + offset)
 
 
-def quad_faces(grid_w: int, grid_h: int, base: int = 0, flip: bool = False) -> np.ndarray:
+def quad_faces(
+    grid_w: int, grid_h: int, base: int = 0, flip: bool = False
+) -> np.ndarray:
     faces = []
     for r in range(grid_h - 1):
         for c in range(grid_w - 1):
@@ -102,7 +109,9 @@ def build_patches(rings: int, segs: int, theta_max: float) -> List[Patch]:
     return patches
 
 
-def fracs_regular(p: Patch, rings: int, segs: int, pattern: str, include_pures: bool) -> np.ndarray:
+def fracs_regular(
+    p: Patch, rings: int, segs: int, pattern: str, include_pures: bool
+) -> np.ndarray:
     # 每个面片的A/B/C/D比例，规则图案
     if include_pures and p.ring == 0 and p.seg < 4:
         fr = np.zeros(4, dtype=float)
@@ -141,7 +150,16 @@ def fracs_regular(p: Patch, rings: int, segs: int, pattern: str, include_pures: 
     return fr
 
 
-def auto_steps_for_patch(r_ref: float, theta0: float, theta1: float, phi0: float, phi1: float, max_edge_len: float, t_mul: int, p_mul: int) -> Tuple[int, int]:
+def auto_steps_for_patch(
+    r_ref: float,
+    theta0: float,
+    theta1: float,
+    phi0: float,
+    phi1: float,
+    max_edge_len: float,
+    t_mul: int,
+    p_mul: int,
+) -> Tuple[int, int]:
     t_mul = max(1, int(t_mul))
     p_mul = max(1, int(p_mul))
     if max_edge_len <= 0:
@@ -157,14 +175,25 @@ def auto_steps_for_patch(r_ref: float, theta0: float, theta1: float, phi0: float
     return t_steps, p_steps
 
 
-def build_shell_patch_segment(r_in: float, r_out: float, theta0: float, theta1: float, phi0: float, phi1: float, t_steps: int, p_steps: int) -> Tuple[np.ndarray, np.ndarray]:
+def build_shell_patch_segment(
+    r_in: float,
+    r_out: float,
+    theta0: float,
+    theta1: float,
+    phi0: float,
+    phi1: float,
+    t_steps: int,
+    p_steps: int,
+) -> Tuple[np.ndarray, np.ndarray]:
     if r_out <= r_in:
         return np.zeros((0, 3)), np.zeros((0, 3), dtype=np.int64)
 
     thetas = np.linspace(theta0, theta1, max(1, int(t_steps)) + 1)
     phis = np.linspace(phi0, phi1, max(1, int(p_steps)) + 1)
 
-    outer = np.asarray([sph(r_out, th, ph) for th in thetas for ph in phis], dtype=float)
+    outer = np.asarray(
+        [sph(r_out, th, ph) for th in thetas for ph in phis], dtype=float
+    )
     inner = np.asarray([sph(r_in, th, ph) for th in thetas for ph in phis], dtype=float)
 
     v = np.vstack([outer, inner])
@@ -184,15 +213,19 @@ def build_shell_patch_segment(r_in: float, r_out: float, theta0: float, theta1: 
     def idx_inner(r: int, c: int) -> int:
         return inner_base + r * grid_w + c
 
-    def wall_between_loops(loop_o: List[int], loop_i: List[int], flip_wall: bool) -> np.ndarray:
+    def wall_between_loops(
+        loop_o: List[int], loop_i: List[int], flip_wall: bool
+    ) -> np.ndarray:
         wall = []
         for i in range(len(loop_o) - 1):
             o0, o1 = loop_o[i], loop_o[i + 1]
             i0, i1 = loop_i[i], loop_i[i + 1]
             if not flip_wall:
-                wall.append([o0, i0, o1]); wall.append([o1, i0, i1])
+                wall.append([o0, i0, o1])
+                wall.append([o1, i0, i1])
             else:
-                wall.append([o0, o1, i0]); wall.append([o1, i1, i0])
+                wall.append([o0, o1, i0])
+                wall.append([o1, i1, i0])
         return np.asarray(wall, dtype=np.int64)
 
     # 闭合4个边界
@@ -200,16 +233,42 @@ def build_shell_patch_segment(r_in: float, r_out: float, theta0: float, theta1: 
     row1 = grid_h - 1
     col0 = 0
     col1 = grid_w - 1
-    faces.append(wall_between_loops([idx_outer(row0, c) for c in range(grid_w)], [idx_inner(row0, c) for c in range(grid_w)], flip_wall=False))
-    faces.append(wall_between_loops([idx_outer(row1, c) for c in range(grid_w)], [idx_inner(row1, c) for c in range(grid_w)], flip_wall=True))
-    faces.append(wall_between_loops([idx_outer(r, col0) for r in range(grid_h)], [idx_inner(r, col0) for r in range(grid_h)], flip_wall=True))
-    faces.append(wall_between_loops([idx_outer(r, col1) for r in range(grid_h)], [idx_inner(r, col1) for r in range(grid_h)], flip_wall=False))
+    faces.append(
+        wall_between_loops(
+            [idx_outer(row0, c) for c in range(grid_w)],
+            [idx_inner(row0, c) for c in range(grid_w)],
+            flip_wall=False,
+        )
+    )
+    faces.append(
+        wall_between_loops(
+            [idx_outer(row1, c) for c in range(grid_w)],
+            [idx_inner(row1, c) for c in range(grid_w)],
+            flip_wall=True,
+        )
+    )
+    faces.append(
+        wall_between_loops(
+            [idx_outer(r, col0) for r in range(grid_h)],
+            [idx_inner(r, col0) for r in range(grid_h)],
+            flip_wall=True,
+        )
+    )
+    faces.append(
+        wall_between_loops(
+            [idx_outer(r, col1) for r in range(grid_h)],
+            [idx_inner(r, col1) for r in range(grid_h)],
+            flip_wall=False,
+        )
+    )
 
     f = np.vstack(faces)
     return v, f
 
 
-def z_slice_squash(vertices: np.ndarray, z_slices: int, slice_height: float) -> np.ndarray:
+def z_slice_squash(
+    vertices: np.ndarray, z_slices: int, slice_height: float
+) -> np.ndarray:
     """
     将原始Z范围划分为 z_slices 个等分区间，每个区间压缩到 slice_height，
     拼接区间（无间隙）。保留区间内曲率，但降低总高度。
@@ -245,21 +304,49 @@ def main() -> None:
     ap.add_argument("--name", default="layercap_dome", help="STL文件基础名称。")
     ap.add_argument("--radius", type=float, default=20.0, help="外半径（毫米）。")
     ap.add_argument("--thickness", type=float, default=1.6, help="壳体厚度（毫米）。")
-    ap.add_argument("--theta-max-deg", type=float, default=80.0, help="最大theta角度（度）（90=半球）。")
+    ap.add_argument(
+        "--theta-max-deg",
+        type=float,
+        default=80.0,
+        help="最大theta角度（度）（90=半球）。",
+    )
     ap.add_argument("--rings", type=int, default=5, help="纬向环数。")
     ap.add_argument("--segs", type=int, default=8, help="每环分段数。")
     ap.add_argument("--t-subdiv", type=int, default=1, help="Theta细分乘数。")
     ap.add_argument("--p-subdiv", type=int, default=1, help="Phi细分乘数。")
-    ap.add_argument("--max-edge-len", type=float, default=1.2, help="外球面最大边长（毫米）。0表示禁用自动步长。")
-    ap.add_argument("--pattern", choices=["gradient", "cycle", "checker"], default="gradient", help="规则混合图案。")
-    ap.add_argument("--include-pures", action="store_true", help="前4个面片设为纯A/B/C/D。")
-    ap.add_argument("--material-names", default="A,B,C,D", help="4个STL后缀名称，逗号分隔。")
-    ap.add_argument("--eps-skip", type=float, default=1e-4, help="如果比例小于此值则跳过该材料。")
+    ap.add_argument(
+        "--max-edge-len",
+        type=float,
+        default=1.2,
+        help="外球面最大边长（毫米）。0表示禁用自动步长。",
+    )
+    ap.add_argument(
+        "--pattern",
+        choices=["gradient", "cycle", "checker"],
+        default="gradient",
+        help="规则混合图案。",
+    )
+    ap.add_argument(
+        "--include-pures", action="store_true", help="前4个面片设为纯A/B/C/D。"
+    )
+    ap.add_argument(
+        "--material-names", default="A,B,C,D", help="4个STL后缀名称，逗号分隔。"
+    )
+    ap.add_argument(
+        "--eps-skip", type=float, default=1e-4, help="如果比例小于此值则跳过该材料。"
+    )
 
     ap.add_argument("--planner-mode", default=None)
     ap.add_argument("--layers", type=int, default=5, help="微层数量")
-    ap.add_argument("--layer-height", type=float, default=0.08, help="每层高度（毫米，首层除外）")
-    ap.add_argument("--first-layer-height", type=float, default=0.12, help="首层高度（毫米）（风险：可能隐藏细小特征）")
+    ap.add_argument(
+        "--layer-height", type=float, default=0.08, help="每层高度（毫米，首层除外）"
+    )
+    ap.add_argument(
+        "--first-layer-height",
+        type=float,
+        default=0.12,
+        help="首层高度（毫米）（风险：可能隐藏细小特征）",
+    )
     ap.add_argument("--view", default="top", choices=["top", "bottom"])
     ap.add_argument("--backing", default="white", choices=["white", "black"])
     ap.add_argument("--materials-json", default=None)
@@ -268,7 +355,12 @@ def main() -> None:
 
     # 层限制参数
     ap.add_argument("--z-slices", type=int, default=10, help="要压缩到的水平切片数。")
-    ap.add_argument("--slice-height", type=float, default=0.4, help="每切片压缩高度（毫米）。（总高度 ~= z-slices*slice-height）")
+    ap.add_argument(
+        "--slice-height",
+        type=float,
+        default=0.4,
+        help="每切片压缩高度（毫米）。（总高度 ~= z-slices*slice-height）",
+    )
     ap.add_argument("--validate", action="store_true", help="运行trimesh清理（较慢）。")
     args = ap.parse_args()
 
@@ -297,7 +389,9 @@ def main() -> None:
         lib = planner.load_materials(args.materials_json)
         mode_key = str(args.planner_mode).strip().lower()
         if mode_key not in lib.modes:
-            raise SystemExit(f"未知规划器模式：{args.planner_mode}（可用：{sorted(lib.modes.keys())}）")
+            raise SystemExit(
+                f"未知规划器模式：{args.planner_mode}（可用：{sorted(lib.modes.keys())}）"
+            )
 
         tokens = [str(x).upper() for x in lib.modes[mode_key]]
         if len(tokens) != 4:
@@ -308,7 +402,9 @@ def main() -> None:
 
         all_verts_by_tok = {t: [] for t in tokens}
         all_faces_by_tok = {t: [] for t in tokens}
-        heights_mm = [float(args.first_layer_height)] + [float(args.layer_height)] * (max(1, int(args.layers)) - 1)
+        heights_mm = [float(args.first_layer_height)] + [float(args.layer_height)] * (
+            max(1, int(args.layers)) - 1
+        )
         heights_sum = float(sum(heights_mm))
         if heights_sum <= 0:
             raise SystemExit("无效高度")
@@ -328,7 +424,9 @@ def main() -> None:
                 rgb_lin[0] += w * m.color_lin[0]
                 rgb_lin[1] += w * m.color_lin[1]
                 rgb_lin[2] += w * m.color_lin[2]
-            target_srgb = planner._rgb_lin_to_int_srgb((rgb_lin[0], rgb_lin[1], rgb_lin[2]))
+            target_srgb = planner._rgb_lin_to_int_srgb(
+                (rgb_lin[0], rgb_lin[1], rgb_lin[2])
+            )
             rgba = (int(target_srgb[0]), int(target_srgb[1]), int(target_srgb[2]), 255)
 
             if args.phys:
@@ -391,9 +489,20 @@ def main() -> None:
                         t_mul=int(args.t_subdiv),
                         p_mul=int(args.p_subdiv),
                     )
-                    v, f = build_shell_patch_segment(r_in, r_out, p.theta0, p.theta1, p.phi0, p.phi1, t_steps, p_steps)
+                    v, f = build_shell_patch_segment(
+                        r_in,
+                        r_out,
+                        p.theta0,
+                        p.theta1,
+                        p.phi0,
+                        p.phi1,
+                        t_steps,
+                        p_steps,
+                    )
                     v2 = z_slice_squash(v, int(args.z_slices), float(args.slice_height))
-                    add_mesh_accum(all_verts_by_tok[run_tok], all_faces_by_tok[run_tok], v2, f)
+                    add_mesh_accum(
+                        all_verts_by_tok[run_tok], all_faces_by_tok[run_tok], v2, f
+                    )
 
                     run_tok = None
 
@@ -407,7 +516,11 @@ def main() -> None:
                     "view": str(args.view),
                     "backing": str(args.backing),
                     "method": str(plan.method),
-                    "pred_rgb_srgb": [int(plan.pred_rgb_srgb[0]), int(plan.pred_rgb_srgb[1]), int(plan.pred_rgb_srgb[2])],
+                    "pred_rgb_srgb": [
+                        int(plan.pred_rgb_srgb[0]),
+                        int(plan.pred_rgb_srgb[1]),
+                        int(plan.pred_rgb_srgb[2]),
+                    ],
                 }
             )
         else:
@@ -432,7 +545,9 @@ def main() -> None:
                     p_mul=int(args.p_subdiv),
                 )
 
-                v, f = build_shell_patch_segment(r_in, r_out, p.theta0, p.theta1, p.phi0, p.phi1, t_steps, p_steps)
+                v, f = build_shell_patch_segment(
+                    r_in, r_out, p.theta0, p.theta1, p.phi0, p.phi1, t_steps, p_steps
+                )
                 v2 = z_slice_squash(v, int(args.z_slices), float(args.slice_height))
                 add_mesh_accum(all_verts[mi], all_faces[mi], v2, f)
 
@@ -451,7 +566,9 @@ def main() -> None:
                 mesh.fix_normals()
             outpath = os.path.join(args.outdir, f"{args.name}_{name}.stl")
             mesh.export(outpath)
-            logger.info(f"[成功] 已写入：{outpath}（顶点数={len(mesh.vertices)}，面数={len(mesh.faces)}）")
+            logger.info(
+                f"[成功] 已写入：{outpath}（顶点数={len(mesh.vertices)}，面数={len(mesh.faces)}）"
+            )
     else:
         for mi in range(4):
             if not all_verts[mi]:
@@ -467,7 +584,9 @@ def main() -> None:
                 mesh.fix_normals()
             outpath = os.path.join(args.outdir, f"{args.name}_{mat_names[mi]}.stl")
             mesh.export(outpath)
-            logger.info(f"[成功] 已写入：{outpath}（顶点数={len(mesh.vertices)}，面数={len(mesh.faces)}）")
+            logger.info(
+                f"[成功] 已写入：{outpath}（顶点数={len(mesh.vertices)}，面数={len(mesh.faces)}）"
+            )
 
     if args.export_metadata:
         meta = {
@@ -495,7 +614,9 @@ def main() -> None:
     logger.info("\n说明：")
     logger.info("  径向堆叠顺序为 A(最内层)->B->C->D(最外层)。")
     logger.info("  层限制通过Z轴切片和压缩应用；总高度 ~= z-slices*slice-height。")
-    logger.info("  使用更小的 slice-height 或更少的 z-slices 可减少打印层数和换丝次数（但几何体会变得更'压缩'）。")
+    logger.info(
+        "  使用更小的 slice-height 或更少的 z-slices 可减少打印层数和换丝次数（但几何体会变得更'压缩'）。"
+    )
 
 
 if __name__ == "__main__":

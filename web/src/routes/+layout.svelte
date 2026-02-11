@@ -3,6 +3,7 @@
   import Sidebar from '$lib/components/layout/Sidebar.svelte';
   import Header from '$lib/components/layout/Header.svelte';
   import MobileSubNav from '$lib/components/layout/MobileSubNav.svelte';
+  import WindowSizeOverlay from '$lib/components/layout/WindowSizeOverlay.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { navigationStore } from '$lib/stores/navigation.svelte';
   import { initRouter, getRouter } from '$lib/stores/router.svelte';
@@ -29,28 +30,44 @@
     return unsubscribe;
   });
   
+  // 移除启动加载屏幕
+  function removeLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+      loadingScreen.style.opacity = '0';
+      setTimeout(() => {
+        loadingScreen.remove();
+      }, 300);
+    }
+  }
+
   // 初始化设置和路由
   onMount(() => {
     settingsStore.init();
     initRouter();
-    
+
     // 检测窗口大小
     const checkMobile = () => {
       navigationStore.setMobile(window.innerWidth < 1024);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
+    // 移除启动加载屏幕
+    removeLoadingScreen();
+
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
   });
 </script>
 
+<WindowSizeOverlay />
+
 <div class="app-layout" class:mobile={isMobile}>
   <Sidebar />
-  
+
   <main class="main">
     {#if isMobile}
       <MobileSubNav />

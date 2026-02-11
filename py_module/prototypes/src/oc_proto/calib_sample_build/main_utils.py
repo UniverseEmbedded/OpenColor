@@ -19,7 +19,15 @@ def _apply_rotation(img_bgr: np.ndarray, rotation_count: int) -> np.ndarray:
     return img_bgr
 
 
-def _perspective_warp_bgr(img_bgr: np.ndarray, points, dst_size: int, *, inset_mode: bool, rows: int, cols: int) -> np.ndarray:
+def _perspective_warp_bgr(
+    img_bgr: np.ndarray,
+    points,
+    dst_size: int,
+    *,
+    inset_mode: bool,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
     """透视变换"""
     if inset_mode:
         cell_w = float(dst_size) / float(cols)
@@ -35,7 +43,12 @@ def _perspective_warp_bgr(img_bgr: np.ndarray, points, dst_size: int, *, inset_m
         )
     else:
         dst_pts = np.array(
-            [[0.0, 0.0], [float(dst_size), 0.0], [float(dst_size), float(dst_size)], [0.0, float(dst_size)]],
+            [
+                [0.0, 0.0],
+                [float(dst_size), 0.0],
+                [float(dst_size), float(dst_size)],
+                [0.0, float(dst_size)],
+            ],
             dtype=np.float32,
         )
 
@@ -68,7 +81,9 @@ def _corner_color_score(bgr: np.ndarray, expect: str) -> float:
     return 0.0
 
 
-def _score_warped_corners(warped_bgr: np.ndarray, *, rows: int, cols: int, corner_expect: dict[str, str]) -> float:
+def _score_warped_corners(
+    warped_bgr: np.ndarray, *, rows: int, cols: int, corner_expect: dict[str, str]
+) -> float:
     """评分变换后的角落"""
     h, w = warped_bgr.shape[:2]
     cell_w = float(w) / float(cols)
@@ -89,14 +104,26 @@ def _score_warped_corners(warped_bgr: np.ndarray, *, rows: int, cols: int, corne
     return float(score)
 
 
-def _choose_inset_mode(img_bgr: np.ndarray, points, *, dst_size: int, rotation_count: int, rows: int, cols: int) -> bool:
+def _choose_inset_mode(
+    img_bgr: np.ndarray,
+    points,
+    *,
+    dst_size: int,
+    rotation_count: int,
+    rows: int,
+    cols: int,
+) -> bool:
     """选择内嵌模式"""
     warped_inset = _apply_rotation(
-        _perspective_warp_bgr(img_bgr, points, dst_size, inset_mode=True, rows=rows, cols=cols),
+        _perspective_warp_bgr(
+            img_bgr, points, dst_size, inset_mode=True, rows=rows, cols=cols
+        ),
         rotation_count,
     )
     warped_full = _apply_rotation(
-        _perspective_warp_bgr(img_bgr, points, dst_size, inset_mode=False, rows=rows, cols=cols),
+        _perspective_warp_bgr(
+            img_bgr, points, dst_size, inset_mode=False, rows=rows, cols=cols
+        ),
         rotation_count,
     )
 
@@ -114,19 +141,27 @@ def _choose_inset_mode(img_bgr: np.ndarray, points, *, dst_size: int, rotation_c
     }
 
     s_inset = max(
-        _score_warped_corners(warped_inset, rows=rows, cols=cols, corner_expect=expect_no_flip),
-        _score_warped_corners(warped_inset, rows=rows, cols=cols, corner_expect=expect_flip),
+        _score_warped_corners(
+            warped_inset, rows=rows, cols=cols, corner_expect=expect_no_flip
+        ),
+        _score_warped_corners(
+            warped_inset, rows=rows, cols=cols, corner_expect=expect_flip
+        ),
     )
     s_full = max(
-        _score_warped_corners(warped_full, rows=rows, cols=cols, corner_expect=expect_no_flip),
-        _score_warped_corners(warped_full, rows=rows, cols=cols, corner_expect=expect_flip),
+        _score_warped_corners(
+            warped_full, rows=rows, cols=cols, corner_expect=expect_no_flip
+        ),
+        _score_warped_corners(
+            warped_full, rows=rows, cols=cols, corner_expect=expect_flip
+        ),
     )
     return bool(s_inset >= s_full)
 
 
 def parse_roi(roi, cell_w, cell_h):
     """解析ROI
-    
+
     roi supports:
       - None: returns central 60% box
       - [rx, ry, rw, rh] normalized in [0,1] within cell

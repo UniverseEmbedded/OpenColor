@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+*"
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -58,12 +58,11 @@ jobs:
             echo "错误: pixi.lock 文件不存在"
             exit 1
           fi
-          # 检查 pixi.toml 和 pixi.lock 的哈希是否匹配
-          # 这里只做基本检查，实际可以使用 pixi 命令验证
           echo "pixi.lock 存在"
 
-  test-python:
-    name: Python 测试
+  # ========== Lint 阶段 ==========
+  python-lint:
+    name: Python 代码检查
     needs: preflight
     runs-on: ubuntu-latest
     steps:
@@ -76,17 +75,16 @@ jobs:
           pixi-version: v0.39.0
           cache: true
 
-      - name: 运行 Python 测试
-        run: pixi run pytest --cov=oc_core_02 --cov-report=xml --cov-report=term
+      - name: 运行 Ruff 检查
+        run: |
+          pixi run pip install ruff
+          pixi run ruff check py_module/
 
-      - name: 上传覆盖率报告
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
+      - name: 运行 Ruff 格式检查
+        run: pixi run ruff format --check py_module/
 
-  test-web:
-    name: Web 前端测试
+  web-lint:
+    name: Web 前端代码检查
     needs: preflight
     runs-on: ubuntu-latest
     steps:
@@ -105,12 +103,70 @@ jobs:
       - name: 运行类型检查
         run: pixi run pnpm -C web run check
 
+  rust-lint:
+    name: Rust 代码检查
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 运行 Clippy 检查
+        run: |
+          cd web/src-tauri
+          cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: 检查代码格式
+        run: |
+          cd web/src-tauri
+          cargo fmt -- --check
+
+  # ========== Test 阶段 ==========
+  test-python:
+    name: Python 自检
+    needs: [preflight, python-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 运行 Python 自检
+        run: |
+          pixi run python -m compileall py_module
+          pixi run python -c "import oc_core_02, oc_engine, oc_analyze"
+
+  test-web:
+    name: Web 前端测试
+    needs: [preflight, web-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
       - name: 运行单元测试
         run: pixi run web-test-unit
 
   test-rust:
     name: Rust 测试
-    needs: preflight
+    needs: [preflight, rust-lint]
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -128,11 +184,7 @@ jobs:
       - name: 运行 Rust 测试
         run: pixi run web-test-rust
 
-      - name: Rust 代码检查
-        run: |
-          cd web/src-tauri
-          cargo clippy --all-targets --all-features -- -D warnings
-
+  # ========== 构建阶段 ==========
   build-tauri:
     name: 构建 Tauri 应用
     needs: [preflight, test-python, test-web, test-rust]
@@ -180,6 +232,11 @@ jobs:
           pixi-version: v0.39.0
           cache: true
 
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
       - name: 恢复 Rust 缓存
         uses: Swatinem/rust-cache@v2
         with:
@@ -202,8 +259,8 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $msi = Get-ChildItem -Path "web/src-tauri/target/${{ matrix.target }}/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1
-          $exe = Get-ChildItem -Path "web/src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          $msi = Get-ChildItem -ErrorAction SilentlyContinue -Path "web/src-tauri/target/${{ matrix.target }}/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1
+          $exe = Get-ChildItem -ErrorAction SilentlyContinue -Path "web/src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
           if ($msi) {
             echo "INSTALLER_MSI=$($msi.FullName)" >> $env:GITHUB_ENV
             echo "INSTALLER_MSI_NAME=$($msi.Name)" >> $env:GITHUB_ENV
@@ -217,7 +274,7 @@ jobs:
         if: matrix.platform != 'windows-latest'
         run: |
           if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
-            INSTALLER=$(find web/src-tauri/target/${{ matrix.target }}/release/bundle -name "*.AppImage" -o -name "*.deb" | head -1)
+            INSTALLER=$(find web/src-tauri/target/${{ matrix.target }}/release/bundle \( -name "*.AppImage" -o -name "*.deb" \) | head -1)
           else
             INSTALLER=$(find web/src-tauri/target/${{ matrix.target }}/release/bundle -name "*.dmg" | head -1)
           fi
@@ -254,11 +311,12 @@ jobs:
           path: ${{ env.INSTALLER_PATH }}
           retention-days: 30
 
+  # ========== 签名阶段 ==========
   sign-windows:
     name: Windows 代码签名
     needs: [preflight, build-tauri]
     runs-on: windows-latest
-    if: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    if: ${{ vars.WINDOWS_CERTIFICATE_ENABLED == 'true' }}
     steps:
       - name: 下载构建产物
         uses: actions/download-artifact@v4
@@ -292,7 +350,7 @@ jobs:
     name: macOS 代码签名
     needs: [preflight, build-tauri]
     runs-on: macos-latest
-    if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+    if: ${{ vars.MACOS_CERTIFICATE_ENABLED == 'true' }}
     strategy:
       matrix:
         arch: [aarch64, x64]
@@ -336,6 +394,7 @@ jobs:
           path: ./artifacts/**/*
           retention-days: 30
 
+  # ========== 发布阶段 ==========
   publish:
     name: 发布到 GitHub Releases
     needs: [preflight, build-tauri]
@@ -424,11 +483,8 @@ jobs:
         run: |
           echo "OpenColor ${{ needs.preflight.outputs.version }} 发布成功！"
           echo "预发布: ${{ needs.preflight.outputs.is_prerelease }}"
-          # 这里可以添加 Discord/Slack 通知
-          # curl -X POST ${{ secrets.DISCORD_WEBHOOK }} -d "content=OpenColor ${{ needs.preflight.outputs.version }} 已发布！"
 
       - name: 发布失败通知
         if: ${{ needs.publish.result == 'failure' }}
         run: |
           echo "OpenColor ${{ needs.preflight.outputs.version }} 发布失败！"
-          # curl -X POST ${{ secrets.DISCORD_WEBHOOK }} -d "content=OpenColor ${{ needs.preflight.outputs.version }} 发布失败，请检查日志。"

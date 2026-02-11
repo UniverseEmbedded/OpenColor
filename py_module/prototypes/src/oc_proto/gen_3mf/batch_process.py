@@ -1,4 +1,5 @@
 """批量3MF导出 - 处理gen_vector/out中的所有矢量化结果"""
+
 from pathlib import Path
 
 from oc_core_02.utils.logger import get_logger
@@ -10,7 +11,9 @@ logger = get_logger(__name__)
 
 def main():
     # gen_vector 输出目录
-    gen_vector_out_dir = Path("D:/pama1234/pfp/p-2026-01/OpenColor-05/py_module/prototypes/src/oc_proto/gen_vector/out")
+    gen_vector_out_dir = Path(
+        "D:/pama1234/pfp/p-2026-01/OpenColor-05/py_module/prototypes/src/oc_proto/gen_vector/out"
+    )
 
     if not gen_vector_out_dir.exists():
         logger.error("gen_vector 输出目录不存在: {}", gen_vector_out_dir)
@@ -20,11 +23,17 @@ def main():
     def _is_valid_vector_run_dir(d: Path) -> bool:
         """检查目录是否是有效的 gen_vector 输出目录"""
         # 检查是否有 manifest.json 或 vtracer_manifest.json
-        manifest_exists = (d / "manifest.json").exists() or (d / "vtracer_manifest.json").exists()
+        manifest_exists = (d / "manifest.json").exists() or (
+            d / "vtracer_manifest.json"
+        ).exists()
         polys_dir = d / "04_polys"
         return manifest_exists and polys_dir.exists() and polys_dir.is_dir()
 
-    run_dirs = [d for d in gen_vector_out_dir.iterdir() if d.is_dir() and _is_valid_vector_run_dir(d)]
+    run_dirs = [
+        d
+        for d in gen_vector_out_dir.iterdir()
+        if d.is_dir() and _is_valid_vector_run_dir(d)
+    ]
 
     if not run_dirs:
         logger.error("在 {} 中未找到有效的矢量运行目录", gen_vector_out_dir)

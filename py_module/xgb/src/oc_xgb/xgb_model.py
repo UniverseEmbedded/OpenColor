@@ -21,16 +21,17 @@ except Exception as e:  # pragma: no cover
 @dataclass
 class XGBParams:
     """XGBoost 模型参数配置"""
-    use_gpu: bool = True          # 是否使用 GPU 加速
-    max_depth: int = 6            # 树的最大深度
-    n_estimators: int = 800       # 估计器数量（树的数量）
-    learning_rate: float = 0.05   # 学习率
-    subsample: float = 0.9        # 样本采样比例
-    colsample_bytree: float = 0.9 # 特征采样比例
-    reg_lambda: float = 1.0       # L2 正则化系数
-    min_child_weight: float = 1.0 # 叶子节点最小样本权重和
-    gamma: float = 0.0            # 节点分裂所需的最小损失减少
-    random_state: int = 42        # 随机种子
+
+    use_gpu: bool = True  # 是否使用 GPU 加速
+    max_depth: int = 6  # 树的最大深度
+    n_estimators: int = 800  # 估计器数量（树的数量）
+    learning_rate: float = 0.05  # 学习率
+    subsample: float = 0.9  # 样本采样比例
+    colsample_bytree: float = 0.9  # 特征采样比例
+    reg_lambda: float = 1.0  # L2 正则化系数
+    min_child_weight: float = 1.0  # 叶子节点最小样本权重和
+    gamma: float = 0.0  # 节点分裂所需的最小损失减少
+    random_state: int = 42  # 随机种子
 
 
 def _base_params(p: XGBParams) -> Dict[str, Any]:
@@ -71,12 +72,12 @@ def train_three_channel_regressors(
     params: XGBParams,
 ) -> Tuple[Any, Any, Any]:
     """为 Y[:,0], Y[:,1], Y[:,2] 训练三个独立的回归器
-    
+
     Args:
         X: 特征矩阵 (n_samples, n_features)
         Y: 目标值矩阵 (n_samples, 3)，通常是 Lab 颜色空间的三个通道
         params: XGBoost 参数配置
-        
+
     Returns:
         三个训练好的 XGBoost 回归器（分别对应 L, a, b 通道）
     """
@@ -99,11 +100,11 @@ def predict_three_channel(
     X: np.ndarray,
 ) -> np.ndarray:
     """使用三个独立的回归器进行三通道预测
-    
+
     Args:
         models: 三个 XGBoost 回归器元组
         X: 特征矩阵 (n_samples, n_features)
-        
+
     Returns:
         预测值矩阵 (n_samples, 3)
     """
@@ -114,19 +115,19 @@ def predict_three_channel(
 
 def save_models(models: Tuple[Any, Any, Any], out_dir, prefix: str = "xgb_lab"):
     """保存三个 XGBoost 模型到 JSON 文件
-    
+
     Args:
         models: 三个 XGBoost 回归器元组
         out_dir: 输出目录
         prefix: 文件名前缀
-        
+
     Returns:
         保存的文件路径列表
     """
     require_xgboost()
     out_dir = str(out_dir)
     paths = []
-    for i, name in enumerate(["L","a","b"]):
+    for i, name in enumerate(["L", "a", "b"]):
         path = f"{out_dir}/{prefix}_{name}.json"
         models[i].save_model(path)
         paths.append(path)

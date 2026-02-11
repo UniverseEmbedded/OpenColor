@@ -28,7 +28,8 @@ from shapely.ops import unary_union
 from svgpathtools import Path, parse_path
 
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'planning'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "planning"))
 import planner
 
 RGBA = Tuple[int, int, int, int]
@@ -37,6 +38,7 @@ RGBA = Tuple[int, int, int, int]
 # -------------------------
 # 颜色解析
 # -------------------------
+
 
 def parse_color_rgb255(s: str) -> Optional[Tuple[int, int, int]]:
     if not s:
@@ -124,29 +126,24 @@ def parse_fill_rgba(attrs: Dict[str, str]) -> Optional[RGBA]:
 # SVG变换处理
 # -------------------------
 
+
 def _mat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return a @ b
 
 
 def _mat_translate(tx: float, ty: float) -> np.ndarray:
-    return np.array(
-        [[1.0, 0.0, tx], [0.0, 1.0, ty], [0.0, 0.0, 1.0]], dtype=np.float64
-    )
+    return np.array([[1.0, 0.0, tx], [0.0, 1.0, ty], [0.0, 0.0, 1.0]], dtype=np.float64)
 
 
 def _mat_scale(sx: float, sy: float) -> np.ndarray:
-    return np.array(
-        [[sx, 0.0, 0.0], [0.0, sy, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64
-    )
+    return np.array([[sx, 0.0, 0.0], [0.0, sy, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
 
 
 def _mat_rotate(deg: float) -> np.ndarray:
     th = math.radians(deg)
     c = math.cos(th)
     s = math.sin(th)
-    return np.array(
-        [[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64
-    )
+    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
 
 
 def parse_transform_attr(s: str) -> np.ndarray:
@@ -202,6 +199,7 @@ def apply_affine_xy(x: float, y: float, M: np.ndarray) -> Tuple[float, float]:
 # SVG viewBox + 几何辅助函数
 # -------------------------
 
+
 def get_viewbox(svg_attrs: Dict[str, str]) -> Tuple[float, float, float, float]:
     vb = svg_attrs.get("viewBox") or svg_attrs.get("viewbox")
     if vb:
@@ -229,7 +227,9 @@ def ring_area_xy(coords: List[Tuple[float, float]]) -> float:
     return 0.5 * a
 
 
-def approx_closed_rings_from_path(path: Path, tol_units: float, M: np.ndarray) -> List[List[Tuple[float, float]]]:
+def approx_closed_rings_from_path(
+    path: Path, tol_units: float, M: np.ndarray
+) -> List[List[Tuple[float, float]]]:
     rings: List[List[Tuple[float, float]]] = []
     for sub in path.continuous_subpaths():
         if len(sub) == 0:
@@ -341,11 +341,14 @@ def extrude_poly_at_z(poly: Polygon, height: float, z0: float) -> trimesh.Trimes
 # SVG遍历
 # -------------------------
 
+
 def _strip_ns(tag: str) -> str:
     return tag.split("}", 1)[-1] if "}" in tag else tag
 
 
-def iter_paths_with_cumulative_transform(svg_file: str) -> Tuple[List[Tuple[Path, Dict[str, str], np.ndarray]], Dict[str, str]]:
+def iter_paths_with_cumulative_transform(
+    svg_file: str,
+) -> Tuple[List[Tuple[Path, Dict[str, str], np.ndarray]], Dict[str, str]]:
     tree = ET.parse(svg_file)
     root = tree.getroot()
     svg_attrs = dict(root.attrib)
@@ -379,6 +382,7 @@ def iter_paths_with_cumulative_transform(svg_file: str) -> Tuple[List[Tuple[Path
 # 主程序
 # -------------------------
 
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="SVG -> 堆叠RGBW平面内容，导出为4个STL")
     ap.add_argument("--svg", default="test.svg", help="输入svg")
@@ -389,7 +393,12 @@ def main() -> None:
     ap.add_argument("--first-layer-height", type=float, default=0.12)
     ap.add_argument("--layer-height", type=float, default=0.08)
     ap.add_argument("--layers", type=int, default=5)
-    ap.add_argument("--pattern", default="balanced", choices=["balanced", "grouped"], help="仅用于非暴力均匀搜索")
+    ap.add_argument(
+        "--pattern",
+        default="balanced",
+        choices=["balanced", "grouped"],
+        help="仅用于非暴力均匀搜索",
+    )
 
     # 默认为底面视图（与热床接触的面）
     ap.add_argument("--view", default="bottom", choices=["top", "bottom"])
@@ -398,12 +407,22 @@ def main() -> None:
     ap.add_argument("--samples", type=int, default=80000)
     ap.add_argument("--candidates", type=int, default=64)
     ap.add_argument("--brute-force-threshold", type=int, default=60000)
-    ap.add_argument("--opacity-weight", type=float, default=-1.0, help="<0表示自动：仅当alpha != 255时启用")
+    ap.add_argument(
+        "--opacity-weight",
+        type=float,
+        default=-1.0,
+        help="<0表示自动：仅当alpha != 255时启用",
+    )
 
     ap.add_argument("--tol-mm", type=float, default=0.2)
     ap.add_argument("--simplify-mm", type=float, default=0.15)
     ap.add_argument("--min-area-mm2", type=float, default=0.2)
-    ap.add_argument("--alpha-background", default="white", choices=["white", "black"], help="用于RGBA alpha合成目标")
+    ap.add_argument(
+        "--alpha-background",
+        default="white",
+        choices=["white", "black"],
+        help="用于RGBA alpha合成目标",
+    )
     ap.add_argument("--materials-json", default=None, help="materials.json路径")
 
     args = ap.parse_args()
@@ -415,9 +434,13 @@ def main() -> None:
 
     os.makedirs(args.outdir, exist_ok=True)
 
-    layer_heights = [float(args.first_layer_height)] + [float(args.layer_height)] * (int(args.layers) - 1)
+    layer_heights = [float(args.first_layer_height)] + [float(args.layer_height)] * (
+        int(args.layers) - 1
+    )
     total_h = sum(layer_heights)
-    logger.info(f"view={args.view} backing={args.backing} alpha_background={args.alpha_background}")
+    logger.info(
+        f"view={args.view} backing={args.backing} alpha_background={args.alpha_background}"
+    )
     logger.info(f"layers={args.layers} heights={layer_heights} total={total_h:.3f}mm")
 
     items, svg_attrs = iter_paths_with_cumulative_transform(args.svg)
@@ -454,7 +477,9 @@ def main() -> None:
     occupied_by_layer: List[Optional[Polygon]] = [None for _ in range(int(args.layers))]
 
     # 桶：token -> (poly, layer_index)列表
-    layer_polys: Dict[str, List[Tuple[Polygon, int]]] = {t: [] for t in ["R", "G", "B", "W"]}
+    layer_polys: Dict[str, List[Tuple[Polygon, int]]] = {
+        t: [] for t in ["R", "G", "B", "W"]
+    }
 
     opacity_weight: Optional[float]
     if float(args.opacity_weight) < 0:
@@ -498,7 +523,9 @@ def main() -> None:
                     materials_json=args.materials_json,
                 )
             p0 = plan_cache[rgba]
-            logger.info(f"rgba={rgba} seq={'-'.join(p0.sequence)} pred={p0.pred_rgb_srgb} loss={p0.loss:.6f}")
+            logger.info(
+                f"rgba={rgba} seq={'-'.join(p0.sequence)} pred={p0.pred_rgb_srgb} loss={p0.loss:.6f}"
+            )
 
         seq = plan_cache[rgba].sequence
 
@@ -512,7 +539,9 @@ def main() -> None:
                 continue
             piece = piece.buffer(0)
             layer_polys[token].append((piece, li))
-            occupied_by_layer[li] = piece if occ is None else unary_union([occ, piece]).buffer(0)
+            occupied_by_layer[li] = (
+                piece if occ is None else unary_union([occ, piece]).buffer(0)
+            )
 
     # 通过每层并集然后挤压到正确Z位置来构建每个材料的网格
     z_offsets = []
@@ -552,7 +581,9 @@ def main() -> None:
                 meshes.append(extrude_poly_at_z(g2, layer_heights[li], z_offsets[li]))
             else:
                 for p in g2.geoms:
-                    meshes.append(extrude_poly_at_z(p, layer_heights[li], z_offsets[li]))
+                    meshes.append(
+                        extrude_poly_at_z(p, layer_heights[li], z_offsets[li])
+                    )
 
         if not meshes:
             logger.info(f"{token}: 空")

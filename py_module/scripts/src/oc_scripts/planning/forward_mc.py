@@ -119,11 +119,12 @@ class OpticalProps:
         g: 散射各向异性参数
         n: 折射率
     """
+
     # 每通道系数，单位 1/mm
     mu_a: Tuple[float, float, float]  # 吸收系数
     mu_s: Tuple[float, float, float]  # 散射系数
-    g: float                          # 各向异性参数
-    n: float                          # 折射率
+    g: float  # 各向异性参数
+    n: float  # 折射率
 
 
 # 默认材料光学参数（占位符，后续替换为拟合值）
@@ -135,16 +136,14 @@ class OpticalProps:
 DEFAULT_MATERIALS: Dict[str, OpticalProps] = {
     "W": OpticalProps(mu_a=(0.10, 0.10, 0.10), mu_s=(6.0, 6.0, 6.0), g=0.85, n=1.50),
     "T": OpticalProps(mu_a=(0.01, 0.01, 0.01), mu_s=(0.4, 0.4, 0.4), g=0.80, n=1.50),
-    "K": OpticalProps(mu_a=(8.0, 8.0, 8.0),     mu_s=(2.0, 2.0, 2.0), g=0.80, n=1.50),
-
-    "R": OpticalProps(mu_a=(0.35, 2.2, 2.6),    mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
-    "G": OpticalProps(mu_a=(2.2, 0.35, 2.2),    mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
-    "B": OpticalProps(mu_a=(2.6, 2.2, 0.35),    mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
-
+    "K": OpticalProps(mu_a=(8.0, 8.0, 8.0), mu_s=(2.0, 2.0, 2.0), g=0.80, n=1.50),
+    "R": OpticalProps(mu_a=(0.35, 2.2, 2.6), mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
+    "G": OpticalProps(mu_a=(2.2, 0.35, 2.2), mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
+    "B": OpticalProps(mu_a=(2.6, 2.2, 0.35), mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
     # 可选扩展颜色
-    "C": OpticalProps(mu_a=(2.4, 0.50, 0.50),   mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
-    "Y": OpticalProps(mu_a=(0.45, 0.45, 2.4),   mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
-    "M": OpticalProps(mu_a=(0.50, 2.4, 0.50),   mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
+    "C": OpticalProps(mu_a=(2.4, 0.50, 0.50), mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
+    "Y": OpticalProps(mu_a=(0.45, 0.45, 2.4), mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
+    "M": OpticalProps(mu_a=(0.50, 2.4, 0.50), mu_s=(3.0, 3.0, 3.0), g=0.85, n=1.50),
 }
 
 
@@ -153,6 +152,7 @@ def _default_materials_path() -> str:
     # 当前文件: py_module/scripts/src/oc_scripts/planning/
     # data/materials.json 在 repo 根目录下的 data 文件夹
     from pathlib import Path
+
     root = Path(__file__).resolve().parents[5]
     return str(root / "data" / "materials.json")
 
@@ -208,21 +208,22 @@ class MCResult:
         R: 每通道反射率 (0..1)
         T: 每通道透射率 (0..1)
     """
+
     R: Tuple[float, float, float]  # 每通道反射率
     T: Tuple[float, float, float]  # 每通道透射率
 
 
 def _mc_one_channel(
-        seq: Sequence[str],
-        heights: Sequence[float],
-        mats: Dict[str, OpticalProps],
-        channel: int,
-        view: str,
-        samples: int,
-        seed: int,
-        air_n: float = 1.0,
-        collimated_normal: bool = True,
-        max_scatter_events: int = 2000,
+    seq: Sequence[str],
+    heights: Sequence[float],
+    mats: Dict[str, OpticalProps],
+    channel: int,
+    view: str,
+    samples: int,
+    seed: int,
+    air_n: float = 1.0,
+    collimated_normal: bool = True,
+    max_scatter_events: int = 2000,
 ) -> Tuple[float, float]:
     """
     对单一波长通道计算 (R, T)。
@@ -277,7 +278,9 @@ def _mc_one_channel(
         # 光子在入射表面启动
         z = 0.0
         # 方向余弦 mu = cos(theta) 相对于 +z（向下进入平板）
-        mu = 1.0 if collimated_normal else math.sqrt(rng.random())  # 如果是漫射则余弦加权
+        mu = (
+            1.0 if collimated_normal else math.sqrt(rng.random())
+        )  # 如果是漫射则余弦加权
         # phi 在 1D 边界测试中不需要；只在散射后更新 mu 时需要
 
         # 入射处空气->塑料的菲涅尔反射
@@ -415,12 +418,12 @@ def _mc_one_channel(
 
 
 def forward_reflect_transmit(
-        seq: Sequence[str],
-        heights: Sequence[float],
-        materials: Optional[Dict[str, OpticalProps]] = None,
-        view: str = "top",
-        samples: int = 200000,
-        seed: int = 0,
+    seq: Sequence[str],
+    heights: Sequence[float],
+    materials: Optional[Dict[str, OpticalProps]] = None,
+    view: str = "top",
+    samples: int = 200000,
+    seed: int = 0,
 ) -> MCResult:
     """计算材料堆叠的前向反射和透射。
 
@@ -464,9 +467,9 @@ def forward_reflect_transmit(
 
 
 def observed_rgb_under_backing(
-        R: Tuple[float, float, float],
-        T: Tuple[float, float, float],
-        backing_reflectance: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    R: Tuple[float, float, float],
+    T: Tuple[float, float, float],
+    backing_reflectance: Tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> Tuple[float, float, float]:
     """
     计算背板上平板的标准合成颜色。
@@ -514,12 +517,25 @@ def main():
     """主函数：解析命令行参数并运行蒙特卡洛模拟。"""
     ap = argparse.ArgumentParser(description="基于物理的层叠堆栈前向模型（蒙特卡洛）")
     ap.add_argument("--seq", required=True, help="序列，如 W-G-W-R-W 或 WGW RW")
-    ap.add_argument("--heights", required=True, help="逗号分隔的高度（mm），如 0.12,0.08,0.08,0.08,0.08")
-    ap.add_argument("--view", default="top", choices=["top", "bottom"], help="照明+观察侧")
+    ap.add_argument(
+        "--heights",
+        required=True,
+        help="逗号分隔的高度（mm），如 0.12,0.08,0.08,0.08,0.08",
+    )
+    ap.add_argument(
+        "--view", default="top", choices=["top", "bottom"], help="照明+观察侧"
+    )
     ap.add_argument("--samples", type=int, default=200000, help="每通道蒙特卡洛光子数")
-    ap.add_argument("--samples-preview", type=int, default=None, help="低采样快速模式用于实时预览")
+    ap.add_argument(
+        "--samples-preview", type=int, default=None, help="低采样快速模式用于实时预览"
+    )
     ap.add_argument("--seed", type=int, default=0, help="随机种子")
-    ap.add_argument("--backing", default="white", choices=["white", "black"], help="观测颜色的背板反射率")
+    ap.add_argument(
+        "--backing",
+        default="white",
+        choices=["white", "black"],
+        help="观测颜色的背板反射率",
+    )
     ap.add_argument("--materials-json", default=None, help="materials.json 路径")
     args = ap.parse_args()
 
@@ -534,7 +550,14 @@ def main():
     if args.samples_preview is not None:
         args.samples = int(args.samples_preview)
 
-    res = forward_reflect_transmit(seq=seq, heights=heights, materials=mats, view=args.view, samples=args.samples, seed=args.seed)
+    res = forward_reflect_transmit(
+        seq=seq,
+        heights=heights,
+        materials=mats,
+        view=args.view,
+        samples=args.samples,
+        seed=args.seed,
+    )
 
     backing = (1.0, 1.0, 1.0) if args.backing == "white" else (0.0, 0.0, 0.0)
     obs = observed_rgb_under_backing(res.R, res.T, backing_reflectance=backing)
@@ -542,7 +565,9 @@ def main():
     logger.info(f"seq={seq}")
     logger.info(f"heights_mm={heights} total={sum(heights):.3f}")
     logger.info(f"view={args.view} samples={args.samples} seed={args.seed}")
-    logger.info(f"反射率 R={res.R}  透射率 T={res.T}  吸收率 A={(1-res.R[0]-res.T[0], 1-res.R[1]-res.T[1], 1-res.R[2]-res.T[2])}")
+    logger.info(
+        f"反射率 R={res.R}  透射率 T={res.T}  吸收率 A={(1 - res.R[0] - res.T[0], 1 - res.R[1] - res.T[1], 1 - res.R[2] - res.T[2])}"
+    )
     logger.info(f"在 {args.backing} 背板上的观测值（线性）={obs}")
     logger.info(f"观测 sRGB={rgb_lin_to_srgb255(obs)}")
 

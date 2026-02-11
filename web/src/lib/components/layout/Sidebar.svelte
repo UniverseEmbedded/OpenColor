@@ -7,12 +7,14 @@
   // 本地状态
   let isMobile: boolean = $state(false);
   let currentNav: string = $state('calibrate/board-gen');
+  let expandedNavs: Set<string> = $state(new Set(['calibrate']));
   
   // 订阅 navigation store
   $effect(() => {
     const unsubscribe = navigationStore.subscribe((value) => {
       isMobile = value.isMobile;
       currentNav = value.currentNav;
+      expandedNavs = value.expandedNavs;
     });
     return unsubscribe;
   });
@@ -50,7 +52,7 @@
   <!-- 导航区域 -->
   <nav class="nav">
     {#each navItems as item}
-      <div class="nav-group" class:expanded={navigationStore.isExpanded(item.id)}>
+      <div class="nav-group" class:expanded={expandedNavs.has(item.id)}>
         <button 
           class="nav-item" 
           class:active={currentNav.startsWith(item.id)}
@@ -63,7 +65,7 @@
           {/if}
         </button>
         
-        {#if item.children && navigationStore.isExpanded(item.id) && !isMobile}
+        {#if item.children && expandedNavs.has(item.id) && !isMobile}
           <div class="nav-children">
             {#each item.children as child}
               <button 

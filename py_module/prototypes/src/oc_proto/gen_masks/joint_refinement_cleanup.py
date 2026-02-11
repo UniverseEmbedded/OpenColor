@@ -16,14 +16,14 @@ def _remove_small_components_replace_with_neighbors(
     connectivity: int,
 ) -> tuple[np.ndarray, dict[str, int]]:
     """移除小连通域并用邻域颜色替换
-    
+
     Args:
         lab: 标签图
         roi: 感兴趣区域
         n_slots: 颜色槽数量
         max_area_px: 最大面积阈值
         connectivity: 连通性 (4 或 8)
-    
+
     Returns:
         处理后的标签图和统计信息
     """
@@ -34,13 +34,19 @@ def _remove_small_components_replace_with_neighbors(
     if roi0.shape != lab0.shape:
         raise ValueError(f"roi 尺寸不一致: {roi0.shape} vs {lab0.shape}")
     if int(max_area_px) <= 0:
-        return lab0.astype(lab0.dtype, copy=True), {"removed_components": 0, "removed_pixels": 0}
+        return lab0.astype(lab0.dtype, copy=True), {
+            "removed_components": 0,
+            "removed_pixels": 0,
+        }
     conn = int(connectivity)
     if conn not in (4, 8):
         raise ValueError(f"connectivity 仅支持 4 或 8，当前: {connectivity}")
     ns = int(n_slots)
     if ns <= 1:
-        return lab0.astype(lab0.dtype, copy=True), {"removed_components": 0, "removed_pixels": 0}
+        return lab0.astype(lab0.dtype, copy=True), {
+            "removed_components": 0,
+            "removed_pixels": 0,
+        }
 
     out = lab0.astype(np.int32, copy=True)
     removed_components = 0
@@ -54,7 +60,7 @@ def _remove_small_components_replace_with_neighbors(
     h = int(out.shape[0])
     w = int(out.shape[1])
     pad = 2
-    
+
     for s in range(ns):
         m = (roi0 & (out == int(s))).astype(np.uint8, copy=False)
         if not bool(np.any(m)):
@@ -80,7 +86,7 @@ def _remove_small_components_replace_with_neighbors(
             x1 = min(w, x + ww + pad)
 
             cc_p = cc[y0:y1, x0:x1]
-            comp = (cc_p == int(cid))
+            comp = cc_p == int(cid)
             if not bool(np.any(comp)):
                 continue
 
@@ -113,10 +119,15 @@ def _remove_small_components_replace_with_neighbors(
             removed_components += 1
             removed_pixels += area
 
-    return out.astype(lab0.dtype, copy=False), {"removed_components": int(removed_components), "removed_pixels": int(removed_pixels)}
+    return out.astype(lab0.dtype, copy=False), {
+        "removed_components": int(removed_components),
+        "removed_pixels": int(removed_pixels),
+    }
 
 
-def _despeckle_single_pixels_4(labels: np.ndarray, roi: np.ndarray, *, iters: int, n_slots: int) -> tuple[np.ndarray, int]:
+def _despeckle_single_pixels_4(
+    labels: np.ndarray, roi: np.ndarray, *, iters: int, n_slots: int
+) -> tuple[np.ndarray, int]:
     """去除单像素噪声"""
     lab0 = np.asarray(labels)
     r = np.asarray(roi, dtype=bool)
@@ -139,7 +150,14 @@ def _despeckle_single_pixels_4(labels: np.ndarray, roi: np.ndarray, *, iters: in
         dn = out[2:, 1:-1]
         lf = out[1:-1, :-2]
         rt = out[1:-1, 2:]
-        iso = rr & (center >= 0) & (center != up) & (center != dn) & (center != lf) & (center != rt)
+        iso = (
+            rr
+            & (center >= 0)
+            & (center != up)
+            & (center != dn)
+            & (center != lf)
+            & (center != rt)
+        )
         n_iso = int(np.count_nonzero(iso))
         if n_iso <= 0:
             break

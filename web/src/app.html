@@ -6,8 +6,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenColor</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <style>
+      /* 启动加载屏幕样式 */
+      html, body {
+        background-color: #0b0d10;
+        margin: 0;
+        padding: 0;
+      }
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #0b0d10;
+        z-index: 99999;
+        transition: opacity 0.3s ease-out;
+      }
+      #loading-screen img {
+        width: 80px;
+        height: 80px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      #loading-screen .loading-text {
+        margin-top: 20px;
+        color: #8b949e;
+        font-size: 14px;
+        font-family: 'Maple Mono Normal NF CN', monospace;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.05); }
+      }
+    </style>
+    <script>
+      // 检测主题并设置背景色
+      (function() {
+        const savedTheme = localStorage.getItem('opencolor:settings');
+        let theme = 'dark';
+        if (savedTheme) {
+          try {
+            const parsed = JSON.parse(savedTheme);
+            theme = parsed.theme || 'dark';
+          } catch (e) {}
+        }
+        if (theme === 'auto') {
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        if (theme === 'light') {
+          document.documentElement.style.backgroundColor = '#f0f3f6';
+          const style = document.createElement('style');
+          style.textContent = '#loading-screen { background-color: #f0f3f6 !important; }';
+          document.head.appendChild(style);
+        }
+      })();
+    </script>
   </head>
   <body>
+    <div id="loading-screen">
+      <img src="/icon.svg" alt="Loading..." />
+      <span class="loading-text">OpenColor</span>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

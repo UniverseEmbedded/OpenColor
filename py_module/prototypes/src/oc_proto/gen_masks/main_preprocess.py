@@ -21,10 +21,11 @@ from .main_utils import _choose_preview_output_size, _clear_dir_keep_root
 from .filters import apply_sharpening, _gaussian_blur_masked_rgb_u8
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _load_model_and_setup(
     src_path: Path,
     out_dir_base: Path,
@@ -32,7 +33,7 @@ def _load_model_and_setup(
     run_id: str,
 ) -> tuple[Path, Path, Dict, ColorSystem, int, BitmapParams]:
     """加载模型并设置输出目录
-    
+
     Returns:
         out_run_dir: 输出目录
         model_dir: 模型目录
@@ -51,19 +52,26 @@ def _load_model_and_setup(
         _clear_dir_keep_root(out_run_dir)
     except PermissionError as e:
         import time
+
         ts = time.strftime("%Y%m%d_%H%M%S")
         out_run_dir = out_dir_base / f"{run_id}_run_{ts}"
-        logger.warning(f"[警告] 输出目录被占用，无法清理旧文件，将改为写入新目录: {out_run_dir}，原因={e}")
+        logger.warning(
+            f"[警告] 输出目录被占用，无法清理旧文件，将改为写入新目录: {out_run_dir}，原因={e}"
+        )
         out_run_dir.mkdir(parents=True, exist_ok=True)
         _clear_dir_keep_root(out_run_dir)
 
     # 搜索模型目录
     prototype_dir = Path(__file__).resolve().parent
-    calib_rts_root = (Path(__file__).resolve().parent.parent / "calib_color_rts" / "out").resolve()
-    calib_old_root = (prototype_dir.parent.parent / "oc_prototypes_02" / "calib_color_model_fit_01").resolve()
-    
+    calib_rts_root = (
+        Path(__file__).resolve().parent.parent / "calib_color_rts" / "out"
+    ).resolve()
+    calib_old_root = (
+        prototype_dir.parent.parent / "oc_prototypes_02" / "calib_color_model_fit_01"
+    ).resolve()
+
     candidates: list[tuple[int, int, float, Path]] = []
-    
+
     # 在新版 calib_color_rts 中搜索
     if calib_rts_root.exists():
         # 查找 color_model.json + phys_gpr_model.npz (GPR模型)
@@ -80,7 +88,7 @@ def _load_model_and_setup(
             prefer_four_flux = 1 if "four_flux" in p else 0
             prefer_vulkan = 1 if "vulkan" in p else 0
             candidates.append((prefer_four_flux, prefer_vulkan, mtime, model_dir))
-        
+
         # 查找 rts_model.json (RTS模型)
         for meta_path in calib_rts_root.rglob("rts_model.json"):
             model_dir = meta_path.parent
@@ -92,7 +100,7 @@ def _load_model_and_setup(
             prefer_rts = 2  # RTS模型优先级最高
             prefer_vulkan = 1 if "vulkan" in p else 0
             candidates.append((prefer_rts, prefer_vulkan, mtime, model_dir))
-    
+
     # 在旧版 calib_color_model_fit_01 中搜索
     if calib_old_root.exists():
         for meta_path in calib_old_root.rglob("color_model.json"):
@@ -111,14 +119,18 @@ def _load_model_and_setup(
             candidates.append((prefer_four_flux - 2, prefer_vulkan, mtime, model_dir))
 
     if not candidates:
-        raise FileNotFoundError(f"在目录中未找到可用模型: {calib_rts_root} 或 {calib_old_root}")
+        raise FileNotFoundError(
+            f"在目录中未找到可用模型: {calib_rts_root} 或 {calib_old_root}"
+        )
     candidates.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
     model_dir = candidates[0][3]
     logger.info(f"[信息] 使用模型目录: {model_dir}")
 
     # 加载模型
     model = load_model(model_dir)
-    cs = ColorSystem.from_material_keys(name="DynamicModelSystem", keys=model.optical.material_keys)
+    cs = ColorSystem.from_material_keys(
+        name="DynamicModelSystem", keys=model.optical.material_keys
+    )
     n_layers = int(model.optical.n_layers)
 
     # 设置位图参数
@@ -141,7 +153,7 @@ def _preprocess_image(
     sharpening_strength: float = 1.5,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int]:
     """预处理图像
-    
+
     Returns:
         rgb_u8: RGB图像
         a_u8: Alpha通道
@@ -163,14 +175,28 @@ def _preprocess_image(
         sr_scale = max(1, int(superres_scale))
         orig_w, orig_h = pil.size
         base_max_dim = max(1, int(1920 // sr_scale))
-        base_out_w, base_out_h = _choose_preview_output_size(orig_w, orig_h, max_dim=base_max_dim)
-        target_w_px, target_h_px = int(base_out_w * sr_scale), int(base_out_h * sr_scale)
-        logger.info(f"[预处理] 应用超分辨率: {orig_w}x{orig_h} -> {target_w_px}x{target_h_px} (倍率={sr_scale}x)")
-        rgba_base = np.array(pil.resize((base_out_w, base_out_h), resample=Image.Resampling.BILINEAR), dtype=np.uint8)
+        base_out_w, base_out_h = _choose_preview_output_size(
+            orig_w, orig_h, max_dim=base_max_dim
+        )
+        target_w_px, target_h_px = (
+            int(base_out_w * sr_scale),
+            int(base_out_h * sr_scale),
+        )
+        logger.info(
+            f"[预处理] 应用超分辨率: {orig_w}x{orig_h} -> {target_w_px}x{target_h_px} (倍率={sr_scale}x)"
+        )
+        rgba_base = np.array(
+            pil.resize((base_out_w, base_out_h), resample=Image.Resampling.BILINEAR),
+            dtype=np.uint8,
+        )
         rgb_u8 = rgba_base[..., :3]
         a_u8 = rgba_base[..., 3]
-        rgb_u8 = cv2.resize(rgb_u8, (target_w_px, target_h_px), interpolation=cv2.INTER_LANCZOS4)
-        a_u8 = cv2.resize(a_u8, (target_w_px, target_h_px), interpolation=cv2.INTER_NEAREST)
+        rgb_u8 = cv2.resize(
+            rgb_u8, (target_w_px, target_h_px), interpolation=cv2.INTER_LANCZOS4
+        )
+        a_u8 = cv2.resize(
+            a_u8, (target_w_px, target_h_px), interpolation=cv2.INTER_NEAREST
+        )
     else:
         rgba_u8 = np.array(pil, dtype=np.uint8)
         rgb_u8 = rgba_u8[..., :3]
@@ -180,7 +206,9 @@ def _preprocess_image(
         logger.info(f"[预处理] 应用锐化 (强度={float(sharpening_strength)})")
         rgb_u8 = apply_sharpening(rgb_u8, float(sharpening_strength))
 
-    rgba_match = np.zeros((int(rgb_u8.shape[0]), int(rgb_u8.shape[1]), 4), dtype=np.uint8)
+    rgba_match = np.zeros(
+        (int(rgb_u8.shape[0]), int(rgb_u8.shape[1]), 4), dtype=np.uint8
+    )
     rgba_match[..., :3] = rgb_u8
     rgba_match[..., 3] = a_u8
 
@@ -207,7 +235,9 @@ def _preprocess_image(
     params.nozzle_width_mm = 60.0 / float(max(1, w))
     params.auto_bg_remove = False
 
-    mask_match = _mask_transparency_and_bg(rgba_match, params.alpha_threshold, params.auto_bg_remove, params.bg_tol)
+    mask_match = _mask_transparency_and_bg(
+        rgba_match, params.alpha_threshold, params.auto_bg_remove, params.bg_tol
+    )
 
     try:
         Image.fromarray(rgb_u8).save(input_dir / "01_upscaled_lanczos4.png")

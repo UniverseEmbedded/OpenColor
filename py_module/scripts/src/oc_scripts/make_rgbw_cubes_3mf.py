@@ -18,11 +18,14 @@ import trimesh
 import lib3mf
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
-def add_mesh_from_trimesh(model: lib3mf.Model, tm: trimesh.Trimesh, name: str) -> lib3mf.MeshObject:
+
+
+def add_mesh_from_trimesh(
+    model: lib3mf.Model, tm: trimesh.Trimesh, name: str
+) -> lib3mf.MeshObject:
     """将trimesh网格添加到lib3mf模型中
 
     将trimesh创建的网格转换为lib3mf的MeshObject，
@@ -58,9 +61,16 @@ def main() -> None:
     并将它们保存为3MF文件
     """
     ap = argparse.ArgumentParser(description="生成RGBW彩色立方体的3MF文件")
-    ap.add_argument("--out", type=str, default="out_rgbw_cubes/rgbw_cubes.3mf", help="输出.3mf文件路径")
+    ap.add_argument(
+        "--out",
+        type=str,
+        default="out_rgbw_cubes/rgbw_cubes.3mf",
+        help="输出.3mf文件路径",
+    )
     ap.add_argument("--size-mm", type=float, default=10.0, help="立方体边长（毫米）")
-    ap.add_argument("--gap-mm", type=float, default=2.0, help="立方体之间的间隙（毫米）")
+    ap.add_argument(
+        "--gap-mm", type=float, default=2.0, help="立方体之间的间隙（毫米）"
+    )
     args = ap.parse_args()
 
     out_path = Path(args.out)

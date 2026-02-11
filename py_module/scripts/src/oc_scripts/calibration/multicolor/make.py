@@ -46,10 +46,11 @@ from .seq import (
 from .utils import clean_mesh, parse_materials
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def add_tile(
     all_verts: List[List[np.ndarray]],
     all_faces: List[List[np.ndarray]],
@@ -143,7 +144,12 @@ def add_tile(
             "plate_index": int(plate_index),
             "ix": int(ix),
             "iy": int(iy),
-            "rect_mm": {"x": float(x0), "y": float(y0), "w": float(tile_mm), "h": float(tile_mm)},
+            "rect_mm": {
+                "x": float(x0),
+                "y": float(y0),
+                "w": float(tile_mm),
+                "h": float(tile_mm),
+            },
             "print_sequence": seq_print,
             "view_sequence": seq_view,
             "heights_mm": [float(x) for x in heights_mm],
@@ -164,20 +170,40 @@ def main() -> None:
 
     # A1 mini (180x180 打印床) 的实用默认值是 18x18 瓦片，8mm = 144mm
     # 为擦拭/Prime塔留出空间
-    ap.add_argument("--board-mm", type=float, default=144.0, help="整板宽度/高度（正方形）")
+    ap.add_argument(
+        "--board-mm", type=float, default=144.0, help="整板宽度/高度（正方形）"
+    )
     ap.add_argument("--tile-mm", type=float, default=8.0, help="色块尺寸（正方形）")
-    ap.add_argument("--nx", type=int, default=0, help="每行瓦片数（0 = board-mm/tile-mm）")
-    ap.add_argument("--ny", type=int, default=0, help="每列瓦片数（0 = board-mm/tile-mm）")
-    ap.add_argument("--center", action="store_true", help="将板子中心置于原点（默认：左下角在 0,0）")
+    ap.add_argument(
+        "--nx", type=int, default=0, help="每行瓦片数（0 = board-mm/tile-mm）"
+    )
+    ap.add_argument(
+        "--ny", type=int, default=0, help="每列瓦片数（0 = board-mm/tile-mm）"
+    )
+    ap.add_argument(
+        "--center", action="store_true", help="将板子中心置于原点（默认：左下角在 0,0）"
+    )
 
-    ap.add_argument("--border-mm", type=float, default=3.0, help="外边框宽度（毫米），设为0禁用")
-    ap.add_argument("--border-rings", type=int, default=4, help="首层以上用于边框的同心回形环数量")
-    ap.add_argument("--no-bottom-stripes", action="store_true", help="禁用底层连接条纹，恢复为每瓦片首层")
+    ap.add_argument(
+        "--border-mm", type=float, default=3.0, help="外边框宽度（毫米），设为0禁用"
+    )
+    ap.add_argument(
+        "--border-rings", type=int, default=4, help="首层以上用于边框的同心回形环数量"
+    )
+    ap.add_argument(
+        "--no-bottom-stripes",
+        action="store_true",
+        help="禁用底层连接条纹，恢复为每瓦片首层",
+    )
 
     # 层叠参数
     ap.add_argument("--layers", type=int, default=5, help="每个色块的总离散层数")
-    ap.add_argument("--first-layer-height", type=float, default=0.12, help="首层厚度（毫米）")
-    ap.add_argument("--layer-height", type=float, default=0.08, help="后续层厚度（毫米）")
+    ap.add_argument(
+        "--first-layer-height", type=float, default=0.12, help="首层厚度（毫米）"
+    )
+    ap.add_argument(
+        "--layer-height", type=float, default=0.08, help="后续层厚度（毫米）"
+    )
     ap.add_argument(
         "--flip-after-print",
         action="store_true",
@@ -254,7 +280,9 @@ def main() -> None:
         help="硬上限，限制生成的色块数量（0 = 使用完整网格 nx*ny）",
     )
 
-    ap.add_argument("--validate", action="store_true", help="运行 trimesh 清理（较慢但更安全）")
+    ap.add_argument(
+        "--validate", action="store_true", help="运行 trimesh 清理（较慢但更安全）"
+    )
 
     args = ap.parse_args()
 
@@ -364,6 +392,7 @@ def main() -> None:
         combos_all = compositions_k(L, K, limit=total_tiles)
         seq_source: Iterable[List[int]]
         if args.composition_order == "stacked":
+
             def _stacked():
                 for counts in combos_all:
                     seq: List[int] = []
@@ -373,6 +402,7 @@ def main() -> None:
 
             seq_source = _stacked()
         else:
+
             def _interleave():
                 for counts in combos_all:
                     yield interleave_from_counts(counts)
@@ -382,9 +412,12 @@ def main() -> None:
         if args.ordering == "prioritized":
             seq_source = prioritized_sequences(K, L, max_items=total_tiles)
         else:
+
             def _numeric():
                 for idx in range(total_tiles):
-                    yield sequence_index_to_digits(base=K, length=L, idx=idx, lsb_first=True)
+                    yield sequence_index_to_digits(
+                        base=K, length=L, idx=idx, lsb_first=True
+                    )
 
             seq_source = _numeric()
 
@@ -405,7 +438,6 @@ def main() -> None:
         all_verts: List[List[np.ndarray]] = [[] for _ in range(K)]
         all_faces: List[List[np.ndarray]] = [[] for _ in range(K)]
         tiles_meta: List[Dict] = []
-
 
         # ------------------------------------------------------------------
         # 稳健的附着特性
@@ -519,10 +551,14 @@ def main() -> None:
             mesh = trimesh.Trimesh(vertices=V, faces=F, process=False)
             if args.validate:
                 mesh = clean_mesh(mesh)
-            outpath = os.path.join(args.outdir, f"{args.name}_p{plate_index+1:02d}_{mat_name}.stl")
+            outpath = os.path.join(
+                args.outdir, f"{args.name}_p{plate_index + 1:02d}_{mat_name}.stl"
+            )
             mesh.export(outpath)
             stl_paths[mat_name] = os.path.abspath(outpath)
-            logger.info(f"[OK] 已写入: {outpath}  (顶点={len(mesh.vertices)}, 面片={len(mesh.faces)})")
+            logger.info(
+                f"[OK] 已写入: {outpath}  (顶点={len(mesh.vertices)}, 面片={len(mesh.faces)})"
+            )
 
         meta = {
             "schema_version": 2,
@@ -560,7 +596,9 @@ def main() -> None:
             "tiles": tiles_meta,
         }
 
-        meta_path = os.path.join(args.outdir, f"{args.name}_p{plate_index+1:02d}_recipes.json")
+        meta_path = os.path.join(
+            args.outdir, f"{args.name}_p{plate_index + 1:02d}_recipes.json"
+        )
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
         logger.info(f"[OK] 已写入: {meta_path}")
@@ -595,8 +633,12 @@ def main() -> None:
     logger.info("\n摘要:")
     logger.info(f"  材料数={K} ({', '.join(mats)})")
     logger.info(f"  模式={args.mode}  排序={args.ordering}  板数={len(plates_meta)}")
-    logger.info(f"  网格={nx}x{ny}  瓦片={tile_mm}mm  间隙={gap}mm  网格尺寸={grid_w:.2f}x{grid_h:.2f}mm")
-    logger.info(f"  层数={L}  高度=[{h0}] + [{h}]*(L-1)  总厚度={sum(heights_mm):.3f}mm")
+    logger.info(
+        f"  网格={nx}x{ny}  瓦片={tile_mm}mm  间隙={gap}mm  网格尺寸={grid_w:.2f}x{grid_h:.2f}mm"
+    )
+    logger.info(
+        f"  层数={L}  高度=[{h0}] + [{h}]*(L-1)  总厚度={sum(heights_mm):.3f}mm"
+    )
     logger.info(f"  生成瓦片数={global_tile_id}")
 
 

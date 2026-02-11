@@ -12,15 +12,25 @@ from PIL import Image
 from oc_sdf.sdf_io import save_svg, rasterize_geometry_soft
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
-def _save_debug_total(*, out_dir: Path, z: int, tag: str, geom, board_mm: float, pixel_w: int, pixel_h: int) -> None:
+
+
+def _save_debug_total(
+    *,
+    out_dir: Path,
+    z: int,
+    tag: str,
+    geom,
+    board_mm: float,
+    pixel_w: int,
+    pixel_h: int,
+) -> None:
     """保存总轮廓调试信息
-    
+
     保存每层总轮廓的SVG矢量图、栅格化图像和距离场图像，用于调试矢量化过程。
-    
+
     参数:
         out_dir: 输出根目录
         z: 层索引
@@ -36,7 +46,12 @@ def _save_debug_total(*, out_dir: Path, z: int, tag: str, geom, board_mm: float,
     prefix = f"L{z:02d}_{tag}"
     # 保存SVG矢量图
     try:
-        save_svg(geom, debug_dir / f"{prefix}_total_contour.svg", float(board_mm), float(board_mm))
+        save_svg(
+            geom,
+            debug_dir / f"{prefix}_total_contour.svg",
+            float(board_mm),
+            float(board_mm),
+        )
     except Exception as e:
         logger.error(f"[警告] 保存总轮廓SVG失败: layer=L{z:02d}, tag={tag}, 原因={e}")
         traceback.print_exc()
@@ -53,9 +68,13 @@ def _save_debug_total(*, out_dir: Path, z: int, tag: str, geom, board_mm: float,
             supersample=1,
         )
         if r4 is not None:
-            Image.fromarray((r4 * 255).astype(np.uint8)).save(debug_dir / f"{prefix}_total_raster_4x.png")
+            Image.fromarray((r4 * 255).astype(np.uint8)).save(
+                debug_dir / f"{prefix}_total_raster_4x.png"
+            )
     except Exception as e:
-        logger.error(f"[警告] 保存总轮廓栅格图失败: layer=L{z:02d}, tag={tag}, 原因={e}")
+        logger.error(
+            f"[警告] 保存总轮廓栅格图失败: layer=L{z:02d}, tag={tag}, 原因={e}"
+        )
         traceback.print_exc()
         r4 = None
 
@@ -90,7 +109,9 @@ def _save_debug_total(*, out_dir: Path, z: int, tag: str, geom, board_mm: float,
         Image.fromarray(inside_u8).save(debug_dir / f"{prefix}_total_sdf_inside.png")
         Image.fromarray(outside_u8).save(debug_dir / f"{prefix}_total_sdf_outside.png")
     except Exception as e:
-        logger.error(f"[警告] 计算或保存距离场失败: layer=L{z:02d}, tag={tag}, 原因={e}")
+        logger.error(
+            f"[警告] 计算或保存距离场失败: layer=L{z:02d}, tag={tag}, 原因={e}"
+        )
         traceback.print_exc()
 
 
@@ -107,9 +128,9 @@ def _save_debug_layer_colored(
     board_mm: float | None = None,
 ) -> None:
     """保存图层着色调试图
-    
+
     将每层的不同槽位用不同颜色渲染，生成着色预览图，支持从掩码或矢量轮廓生成。
-    
+
     参数:
         out_dir: 输出根目录
         mask_dir: 掩码文件目录
@@ -135,7 +156,9 @@ def _save_debug_layer_colored(
             continue
         m_u8 = np.array(Image.open(mp).convert("L"), dtype=np.uint8)
         if m_u8.shape[0] != int(pixel_h) or m_u8.shape[1] != int(pixel_w):
-            logger.warning(f"[警告] 着色预览mask尺寸不一致，已跳过: {mp.name}, shape={m_u8.shape}, expect={int(pixel_h)}x{int(pixel_w)}")
+            logger.warning(
+                f"[警告] 着色预览mask尺寸不一致，已跳过: {mp.name}, shape={m_u8.shape}, expect={int(pixel_h)}x{int(pixel_w)}"
+            )
             continue
 
         # 只取第一个覆盖该像素的槽位
@@ -167,7 +190,9 @@ def _save_debug_layer_colored(
                 poly = layer_polys.get(slot_name)
                 if poly is None or getattr(poly, "is_empty", True):
                     continue
-                m4 = rasterize_geometry_soft(poly, w4, h4, float(board_mm), float(px_per_mm_4x), supersample=1)
+                m4 = rasterize_geometry_soft(
+                    poly, w4, h4, float(board_mm), float(px_per_mm_4x), supersample=1
+                )
                 if m4 is None:
                     continue
 
@@ -182,7 +207,9 @@ def _save_debug_layer_colored(
 
             Image.fromarray(rgb4).save(out_png_4x)
         except Exception as e:
-            logger.error(f"[警告] 保存每层着色位图4x(轮廓栅格化)失败: L{int(z):02d}，原因={e}")
+            logger.error(
+                f"[警告] 保存每层着色位图4x(轮廓栅格化)失败: L{int(z):02d}，原因={e}"
+            )
             traceback.print_exc()
             # 回退到简单4x放大
             rgb_4x = np.repeat(np.repeat(rgb, 4, axis=0), 4, axis=1)

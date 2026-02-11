@@ -17,7 +17,7 @@ from .types import MeshData, SlotColor, DEFAULT_SLOT_COLORS, rgba_to_hex
 def generate_bambu_project_from_template(*args, **kwargs):
     """
     从模板生成 Bambu Studio 3MF 项目（已弃用）
-    
+
     ⚠️ 警告：此函数已弃用，无法正常使用。
     建议使用 export_standard_3mf 进行标准 3MF 导出。
     """
@@ -32,6 +32,7 @@ def generate_bambu_project_from_template(*args, **kwargs):
     from .bambu_3mf.template import generate_bambu_project_from_template as _impl
 
     return _impl(*args, **kwargs)
+
 
 __all__ = [
     "export_standard_3mf",

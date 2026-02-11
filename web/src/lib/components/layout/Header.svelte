@@ -58,6 +58,7 @@
     background: var(--panel);
     border-bottom: 1px solid var(--line);
     flex-shrink: 0;
+    min-width: 0; /* 允许 header 收缩 */
   }
   
   .breadcrumbs {
@@ -65,14 +66,20 @@
     align-items: center;
     gap: 8px;
     font-size: 14px;
+    flex-shrink: 0; /* 防止面包屑收缩 */
+    white-space: nowrap; /* 防止文本换行 */
+    overflow: hidden; /* 隐藏溢出内容 */
   }
   
   .separator {
     color: var(--text-muted);
+    flex-shrink: 0; /* 分隔符不收缩 */
   }
   
   .crumb {
     color: var(--text-muted);
+    white-space: nowrap; /* 防止文本换行 */
+    flex-shrink: 0; /* 面包屑项不收缩 */
   }
   
   .crumb.active {
@@ -84,29 +91,35 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-shrink: 0; /* 右侧区域不收缩 */
   }
   
   .logo {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0; /* Logo 不收缩 */
   }
   
   .logo-icon {
     width: 24px;
     height: 24px;
+    flex-shrink: 0;
   }
   
   .logo-text {
     font-size: 14px;
     font-weight: 600;
     color: var(--text);
+    white-space: nowrap; /* 防止文本换行 */
+    flex-shrink: 0;
   }
   
   .actions {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0; /* 操作按钮区域不收缩 */
   }
   
   .action-btn {
@@ -121,6 +134,7 @@
     color: var(--text-muted);
     cursor: pointer;
     transition: all 0.2s;
+    flex-shrink: 0; /* 按钮不收缩 */
   }
   
   .action-btn:hover {

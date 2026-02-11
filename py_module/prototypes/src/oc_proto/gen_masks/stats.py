@@ -8,10 +8,11 @@ import numpy as np
 from .joint_refinement_boundary import _boundary_length_4, _perimeter_by_slot_4
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def compute_perimeter_stats(mask_u8: np.ndarray) -> Dict:
     """计算掩码的周长统计信息
 
@@ -37,14 +38,16 @@ def compute_perimeter_stats(mask_u8: np.ndarray) -> Dict:
     # 计算圆形度
     circularity = 0.0
     if total_perimeter > 0:
-        circularity = 4 * np.pi * total_area / (total_perimeter ** 2)
+        circularity = 4 * np.pi * total_area / (total_perimeter**2)
 
     return {
         "total_perimeter": float(total_perimeter),
         "contour_count": contour_count,
         "total_area": int(total_area),
         "circularity": float(circularity),
-        "avg_perimeter": float(total_perimeter / contour_count) if contour_count > 0 else 0.0,
+        "avg_perimeter": float(total_perimeter / contour_count)
+        if contour_count > 0
+        else 0.0,
     }
 
 
@@ -59,7 +62,9 @@ def compute_island_stats(mask_u8: np.ndarray, *, min_area: int = 10) -> Dict:
         包含岛屿统计信息的字典
     """
     # 连通区域标记
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        mask_u8, connectivity=8
+    )
 
     # 过滤掉背景（标签0）和小面积区域
     island_areas = []
@@ -76,7 +81,9 @@ def compute_island_stats(mask_u8: np.ndarray, *, min_area: int = 10) -> Dict:
     return {
         "island_count": island_count,
         "total_island_area": int(total_island_area),
-        "avg_island_area": float(total_island_area / island_count) if island_count > 0 else 0.0,
+        "avg_island_area": float(total_island_area / island_count)
+        if island_count > 0
+        else 0.0,
         "max_island_area": int(max(island_areas)) if island_areas else 0,
         "min_island_area": int(min(island_areas)) if island_areas else 0,
         "island_areas": island_areas,
@@ -94,7 +101,9 @@ def suppress_small_islands(mask_u8: np.ndarray, min_area: int = 50) -> np.ndarra
         处理后的掩码
     """
     # 连通区域标记
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        mask_u8, connectivity=8
+    )
 
     # 创建输出掩码
     result = np.zeros_like(mask_u8)
@@ -145,7 +154,7 @@ def print_layer_stats(layer_idx: int, mask_u8: np.ndarray, prefix: str = "") -> 
     logger.info(f"{prefix}  - 轮廓数: {stats['perimeter']['contour_count']}")
     logger.info(f"{prefix}  - 岛屿数: {stats['islands']['island_count']}")
     logger.info(f"{prefix}  - 总面积: {stats['islands']['total_island_area']} 像素")
-    logger.info(f"{prefix}  - 覆盖率: {stats['coverage_ratio']*100:.2f}%")
+    logger.info(f"{prefix}  - 覆盖率: {stats['coverage_ratio'] * 100:.2f}%")
 
 
 def print_layer_perimeter_stats(
@@ -162,12 +171,20 @@ def print_layer_perimeter_stats(
     for z, lab0 in enumerate(labels_by_layer):
         lab = np.asarray(lab0, dtype=np.int16)
         if lab.shape[:2] != roi.shape[:2]:
-            logger.warning(f"[警告] L{z:02d} labels 尺寸不一致，跳过边线统计: {lab.shape} vs {roi.shape}")
+            logger.warning(
+                f"[警告] L{z:02d} labels 尺寸不一致，跳过边线统计: {lab.shape} vs {roi.shape}"
+            )
             continue
         total = _boundary_length_4(lab, roi)
         per_slot = _perimeter_by_slot_4(lab, roi, n_slots=n_slots)
         topk = np.argsort(-per_slot)[: min(5, int(per_slot.shape[0]))]
-        top_txt = ", ".join([f"{slot_names[int(i)]}={int(per_slot[int(i)])}" for i in topk if int(per_slot[int(i)]) > 0])
+        top_txt = ", ".join(
+            [
+                f"{slot_names[int(i)]}={int(per_slot[int(i)])}"
+                for i in topk
+                if int(per_slot[int(i)]) > 0
+            ]
+        )
         if top_txt:
             logger.info(f"  L{z:02d}: total_perim4={total}, top={top_txt}")
         else:

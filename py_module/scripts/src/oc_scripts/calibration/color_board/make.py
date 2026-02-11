@@ -36,10 +36,11 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 # -----------------------------
 # 基础辅助函数
 # -----------------------------
@@ -85,9 +86,11 @@ def mix_srgb(ch_fracs: Dict[str, float]) -> Tuple[int, int, int]:
     b = 255.0 * (fB + fW)
 
     # 钳制
-    return (int(clamp(round(r), 0, 255)),
-            int(clamp(round(g), 0, 255)),
-            int(clamp(round(b), 0, 255)))
+    return (
+        int(clamp(round(r), 0, 255)),
+        int(clamp(round(g), 0, 255)),
+        int(clamp(round(b), 0, 255)),
+    )
 
 
 # -----------------------------
@@ -95,24 +98,24 @@ def mix_srgb(ch_fracs: Dict[str, float]) -> Tuple[int, int, int]:
 # -----------------------------
 @dataclass
 class SwatchRecipe:
-    channels: List[str]                 # 例如 ["R","G"]
-    fractions: Dict[str, float]         # 例如 {"R":0.75,"G":0.25}
-    total_layers: int                   # 例如 4
-    layer_height_mm: float              # 例如 0.2
-    layer_sequence: List[str]           # 例如 ["R","G","R","R"]
+    channels: List[str]  # 例如 ["R","G"]
+    fractions: Dict[str, float]  # 例如 {"R":0.75,"G":0.25}
+    total_layers: int  # 例如 4
+    layer_height_mm: float  # 例如 0.2
+    layer_sequence: List[str]  # 例如 ["R","G","R","R"]
 
 
 @dataclass
 class Swatch:
     swatch_id: str
-    kind: str                           # 例如 "single", "pair_mix"
+    kind: str  # 例如 "single", "pair_mix"
     x_mm: float
     y_mm: float
     w_mm: float
     h_mm: float
     recipe: SwatchRecipe
-    display_rgb: Tuple[int, int, int]   # 仅预览
-    label: str                          # SVG中绘制的短文本
+    display_rgb: Tuple[int, int, int]  # 仅预览
+    label: str  # SVG中绘制的短文本
 
 
 def make_layer_sequence(fractions: Dict[str, float], total_layers: int) -> List[str]:
@@ -167,11 +170,11 @@ def make_layer_sequence(fractions: Dict[str, float], total_layers: int) -> List[
 # DOE：选择色块
 # -----------------------------
 def generate_swatch_recipes(
-        layer_height_mm: float,
-        single_layers: List[int],
-        mix_layers: int,
-        mix_steps: List[float],
-        include_white_mixes: bool = True,
+    layer_height_mm: float,
+    single_layers: List[int],
+    mix_layers: int,
+    mix_steps: List[float],
+    include_white_mixes: bool = True,
 ) -> List[Tuple[str, str, SwatchRecipe, str]]:
     """
     返回元组列表：
@@ -186,8 +189,13 @@ def generate_swatch_recipes(
         for L in single_layers:
             fr = {c: 1.0}
             seq = make_layer_sequence(fr, L)
-            rcp = SwatchRecipe(channels=[c], fractions=fr, total_layers=L,
-                               layer_height_mm=layer_height_mm, layer_sequence=seq)
+            rcp = SwatchRecipe(
+                channels=[c],
+                fractions=fr,
+                total_layers=L,
+                layer_height_mm=layer_height_mm,
+                layer_sequence=seq,
+            )
             key = f"SINGLE_{c}_L{L}"
             label = f"{c}  L={L}"
             out.append(("single", key, rcp, label))
@@ -203,10 +211,15 @@ def generate_swatch_recipes(
             fr = {a: fa, b: fb}
             # 如果需要更少可以跳过退化0/1端点；默认保留
             seq = make_layer_sequence(fr, mix_layers)
-            rcp = SwatchRecipe(channels=[a, b], fractions=fr, total_layers=mix_layers,
-                               layer_height_mm=layer_height_mm, layer_sequence=seq)
-            key = f"PAIR_{a}{b}_A{int(round(fa*100)):03d}_L{mix_layers}"
-            label = f"{a}:{int(round(fa*100))}% {b}:{int(round(fb*100))}%"
+            rcp = SwatchRecipe(
+                channels=[a, b],
+                fractions=fr,
+                total_layers=mix_layers,
+                layer_height_mm=layer_height_mm,
+                layer_sequence=seq,
+            )
+            key = f"PAIR_{a}{b}_A{int(round(fa * 100)):03d}_L{mix_layers}"
+            label = f"{a}:{int(round(fa * 100))}% {b}:{int(round(fb * 100))}%"
             out.append(("pair_mix", key, rcp, label))
 
     return out
@@ -235,20 +248,39 @@ def svg_footer() -> str:
     return "</svg>\n"
 
 
-def svg_text(x: float, y: float, s: str, size: float = 3.2, fill: str = "#111",
-             anchor: str = "start", weight: str = "normal") -> str:
+def svg_text(
+    x: float,
+    y: float,
+    s: str,
+    size: float = 3.2,
+    fill: str = "#111",
+    anchor: str = "start",
+    weight: str = "normal",
+) -> str:
     # y是SVG中的基线；小标签没问题
-    s_esc = (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-    return (f'<text x="{mm(x)}" y="{mm(y)}" font-size="{mm(size)}" '
-            f'font-family="monospace" fill="{fill}" text-anchor="{anchor}" '
-            f'font-weight="{weight}">{s_esc}</text>\n')
+    s_esc = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        f'<text x="{mm(x)}" y="{mm(y)}" font-size="{mm(size)}" '
+        f'font-family="monospace" fill="{fill}" text-anchor="{anchor}" '
+        f'font-weight="{weight}">{s_esc}</text>\n'
+    )
 
 
-def svg_rect(x: float, y: float, w: float, h: float, fill: str, stroke: str = "#000",
-             stroke_w: float = 0.35, rx: float = 0.0) -> str:
+def svg_rect(
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    fill: str,
+    stroke: str = "#000",
+    stroke_w: float = 0.35,
+    rx: float = 0.0,
+) -> str:
     rxs = f' rx="{mm(rx)}" ry="{mm(rx)}"' if rx > 0 else ""
-    return (f'<rect x="{mm(x)}" y="{mm(y)}" width="{mm(w)}" height="{mm(h)}" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="{mm(stroke_w)}"{rxs}/>\n')
+    return (
+        f'<rect x="{mm(x)}" y="{mm(y)}" width="{mm(w)}" height="{mm(h)}" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{mm(stroke_w)}"{rxs}/>\n'
+    )
 
 
 def svg_fiducial(x: float, y: float, size: float) -> str:
@@ -259,25 +291,39 @@ def svg_fiducial(x: float, y: float, size: float) -> str:
     s = ""
     s += svg_rect(x, y, size, size, fill="#000000", stroke="#000000", stroke_w=0.0)
     inset = size * 0.20
-    s += svg_rect(x + inset, y + inset, size - 2 * inset, size - 2 * inset,
-                  fill="#FFFFFF", stroke="#FFFFFF", stroke_w=0.0)
+    s += svg_rect(
+        x + inset,
+        y + inset,
+        size - 2 * inset,
+        size - 2 * inset,
+        fill="#FFFFFF",
+        stroke="#FFFFFF",
+        stroke_w=0.0,
+    )
     dot = size * 0.10
-    s += svg_rect(x + size/2 - dot/2, y + size/2 - dot/2, dot, dot,
-                  fill="#000000", stroke="#000000", stroke_w=0.0)
+    s += svg_rect(
+        x + size / 2 - dot / 2,
+        y + size / 2 - dot / 2,
+        dot,
+        dot,
+        fill="#000000",
+        stroke="#000000",
+        stroke_w=0.0,
+    )
     return s
 
 
 def layout_board(
-        page_w: float,
-        page_h: float,
-        margin: float,
-        cols: int,
-        rows: int,
-        swatch_w: float,
-        swatch_h: float,
-        gap_x: float,
-        gap_y: float,
-        recipes: List[Tuple[str, str, SwatchRecipe, str]],
+    page_w: float,
+    page_h: float,
+    margin: float,
+    cols: int,
+    rows: int,
+    swatch_w: float,
+    swatch_h: float,
+    gap_x: float,
+    gap_y: float,
+    recipes: List[Tuple[str, str, SwatchRecipe, str]],
 ) -> List[Swatch]:
     """
     将色块放置在网格中，从左到右，从上到下。
@@ -303,30 +349,35 @@ def layout_board(
             rgb = mix_srgb(recipe.fractions)
             # 标签中包含简短配方摘要
             lab = f"{sid}  {label}"
-            swatches.append(Swatch(
-                swatch_id=sid,
-                kind=kind,
-                x_mm=x, y_mm=y, w_mm=swatch_w, h_mm=swatch_h,
-                recipe=recipe,
-                display_rgb=rgb,
-                label=lab,
-            ))
+            swatches.append(
+                Swatch(
+                    swatch_id=sid,
+                    kind=kind,
+                    x_mm=x,
+                    y_mm=y,
+                    w_mm=swatch_w,
+                    h_mm=swatch_h,
+                    recipe=recipe,
+                    display_rgb=rgb,
+                    label=lab,
+                )
+            )
             idx += 1
 
     return swatches
 
 
 def write_outputs(
-        outdir: Path,
-        page_w: float,
-        page_h: float,
-        layer_height_mm: float,
-        swatches: List[Swatch],
-        title: str,
-        notes: List[str],
-        svg_name: str = "calibration_board.svg",
-        json_name: str = "calibration_board_recipes.json",
-        csv_name: str = "calibration_board_recipes.csv",
+    outdir: Path,
+    page_w: float,
+    page_h: float,
+    layer_height_mm: float,
+    swatches: List[Swatch],
+    title: str,
+    notes: List[str],
+    svg_name: str = "calibration_board.svg",
+    json_name: str = "calibration_board_recipes.json",
+    csv_name: str = "calibration_board_recipes.csv",
 ):
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -336,8 +387,15 @@ def write_outputs(
 
     # 标题
     svg.append(svg_text(12, 10, title, size=6.0, weight="bold"))
-    svg.append(svg_text(12, 15, f"层高度: {layer_height_mm} mm   （打印设置必须固定！）",
-                        size=3.4, fill="#222"))
+    svg.append(
+        svg_text(
+            12,
+            15,
+            f"层高度: {layer_height_mm} mm   （打印设置必须固定！）",
+            size=3.4,
+            fill="#222",
+        )
+    )
     y0 = 19.0
     for i, line in enumerate(notes[:4]):
         svg.append(svg_text(12, y0 + i * 4.0, f"- {line}", size=3.2, fill="#333"))
@@ -352,7 +410,18 @@ def write_outputs(
     # 色块
     for s in swatches:
         fill = rgb_hex(s.display_rgb)
-        svg.append(svg_rect(s.x_mm, s.y_mm, s.w_mm, s.h_mm, fill=fill, stroke="#000", stroke_w=0.35, rx=1.2))
+        svg.append(
+            svg_rect(
+                s.x_mm,
+                s.y_mm,
+                s.w_mm,
+                s.h_mm,
+                fill=fill,
+                stroke="#000",
+                stroke_w=0.35,
+                rx=1.2,
+            )
+        )
 
         # ID + 短标签
         # 将标签放在色块顶部边缘内部（小）
@@ -361,9 +430,16 @@ def write_outputs(
         # 在底部绘制小"代码"行：通道 + 层数
         chs = "".join(s.recipe.channels)
         L = s.recipe.total_layers
-        frac_txt = " ".join([f"{k}{int(round(v*100)):02d}" for k, v in sorted(s.recipe.fractions.items())])
+        frac_txt = " ".join(
+            [
+                f"{k}{int(round(v * 100)):02d}"
+                for k, v in sorted(s.recipe.fractions.items())
+            ]
+        )
         code = f"{chs} L{L} {frac_txt}"
-        svg.append(svg_text(s.x_mm + 1.8, s.y_mm + s.h_mm - 1.6, code, size=2.5, fill="#111"))
+        svg.append(
+            svg_text(s.x_mm + 1.8, s.y_mm + s.h_mm - 1.6, code, size=2.5, fill="#111")
+        )
 
     svg.append(svg_footer())
     (outdir / svg_name).write_text("".join(svg), encoding="utf-8")
@@ -391,22 +467,44 @@ def write_outputs(
         ],
         "notes": notes,
     }
-    (outdir / json_name).write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    (outdir / json_name).write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # ---- CSV（可选方便）
     with (outdir / csv_name).open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["swatch_id", "kind", "x_mm", "y_mm", "w_mm", "h_mm",
-                    "channels", "fractions_json", "total_layers", "layer_height_mm", "layer_sequence"])
+        w.writerow(
+            [
+                "swatch_id",
+                "kind",
+                "x_mm",
+                "y_mm",
+                "w_mm",
+                "h_mm",
+                "channels",
+                "fractions_json",
+                "total_layers",
+                "layer_height_mm",
+                "layer_sequence",
+            ]
+        )
         for s in swatches:
-            w.writerow([
-                s.swatch_id, s.kind, s.x_mm, s.y_mm, s.w_mm, s.h_mm,
-                "".join(s.recipe.channels),
-                json.dumps(s.recipe.fractions, ensure_ascii=False),
-                s.recipe.total_layers,
-                s.recipe.layer_height_mm,
-                "".join(s.recipe.layer_sequence),
-            ])
+            w.writerow(
+                [
+                    s.swatch_id,
+                    s.kind,
+                    s.x_mm,
+                    s.y_mm,
+                    s.w_mm,
+                    s.h_mm,
+                    "".join(s.recipe.channels),
+                    json.dumps(s.recipe.fractions, ensure_ascii=False),
+                    s.recipe.total_layers,
+                    s.recipe.layer_height_mm,
+                    "".join(s.recipe.layer_sequence),
+                ]
+            )
 
 
 # -----------------------------
@@ -425,14 +523,20 @@ def main():
     ap.add_argument("--gap_y", type=float, default=3.0)
 
     ap.add_argument("--layer_h", type=float, default=0.20, help="层高度（毫米）")
-    ap.add_argument("--single_layers", default="1,2,3,4,5",
-                    help="单色色块的层数列表，逗号分隔")
-    ap.add_argument("--mix_layers", type=int, default=4,
-                    help="双色混合色块的总层数")
-    ap.add_argument("--mix_steps", default="0,0.25,0.5,0.75,1.0",
-                    help="双色混合中A的分数列表，逗号分隔（B=1-A）")
-    ap.add_argument("--no_white_mixes", action="store_true",
-                    help="如果设置，只生成RG/RB/GB对（不含R/W等）")
+    ap.add_argument(
+        "--single_layers", default="1,2,3,4,5", help="单色色块的层数列表，逗号分隔"
+    )
+    ap.add_argument("--mix_layers", type=int, default=4, help="双色混合色块的总层数")
+    ap.add_argument(
+        "--mix_steps",
+        default="0,0.25,0.5,0.75,1.0",
+        help="双色混合中A的分数列表，逗号分隔（B=1-A）",
+    )
+    ap.add_argument(
+        "--no_white_mixes",
+        action="store_true",
+        help="如果设置，只生成RG/RB/GB对（不含R/W等）",
+    )
     args = ap.parse_args()
 
     page_w, page_h = PAGE_SIZES_MM[args.page]

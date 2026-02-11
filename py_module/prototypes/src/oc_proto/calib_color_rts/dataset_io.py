@@ -37,25 +37,27 @@ class Dataset:
     white_offset: float = 0.0  # 白场偏移量（0-255范围）
 
 
-def apply_bw_calibration_forward(rgb: np.ndarray, black_offset: float, white_offset: float) -> np.ndarray:
+def apply_bw_calibration_forward(
+    rgb: np.ndarray, black_offset: float, white_offset: float
+) -> np.ndarray:
     """
     应用黑白校准的正向映射（输入前）
-    
+
     将原始RGB值映射到模型输入空间：
     - 黑色的0映射到black_offset
     - 白色的255映射到(255 - white_offset)
-    
+
     Args:
         rgb: 原始RGB值 (0-255范围)
         black_offset: 黑场偏移量（例如32表示黑色映射到32）
         white_offset: 白场偏移量（例如32表示白色映射到223）
-    
+
     Returns:
         映射后的RGB值
     """
     if black_offset == 0 and white_offset == 0:
         return rgb
-    
+
     rgb_float = rgb.astype(np.float32)
     # 线性映射：将[0, 255]映射到[black_offset, 255-white_offset]
     scale = (255.0 - white_offset - black_offset) / 255.0
@@ -63,24 +65,26 @@ def apply_bw_calibration_forward(rgb: np.ndarray, black_offset: float, white_off
     return np.clip(mapped, 0, 255).astype(rgb.dtype)
 
 
-def apply_bw_calibration_inverse(rgb: np.ndarray, black_offset: float, white_offset: float) -> np.ndarray:
+def apply_bw_calibration_inverse(
+    rgb: np.ndarray, black_offset: float, white_offset: float
+) -> np.ndarray:
     """
     应用黑白校准的逆向映射（输出后）
-    
+
     将模型输出映射回原始RGB空间：
     - 将[black_offset, 255-white_offset]映射回[0, 255]
-    
+
     Args:
         rgb: 模型输出的RGB值 (0-255范围)
         black_offset: 黑场偏移量
         white_offset: 白场偏移量
-    
+
     Returns:
         逆向映射后的RGB值
     """
     if black_offset == 0 and white_offset == 0:
         return rgb
-    
+
     rgb_float = rgb.astype(np.float32)
     # 逆向线性映射
     scale = 255.0 / (255.0 - white_offset - black_offset)
@@ -88,12 +92,16 @@ def apply_bw_calibration_inverse(rgb: np.ndarray, black_offset: float, white_off
     return np.clip(mapped, 0, 255).astype(rgb.dtype)
 
 
-def load_dataset(path: Path, palette_id: str | None = None,
-                 black_offset: float = 0.0, white_offset: float = 0.0,
-                 apply_calibration: bool = True) -> Dataset:
+def load_dataset(
+    path: Path,
+    palette_id: str | None = None,
+    black_offset: float = 0.0,
+    white_offset: float = 0.0,
+    apply_calibration: bool = True,
+) -> Dataset:
     """
     加载数据集
-    
+
     Args:
         path: 数据集文件路径
         palette_id: 色盘ID（可选）
@@ -105,10 +113,10 @@ def load_dataset(path: Path, palette_id: str | None = None,
     rows = int(ds.get("rows", 0))
     cols = int(ds.get("cols", 0))
     spec_path = Path(ds["spec_path"]) if ds.get("spec_path") else None
-    
+
     # 优先使用传入的 palette_id，否则从 json 中读取，最后默认为 unknown
     ds_palette_id = palette_id or ds.get("palette_id") or "unknown"
-    
+
     cells_in: list[dict[str, Any]] = ds.get("cells", [])
 
     cells: list[Cell] = []
@@ -128,38 +136,59 @@ def load_dataset(path: Path, palette_id: str | None = None,
                 except Exception:
                     continue
         measured = np.array(c.get("measured_rgb", [0, 0, 0]), dtype=np.uint8)
-        
+
         # 应用黑白校准正向映射（输入前）
         if apply_calibration and (black_offset > 0 or white_offset > 0):
-            measured = apply_bw_calibration_forward(measured, black_offset, white_offset)
-        
+            measured = apply_bw_calibration_forward(
+                measured, black_offset, white_offset
+            )
+
         tgt = c.get("target_rgb")
         target = None
-        if isinstance(tgt, (list, tuple)) and len(tgt) == 3 and all(t is not None for t in tgt):
+        if (
+            isinstance(tgt, (list, tuple))
+            and len(tgt) == 3
+            and all(t is not None for t in tgt)
+        ):
             try:
                 target = np.array(tgt, dtype=np.uint8)
                 # 对target也应用相同的校准
                 if apply_calibration and (black_offset > 0 or white_offset > 0):
-                    target = apply_bw_calibration_forward(target, black_offset, white_offset)
+                    target = apply_bw_calibration_forward(
+                        target, black_offset, white_offset
+                    )
             except Exception:
                 target = None
-        
+
         layer_names = c.get("layer_names")
         if not isinstance(layer_names, list):
             layer_names = []
-            
+
         # cell 的 palette_id 优先使用 cell 自身的，否则使用 dataset 的
         c_palette_id = c.get("palette_id") or ds_palette_id
 
-        cells.append(Cell(
-            row=row, col=col, enabled=enabled, recipe=rec, 
-            measured_rgb=measured, target_rgb=target,
-            layer_names=layer_names,
-            palette_id=c_palette_id
-        ))
+        cells.append(
+            Cell(
+                row=row,
+                col=col,
+                enabled=enabled,
+                recipe=rec,
+                measured_rgb=measured,
+                target_rgb=target,
+                layer_names=layer_names,
+                palette_id=c_palette_id,
+            )
+        )
 
-    return Dataset(rows=rows, cols=cols, spec_path=spec_path, cells=cells, 
-                   palette_id=ds_palette_id, black_offset=black_offset, white_offset=white_offset)
+    return Dataset(
+        rows=rows,
+        cols=cols,
+        spec_path=spec_path,
+        cells=cells,
+        palette_id=ds_palette_id,
+        black_offset=black_offset,
+        white_offset=white_offset,
+    )
 
 
 def infer_material_keys(cells: list[Cell]) -> list[str]:

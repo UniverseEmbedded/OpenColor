@@ -46,7 +46,11 @@ def _make_demo_image(path: Path, lut_path: Path) -> None:
     """
     lut = np.load(lut_path)
     # 从LUT中选择几个确定性的颜色，确保最近邻查找是可预测的
-    palette = [tuple(lut[0, 0].astype(np.uint8)), tuple(lut[0, 1].astype(np.uint8)), tuple(lut[1, 0].astype(np.uint8))]
+    palette = [
+        tuple(lut[0, 0].astype(np.uint8)),
+        tuple(lut[0, 1].astype(np.uint8)),
+        tuple(lut[1, 0].astype(np.uint8)),
+    ]
     img = np.zeros((16, 16, 4), dtype=np.uint8)
     for y in range(16):
         for x in range(16):
@@ -83,7 +87,9 @@ def test_handle_bitmap_export_writes_3mfs(tmp_path: Path) -> None:
             "output_format": "3mf",
             "export_3mf_standard": True,
             "export_3mf_bambu": True,
-            "bambu_template": str(Path(__file__).resolve().parents[5] / "data" / "rgbw_cubes.3mf"),
+            "bambu_template": str(
+                Path(__file__).resolve().parents[5] / "data" / "rgbw_cubes.3mf"
+            ),
         },
         lambda *_args: None,
     )
@@ -130,7 +136,9 @@ def test_engine_ndjson_integration(tmp_path: Path) -> None:
             "export_3mf_standard": True,
             "export_3mf_bambu": True,
             "out_dir": str(out_dir),
-            "bambu_template": str(Path(__file__).resolve().parents[5] / "data" / "rgbw_cubes.3mf"),
+            "bambu_template": str(
+                Path(__file__).resolve().parents[5] / "data" / "rgbw_cubes.3mf"
+            ),
         },
     }
 

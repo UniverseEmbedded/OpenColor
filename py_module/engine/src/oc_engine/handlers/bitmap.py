@@ -13,10 +13,11 @@ from . import upsert_library_item
 from ..jobs import Job
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _unique_path(p: Path) -> Path:
     """生成唯一的文件路径，避免文件名冲突
 
@@ -38,7 +39,9 @@ def _unique_path(p: Path) -> Path:
     return p.with_name(f"{p.stem}_{int(time.time())}{p.suffix}")
 
 
-def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_bitmap_export(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理位图导出任务
 
     将图像根据 LUT（颜色查找表）转换为多材料3D打印模型，
@@ -93,22 +96,25 @@ def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[f
 
     # 从 ALL_SYSTEMS 获取显式的 slot_names 顺序
     from oc_core_02.core.color_systems import ALL_SYSTEMS
+
     cs = ALL_SYSTEMS[bp.color_system]
-    
+
     # 按 slot_names 显式排序收集 STL 路径
     stl_paths: List[Path] = []
     slot_names: List[str] = []
-    
+
     debug_mode = os.environ.get("OC_DEBUG") == "1"
-    
+
     for slot in cs.slot_names:
         key = f"stl_{slot}"
         if key in outputs:
             stl_paths.append(Path(outputs[key]))
             slot_names.append(slot)
-            
+
     if debug_mode:
-        order_str = " -> ".join([f"{slot}:{Path(outputs[f'stl_{slot}']).name}" for slot in slot_names])
+        order_str = " -> ".join(
+            [f"{slot}:{Path(outputs[f'stl_{slot}']).name}" for slot in slot_names]
+        )
         logger.info(f"[调试] STL 输出顺序(按槽位): {order_str}")
 
     # Optional: export 3MFs
@@ -117,8 +123,14 @@ def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[f
     has_standard_flag = "export_3mf_standard" in params
     has_bambu_flag = "export_3mf_bambu" in params
     default_standard_3mf = export_fmt_raw is None
-    want_standard_3mf = (bool(params.get("export_3mf_standard")) if has_standard_flag else default_standard_3mf) or export_fmt in {"3mf", "mf3"}
-    want_bambu_3mf = (bool(params.get("export_3mf_bambu")) if has_bambu_flag else False) or export_fmt in {"3mf", "mf3"}
+    want_standard_3mf = (
+        bool(params.get("export_3mf_standard"))
+        if has_standard_flag
+        else default_standard_3mf
+    ) or export_fmt in {"3mf", "mf3"}
+    want_bambu_3mf = (
+        bool(params.get("export_3mf_bambu")) if has_bambu_flag else False
+    ) or export_fmt in {"3mf", "mf3"}
 
     standard_3mf_path = None
     bambu_3mf_path = None
@@ -132,10 +144,12 @@ def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[f
             standard_3mf_path = standard_3mf_path.parent / _build_3mf_name("s")
         else:
             standard_3mf_path = artifacts_dir / _build_3mf_name("s")
-        
+
         standard_3mf_path.parent.mkdir(parents=True, exist_ok=True)
         standard_3mf_path = _unique_path(standard_3mf_path)
-        export_standard_3mf(out_3mf=standard_3mf_path, stl_paths=stl_paths, slot_names=slot_names)
+        export_standard_3mf(
+            out_3mf=standard_3mf_path, stl_paths=stl_paths, slot_names=slot_names
+        )
 
     if want_bambu_3mf:
         progress(0.85, "export_bambu", "导出拓竹项目 3MF")
@@ -148,10 +162,10 @@ def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[f
             bambu_3mf_path = bambu_3mf_path.parent / _build_3mf_name("b")
         else:
             bambu_3mf_path = artifacts_dir / _build_3mf_name("b")
-            
+
         bambu_3mf_path.parent.mkdir(parents=True, exist_ok=True)
         bambu_3mf_path = _unique_path(bambu_3mf_path)
-        
+
         # 解析 extruder_map
         extruder_map = None
         extruder_map_raw = params.get("extruder_map")
@@ -173,7 +187,7 @@ def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[f
             template_path = Path(template_path_raw)
         else:
             template_path = Path(get_data_path("bambu_3mf_template", "rgbw_cubes.3mf"))
-            
+
         export_bambu_project_3mf(
             out_3mf=bambu_3mf_path,
             template_3mf=template_path,
@@ -206,7 +220,9 @@ def handle_bitmap_export(job: Job, params: Dict[str, Any], progress: Callable[[f
             "bambu_3mf": str(bambu_3mf_path) if bambu_3mf_path else "",
         },
     }
-    (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / "meta.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     short_common = {
         "scheme": "oc1",

@@ -19,10 +19,11 @@ from lxml import etree
 from model_export import generate_bambu_project_from_template, MeshData, rgba_to_hex
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _gen_colors(n: int) -> List[Tuple[int, int, int]]:
     """生成指定数量的 HSV 色相分布的颜色列表。"""
     if n <= 0:
@@ -102,7 +103,7 @@ def _search_layout(
     seed: int,
 ) -> Tuple[List[int], int, int, int]:
     """使用爬山算法搜索满足所有颜色两两接触条件的最小网格布局。
-    
+
     返回: (网格颜色列表, 宽度, 高度, 总单元格数)
     """
     if n <= 0:
@@ -115,14 +116,22 @@ def _search_layout(
     rng = random.Random(seed if seed != 0 else None)
 
     total_grids = sum(len(_grid_factors(v)) for v in range(v0, v0 + max_extra + 1))
-    with tqdm(total=total_grids, desc="网格遍历", unit="种", dynamic_ncols=True) as grid_bar:
+    with tqdm(
+        total=total_grids, desc="网格遍历", unit="种", dynamic_ncols=True
+    ) as grid_bar:
         for v in range(v0, v0 + max_extra + 1):
             for w, h in _grid_factors(v):
                 grid_bar.set_postfix_str(f"尺寸 {w}x{h} 块数 {v}")
                 edges = _edges_for_grid(w, h)
                 best_grid: List[int] = []
                 best_score = -1
-                with tqdm(total=tries, desc="随机尝试", unit="次", leave=False, dynamic_ncols=True) as try_bar:
+                with tqdm(
+                    total=tries,
+                    desc="随机尝试",
+                    unit="次",
+                    leave=False,
+                    dynamic_ncols=True,
+                ) as try_bar:
                     for _ in range(tries):
                         grid = _random_grid(n, v, rng)
                         score = _score_grid(grid, edges)
@@ -132,7 +141,14 @@ def _search_layout(
                         if score == target:
                             return grid, w, h, v
 
-                        with tqdm(total=steps, desc="微调搜索", unit="步", leave=False, dynamic_ncols=True, mininterval=0.5) as step_bar:
+                        with tqdm(
+                            total=steps,
+                            desc="微调搜索",
+                            unit="步",
+                            leave=False,
+                            dynamic_ncols=True,
+                            mininterval=0.5,
+                        ) as step_bar:
                             step_count = 0
                             for _ in range(steps):
                                 if score == target:
@@ -183,7 +199,7 @@ def _search_layout_cpp(
     seed: int,
 ) -> Tuple[List[int], int, int, int] | None:
     """调用 C++ 加速模块搜索颜色接触布局。
-    
+
     返回: (网格颜色列表, 宽度, 高度, 总单元格数)，如果 C++ 模块不可用则返回 None
     """
     # 当前文件: py_module/scripts/src/oc_scripts/color_contact_3mf.py
@@ -193,7 +209,9 @@ def _search_layout_cpp(
     configs = [config] if config else ["Release", "Debug"]
     exe = None
     for cfg in configs:
-        candidate = root / "cpp_module" / "build" / cfg / "opencolor_color_contact_search.exe"
+        candidate = (
+            root / "cpp_module" / "build" / cfg / "opencolor_color_contact_search.exe"
+        )
         if candidate.exists():
             exe = candidate
             break
@@ -327,13 +345,20 @@ def _export_bambu_3mf(
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="生成颜色互相接触的正方形3MF")
-    ap.add_argument("--out", type=str, default="out_color_contact/color_contact_squares.3mf", help="输出3MF路径")
+    ap.add_argument(
+        "--out",
+        type=str,
+        default="out_color_contact/color_contact_squares.3mf",
+        help="输出3MF路径",
+    )
     ap.add_argument("--bambu-out", type=str, default="", help="拓竹版3MF输出路径")
     ap.add_argument("--bambu-template", type=str, default="", help="拓竹模板3MF路径")
     ap.add_argument("--colors", type=int, required=True, help="颜色数量")
     ap.add_argument("--tile-mm", type=float, default=10.0, help="正方形边长(mm)")
     ap.add_argument("--thickness-mm", type=float, default=1.0, help="正方形厚度(mm)")
-    ap.add_argument("--max-extra", type=int, default=8, help="在最小数量基础上允许额外增加的块数")
+    ap.add_argument(
+        "--max-extra", type=int, default=8, help="在最小数量基础上允许额外增加的块数"
+    )
     ap.add_argument("--tries", type=int, default=60, help="每个网格尺寸的随机尝试次数")
     ap.add_argument("--steps", type=int, default=8000, help="每次尝试的迭代步数")
     ap.add_argument("--seed", type=int, default=0, help="随机种子(0为自动)")

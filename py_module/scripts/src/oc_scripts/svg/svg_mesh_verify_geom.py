@@ -95,7 +95,9 @@ def get_paint(el: etree._Element, key: str, style: Dict[str, str]) -> Optional[s
     return None
 
 
-def get_float(el: etree._Element, key: str, style: Dict[str, str], default: float) -> float:
+def get_float(
+    el: etree._Element, key: str, style: Dict[str, str], default: float
+) -> float:
     """获取元素的浮点数值属性"""
     v = el.get(key)
     if v is None and key in style:
@@ -110,9 +112,7 @@ def get_float(el: etree._Element, key: str, style: Dict[str, str], default: floa
 
 def mat_identity() -> np.ndarray:
     """创建单位矩阵"""
-    return np.array([[1.0, 0.0, 0.0],
-                     [0.0, 1.0, 0.0],
-                     [0.0, 0.0, 1.0]], dtype=float)
+    return np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=float)
 
 
 def mat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -140,25 +140,19 @@ def mat_rotate(deg: float) -> np.ndarray:
     """创建旋转矩阵"""
     rad = math.radians(deg)
     c, s = math.cos(rad), math.sin(rad)
-    return np.array([[c, -s, 0.0],
-                     [s,  c, 0.0],
-                     [0.0, 0.0, 1.0]], dtype=float)
+    return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]], dtype=float)
 
 
 def mat_skewx(deg: float) -> np.ndarray:
     """创建X轴倾斜矩阵"""
     t = math.tan(math.radians(deg))
-    return np.array([[1.0, t, 0.0],
-                     [0.0, 1.0, 0.0],
-                     [0.0, 0.0, 1.0]], dtype=float)
+    return np.array([[1.0, t, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=float)
 
 
 def mat_skewy(deg: float) -> np.ndarray:
     """创建Y轴倾斜矩阵"""
     t = math.tan(math.radians(deg))
-    return np.array([[1.0, 0.0, 0.0],
-                     [t, 1.0, 0.0],
-                     [0.0, 0.0, 1.0]], dtype=float)
+    return np.array([[1.0, 0.0, 0.0], [t, 1.0, 0.0], [0.0, 0.0, 1.0]], dtype=float)
 
 
 def parse_transform(transform: Optional[str]) -> np.ndarray:
@@ -190,9 +184,7 @@ def parse_transform(transform: Optional[str]) -> np.ndarray:
         elif fn == "matrix":
             if len(nums) >= 6:
                 a, b, c, d, e, f = nums[:6]
-                mm = np.array([[a, c, e],
-                               [b, d, f],
-                               [0.0, 0.0, 1.0]], dtype=float)
+                mm = np.array([[a, c, e], [b, d, f], [0.0, 0.0, 1.0]], dtype=float)
                 m = mat_mul(m, mm)
         elif fn == "skewx":
             ang = nums[0] if len(nums) > 0 else 0.0
@@ -203,7 +195,9 @@ def parse_transform(transform: Optional[str]) -> np.ndarray:
     return m
 
 
-def apply_transform_pts(pts: Sequence[Tuple[float, float]], m: np.ndarray) -> List[Tuple[float, float]]:
+def apply_transform_pts(
+    pts: Sequence[Tuple[float, float]], m: np.ndarray
+) -> List[Tuple[float, float]]:
     """将变换矩阵应用到点集"""
     out: List[Tuple[float, float]] = []
     for x, y in pts:
@@ -212,7 +206,9 @@ def apply_transform_pts(pts: Sequence[Tuple[float, float]], m: np.ndarray) -> Li
     return out
 
 
-def dedup_consecutive(pts: List[Tuple[float, float]], eps: float = 1e-9) -> List[Tuple[float, float]]:
+def dedup_consecutive(
+    pts: List[Tuple[float, float]], eps: float = 1e-9
+) -> List[Tuple[float, float]]:
     """去除连续重复的点"""
     if not pts:
         return pts
@@ -223,7 +219,9 @@ def dedup_consecutive(pts: List[Tuple[float, float]], eps: float = 1e-9) -> List
     return out
 
 
-def close_ring(pts: List[Tuple[float, float]], eps: float = 1e-9) -> List[Tuple[float, float]]:
+def close_ring(
+    pts: List[Tuple[float, float]], eps: float = 1e-9
+) -> List[Tuple[float, float]]:
     """闭合点环（如果首尾点不相同则添加首点）"""
     if len(pts) < 2:
         return pts
@@ -260,7 +258,9 @@ def rect_to_ring(x: float, y: float, w: float, h: float) -> List[Tuple[float, fl
     return [(x, y), (x + w, y), (x + w, y + h), (x, y + h), (x, y)]
 
 
-def circle_to_ring(cx: float, cy: float, r: float, tol: float) -> List[Tuple[float, float]]:
+def circle_to_ring(
+    cx: float, cy: float, r: float, tol: float
+) -> List[Tuple[float, float]]:
     """将圆形转换为点环（多边形逼近）"""
     n = max(16, int(math.ceil((2.0 * math.pi * r) / max(tol, 1e-6))))
     pts = []
@@ -271,7 +271,9 @@ def circle_to_ring(cx: float, cy: float, r: float, tol: float) -> List[Tuple[flo
     return pts
 
 
-def ellipse_to_ring(cx: float, cy: float, rx: float, ry: float, tol: float) -> List[Tuple[float, float]]:
+def ellipse_to_ring(
+    cx: float, cy: float, rx: float, ry: float, tol: float
+) -> List[Tuple[float, float]]:
     """将椭圆转换为点环（多边形逼近）"""
     approx_c = 2.0 * math.pi * math.sqrt((rx * rx + ry * ry) / 2.0)
     n = max(16, int(math.ceil(approx_c / max(tol, 1e-6))))
@@ -295,6 +297,7 @@ def points_attr_to_list(s: str) -> List[Tuple[float, float]]:
 @dataclass
 class ShapeGeom:
     """形状几何数据类"""
+
     fill_rings: List[List[Tuple[float, float]]]  # 填充环列表
     stroke_lines: List[List[Tuple[float, float]]]  # 描边线列表
     fill: Optional[str]  # 填充颜色
@@ -309,7 +312,9 @@ class ShapeGeom:
     stroke_opacity: Optional[str]  # 描边不透明度
 
 
-def extract_shapes(root: etree._Element, tol: float) -> List[Tuple[ShapeGeom, np.ndarray]]:
+def extract_shapes(
+    root: etree._Element, tol: float
+) -> List[Tuple[ShapeGeom, np.ndarray]]:
     """从SVG根元素提取所有形状几何数据"""
     shapes: List[Tuple[ShapeGeom, np.ndarray]] = []
 
@@ -437,11 +442,13 @@ def _join_style(s: str) -> int:
     return 2
 
 
-def stroke_to_polygons(lines: List[List[Tuple[float, float]]],
-                       stroke_width: float,
-                       linecap: str,
-                       linejoin: str,
-                       miterlimit: float) -> Union[Polygon, MultiPolygon, None]:
+def stroke_to_polygons(
+    lines: List[List[Tuple[float, float]]],
+    stroke_width: float,
+    linecap: str,
+    linejoin: str,
+    miterlimit: float,
+) -> Union[Polygon, MultiPolygon, None]:
     """将描边线转换为多边形"""
     if stroke_width <= 0.0:
         return None
@@ -457,7 +464,7 @@ def stroke_to_polygons(lines: List[List[Tuple[float, float]]],
             join_style=_join_style(linejoin),
             mitre_limit=float(miterlimit),
             resolution=16,
-            )
+        )
         if not buf.is_empty:
             geoms.append(buf)
     if not geoms:
@@ -465,7 +472,9 @@ def stroke_to_polygons(lines: List[List[Tuple[float, float]]],
     return unary_union(geoms)
 
 
-def rings_to_area_geom(rings: List[List[Tuple[float, float]]], fill_rule: str) -> Union[Polygon, MultiPolygon, None]:
+def rings_to_area_geom(
+    rings: List[List[Tuple[float, float]]], fill_rule: str
+) -> Union[Polygon, MultiPolygon, None]:
     """将环列表转换为面积几何体"""
     polys = []
     for r in rings:

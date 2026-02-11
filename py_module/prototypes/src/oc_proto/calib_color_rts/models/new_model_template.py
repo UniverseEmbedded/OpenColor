@@ -35,9 +35,9 @@ logger = get_logger(__name__)
 )
 class MyNewModel(ColorPredictionModel):
     """我的新颜色预测模型
-    
+
     在这里添加详细的模型描述文档
-    
+
     Attributes:
         model_id: 模型唯一标识
         material_keys: 支持的耗材列表
@@ -46,15 +46,15 @@ class MyNewModel(ColorPredictionModel):
     """
 
     def __init__(
-            self,
-            model_id: str,
-            material_keys: list[str],
-            n_layers: int,
-            # 添加你的自定义参数
-            my_param: float = 1.0,
+        self,
+        model_id: str,
+        material_keys: list[str],
+        n_layers: int,
+        # 添加你的自定义参数
+        my_param: float = 1.0,
     ):
         """初始化模型
-        
+
         Args:
             model_id: 模型唯一标识
             material_keys: 耗材列表
@@ -83,16 +83,13 @@ class MyNewModel(ColorPredictionModel):
         # 在这里加载或初始化你的模型
         pass
 
-    def predict_from_sequences(
-            self,
-            sequences: list[list[str]]
-    ) -> PredictionResult:
+    def predict_from_sequences(self, sequences: list[list[str]]) -> PredictionResult:
         """从层序列预测颜色（必须实现）
-        
+
         Args:
             sequences: 层序列列表，每个序列是材质名称的列表
                 例如: [["White", "Red", "Red", "Red", "Red"], ...]
-                
+
         Returns:
             PredictionResult: 预测结果，包含:
                 - rgb01: (N, 3) RGB值，范围[0, 1]
@@ -125,10 +122,10 @@ class MyNewModel(ColorPredictionModel):
 
     def save(self, out_dir: Path) -> dict[str, Any]:
         """保存模型到目录（必须实现）
-        
+
         Args:
             out_dir: 输出目录路径
-            
+
         Returns:
             dict: 模型元数据，将被写入 color_model.json
                   必须包含 "model_type" 字段
@@ -161,11 +158,11 @@ class MyNewModel(ColorPredictionModel):
     @classmethod
     def load(cls, model_dir: Path, metadata: dict[str, Any]) -> MyNewModel:
         """从目录加载模型（必须实现）
-        
+
         Args:
             model_dir: 模型目录路径
             metadata: 从 color_model.json 读取的元数据
-            
+
         Returns:
             MyNewModel: 加载的模型实例
         """

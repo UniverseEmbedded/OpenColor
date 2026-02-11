@@ -7,16 +7,18 @@ from PIL import Image
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def convert_svg_to_png():
     svg_path = Path(__file__).parent.parent / "data" / "icon.svg"
     icons_dir = Path(__file__).parent / "src-tauri" / "icons"
-    
+
     if not svg_path.exists():
         raise FileNotFoundError(f"找不到 SVG 文件: {svg_path}")
-    
+
     if not icons_dir.exists():
         icons_dir.mkdir(parents=True)
-    
+
     sizes = [
         ("32x32.png", 32),
         ("128x128.png", 128),
@@ -33,7 +35,7 @@ def convert_svg_to_png():
         ("Square89x89Logo.png", 89),
         ("StoreLogo.png", 50),
     ]
-    
+
     for filename, size in sizes:
         output_path = icons_dir / filename
         logger.info(f"正在转换 {filename} (尺寸: {size}x{size})...")
@@ -42,7 +44,7 @@ def convert_svg_to_png():
                 url=str(svg_path),
                 write_to=str(output_path),
                 output_width=size,
-                output_height=size
+                output_height=size,
             )
             logger.info(f"成功生成: {output_path}")
         except Exception as e:
@@ -55,7 +57,7 @@ def convert_svg_to_png():
         img = Image.open(icons_dir / "icon.png")
         # ICO 通常包含多种尺寸
         ico_sizes = [(64, 64), (128, 128), (256, 256)]
-        img.save(icons_dir / "icon.ico", format='ICO', sizes=ico_sizes)
+        img.save(icons_dir / "icon.ico", format="ICO", sizes=ico_sizes)
         logger.info(f"成功生成: {icons_dir / 'icon.ico'}")
     except Exception as e:
         logger.info(f"生成 icon.ico 时出错: {e}")
@@ -66,7 +68,7 @@ def convert_svg_to_png():
     try:
         img = Image.open(icons_dir / "icon.png")
         # ICNS 自动处理尺寸
-        img.save(icons_dir / "icon.icns", format='ICNS')
+        img.save(icons_dir / "icon.icns", format="ICNS")
         logger.info(f"成功生成: {icons_dir / 'icon.icns'}")
     except Exception as e:
         logger.info(f"生成 icon.icns 时出错: {e}")
@@ -74,11 +76,12 @@ def convert_svg_to_png():
         # 如果 1024x1024 不行，尝试 512x512
         try:
             img_512 = img.resize((512, 512), Image.Resampling.LANCZOS)
-            img_512.save(icons_dir / "icon.icns", format='ICNS')
+            img_512.save(icons_dir / "icon.icns", format="ICNS")
             logger.info(f"尝试 512x512 成功生成: {icons_dir / 'icon.icns'}")
         except Exception as e2:
-             logger.info(f"再次尝试生成 icon.icns 时出错: {e2}")
-             raise
+            logger.info(f"再次尝试生成 icon.icns 时出错: {e2}")
+            raise
+
 
 if __name__ == "__main__":
     convert_svg_to_png()

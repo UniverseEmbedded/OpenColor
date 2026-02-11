@@ -18,21 +18,23 @@ except Exception:
 
 class SpecAdapter:
     """色盘规格适配器类
-    
+
     用于解析和适配不同格式的色盘规格文件，提供统一接口访问：
     - 格子目标RGB颜色
     - 格子配方信息
     - 格子层序列信息
     """
-    
+
     def __init__(self, spec_path: Path):
         """初始化规格适配器
-        
+
         参数:
             spec_path: 规格文件路径（JSON格式）
         """
         self.spec_path = Path(spec_path)
-        self.raw: Dict[str, Any] = json.loads(self.spec_path.read_text(encoding="utf-8", errors="replace"))
+        self.raw: Dict[str, Any] = json.loads(
+            self.spec_path.read_text(encoding="utf-8", errors="replace")
+        )
         self.obj = None
         if BoardSpec is not None:
             try:
@@ -40,15 +42,19 @@ class SpecAdapter:
             except Exception:
                 self.obj = None
 
-        self.name = self.raw.get("name") or getattr(self.obj, "name", None) or self.spec_path.stem
+        self.name = (
+            self.raw.get("name")
+            or getattr(self.obj, "name", None)
+            or self.spec_path.stem
+        )
         self.rows, self.cols = self._infer_grid_shape()
 
-    def _infer_grid_shape(self) -> Tuple[int,int]:
+    def _infer_grid_shape(self) -> Tuple[int, int]:
         """推断网格形状（行列数）
-        
+
         优先从规格文件中读取真实的物理行列数（例如17x17），
         如果没有定义，则退回到默认的逻辑尺寸（15x15）
-        
+
         返回:
             (行数, 列数) 元组
         """
@@ -57,69 +63,74 @@ class SpecAdapter:
         c = self.raw.get("cols")
         if r and c:
             return int(r), int(c)
-            
+
         # 如果没有定义，则退回到逻辑尺寸 (15x15)
         return 15, 15
 
-    def get_cell_target_rgb(self, r:int, c:int) -> Optional[List[float]]:
+    def get_cell_target_rgb(self, r: int, c: int) -> Optional[List[float]]:
         """获取指定格子的目标RGB颜色
-        
+
         参数:
             r: 行索引
             c: 列索引
-            
+
         返回:
             RGB颜色列表 [R, G, B]，如果未找到则返回None
         """
         if self.obj is not None and hasattr(self.obj, "get_cell_color"):
             try:
-                col = self.obj.get_cell_color(r,c)
+                col = self.obj.get_cell_color(r, c)
                 if col is None:
                     return None
                 return [float(x) for x in col]
             except Exception:
                 pass
         # 从原始数据查找
-        cell = self._get_cell_raw(r,c)
+        cell = self._get_cell_raw(r, c)
         if cell is None:
             return None
-        for key in ["target_rgb","rgb","color_rgb","target"]:
+        for key in ["target_rgb", "rgb", "color_rgb", "target"]:
             if key in cell:
                 v = cell[key]
-                if isinstance(v, (list,tuple)) and len(v)==3:
+                if isinstance(v, (list, tuple)) and len(v) == 3:
                     return [float(x) for x in v]
         # 有时在'color'字段下
         if "color" in cell and isinstance(cell["color"], dict):
             v = cell["color"].get("rgb")
-            if isinstance(v,(list,tuple)) and len(v)==3:
+            if isinstance(v, (list, tuple)) and len(v) == 3:
                 return [float(x) for x in v]
         return None
 
-    def get_cell_recipe(self, r:int, c:int) -> Dict[str, float]:
+    def get_cell_recipe(self, r: int, c: int) -> Dict[str, float]:
         """获取指定格子的配方信息
-        
+
         返回材料名称到重量的映射字典（非负值）
-        
+
         参数:
             r: 行索引
             c: 列索引
-            
+
         返回:
             材料名称到重量的字典
         """
         # 返回材料到重量的扁平字典（非负值）
         if self.obj is not None:
-            for meth in ["get_cell_recipe", "get_cell_mix", "get_cell_layers", "get_cell_params"]:
+            for meth in [
+                "get_cell_recipe",
+                "get_cell_mix",
+                "get_cell_layers",
+                "get_cell_params",
+            ]:
                 if hasattr(self.obj, meth):
                     try:
-                        v = getattr(self.obj, meth)(r,c)
+                        v = getattr(self.obj, meth)(r, c)
                         return _recipe_to_flat(v)
                     except Exception:
                         pass
-        cell = self._get_cell_raw(r,c)
+        cell = self._get_cell_raw(r, c)
         if not cell:
             return {}
-            
+
         # 处理特殊的"slot_names" + "layers"结构
         # 存在两种常见格式：
         #   (A) slot_names = 调色板（例如8个名称），layers = 每层对应的槽位索引（例如5个整数）
@@ -128,7 +139,12 @@ class SpecAdapter:
         if "slot_names" in cell and "layers" in cell:
             slots = cell.get("slot_names")
             layers = cell.get("layers")
-            if isinstance(slots, list) and isinstance(layers, list) and slots and layers:
+            if (
+                isinstance(slots, list)
+                and isinstance(layers, list)
+                and slots
+                and layers
+            ):
                 # 启发式判断layers是否为整数索引
                 is_int_like = True
                 idx_vals = []
@@ -174,26 +190,26 @@ class SpecAdapter:
                         out3[name] = out3.get(name, 0.0) + w
                 return out3
 
-        for key in ["recipe","mix","layers","params","stack"]:
+        for key in ["recipe", "mix", "layers", "params", "stack"]:
             if key in cell:
                 return _recipe_to_flat(cell[key])
         # 可能cell本身就是配方字典
         return {}
 
-    def _get_cell_raw(self, r:int, c:int) -> Optional[Dict[str,Any]]:
+    def _get_cell_raw(self, r: int, c: int) -> Optional[Dict[str, Any]]:
         """获取指定格子的原始数据
-        
+
         支持多种规格文件格式：
         - cell_map: 行列字符串键的字典
         - cells: 列表格式（二维列表或一维字典列表）
         - grid.cells: 嵌套结构
-        
+
         同时处理active_range坐标映射（物理坐标到逻辑坐标的转换）
-        
+
         参数:
             r: 行索引（物理坐标）
             c: 列索引（物理坐标）
-            
+
         返回:
             格子的原始数据字典，如果未找到则返回None
         """
@@ -204,11 +220,11 @@ class SpecAdapter:
             max_r = active.get("max_row", self.rows - 1)
             min_c = active.get("min_col", 0)
             max_c = active.get("max_col", self.cols - 1)
-            
+
             # 如果在有效范围外，返回None
             if not (min_r <= r <= max_r and min_c <= c <= max_c):
                 return None
-            
+
             # 将物理坐标(r,c)映射到逻辑坐标(lr, lc)用于cell_map查找
             # 假设cell_map的键"1,1"对应(min_r, min_c)
             lr = r - min_r
@@ -223,8 +239,10 @@ class SpecAdapter:
             # 检测cell_map使用的坐标格式
             # 通过采样前几个键来判断是0-based还是1-based
             sample_keys = list(cell_map.keys())[:5]
-            has_0_based = any(key.startswith("0,") or ",0" in key for key in sample_keys)
-            
+            has_0_based = any(
+                key.startswith("0,") or ",0" in key for key in sample_keys
+            )
+
             if has_0_based:
                 # 0-based: 直接使用lr, lc
                 key = f"{lr},{lc}"
@@ -232,7 +250,7 @@ class SpecAdapter:
                     return cell_map[key]
             else:
                 # 1-based: 使用lr+1, lc+1
-                key = f"{lr+1},{lc+1}"
+                key = f"{lr + 1},{lc + 1}"
                 if key in cell_map:
                     return cell_map[key]
 
@@ -247,7 +265,7 @@ class SpecAdapter:
                     return None
             # 一维列表
             for it in cells:
-                if isinstance(it, dict) and it.get("row")==lr and it.get("col")==lc:
+                if isinstance(it, dict) and it.get("row") == lr and it.get("col") == lc:
                     return it
         # 替代结构：grid->rows
         grid = self.raw.get("grid")
@@ -261,24 +279,27 @@ class SpecAdapter:
                     return None
         return None
 
-def extract_layer_sequence(cell_raw: Optional[Dict[str, Any]]) -> Tuple[List[str], List[int], List[str]]:
+
+def extract_layer_sequence(
+    cell_raw: Optional[Dict[str, Any]],
+) -> Tuple[List[str], List[int], List[str]]:
     """从规格单元格原始字典中提取每层材料名称
-    
+
     支持两种常见格式：
       - slot_names: 调色板（长度>=8），layers: 索引（长度==n_layers）-> 将索引映射到名称
       - slot_names: 每层对应的名称（长度==n_layers）-> 直接使用
-      
+
     参数:
         cell_raw: 单元格的原始数据字典
-        
+
     返回:
         (调色板名称列表, 层索引列表, 层名称列表)
         如果某部分不可用，可能返回空列表或None
     """
     if not isinstance(cell_raw, dict):
         return [], [], []
-    slots = cell_raw.get('slot_names')
-    layers = cell_raw.get('layers')
+    slots = cell_raw.get("slot_names")
+    layers = cell_raw.get("layers")
     palette = [str(s) for s in slots] if isinstance(slots, list) else []
     if isinstance(slots, list) and isinstance(layers, list) and slots and layers:
         if len(slots) == len(layers) and len(slots) <= 16:
@@ -302,35 +323,38 @@ def extract_layer_sequence(cell_raw: Optional[Dict[str, Any]]) -> Tuple[List[str
             max_idx = max(idxs) if idxs else 0
             is_one_based = min_idx >= 1 and max_idx <= len(palette)
             if is_one_based:
-                names = [palette[iv - 1] if 1 <= iv <= len(palette) else '' for iv in idxs]
+                names = [
+                    palette[iv - 1] if 1 <= iv <= len(palette) else "" for iv in idxs
+                ]
             else:
-                names = [palette[iv] if 0 <= iv < len(palette) else '' for iv in idxs]
+                names = [palette[iv] if 0 <= iv < len(palette) else "" for iv in idxs]
             return palette, idxs, names
     if isinstance(slots, list) and slots and len(slots) <= 16:
         return palette, [], palette
     return palette, [], []
 
-def _recipe_to_flat(v: Any) -> Dict[str,float]:
+
+def _recipe_to_flat(v: Any) -> Dict[str, float]:
     """将配方数据转换为扁平字典格式
-    
+
     支持多种输入格式：
     - 字典：材料名称到重量的映射
     - 列表：层字典列表，每个层包含材料和重量信息
-    
+
     参数:
         v: 配方数据（可以是字典、列表或其他格式）
-        
+
     返回:
         材料名称到重量的扁平字典
     """
-    out: Dict[str,float] = {}
+    out: Dict[str, float] = {}
     if v is None:
         return out
     # 如果是材料到重量的字典映射
     if isinstance(v, dict):
-        for k,val in v.items():
+        for k, val in v.items():
             try:
-                f=float(val)
+                f = float(val)
             except Exception:
                 continue
             if f != 0:
@@ -341,24 +365,37 @@ def _recipe_to_flat(v: Any) -> Dict[str,float]:
         for it in v:
             if isinstance(it, dict):
                 # 常见的材料名称键
-                mat = it.get("material") or it.get("slot") or it.get("name") or it.get("color") or it.get("id")
+                mat = (
+                    it.get("material")
+                    or it.get("slot")
+                    or it.get("name")
+                    or it.get("color")
+                    or it.get("id")
+                )
                 # 常见的重量/数量键
-                amt = it.get("amount") or it.get("weight") or it.get("w") or it.get("ratio") or it.get("thickness") or it.get("value")
+                amt = (
+                    it.get("amount")
+                    or it.get("weight")
+                    or it.get("w")
+                    or it.get("ratio")
+                    or it.get("thickness")
+                    or it.get("value")
+                )
                 if mat is None:
                     # 可能字典本身就是材料到重量的映射
-                    for k2,val2 in it.items():
+                    for k2, val2 in it.items():
                         try:
-                            f=float(val2)
+                            f = float(val2)
                         except Exception:
                             continue
-                        if f!=0:
-                            out[str(k2)] = out.get(str(k2),0.0)+f
+                        if f != 0:
+                            out[str(k2)] = out.get(str(k2), 0.0) + f
                     continue
                 try:
-                    f=float(amt) if amt is not None else 1.0
+                    f = float(amt) if amt is not None else 1.0
                 except Exception:
-                    f=1.0
-                out[str(mat)] = out.get(str(mat),0.0)+f
+                    f = 1.0
+                out[str(mat)] = out.get(str(mat), 0.0) + f
         return out
     # 元组等其他类型
     return out

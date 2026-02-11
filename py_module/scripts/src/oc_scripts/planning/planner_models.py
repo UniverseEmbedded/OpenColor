@@ -77,7 +77,7 @@ def loss_rgb(rgb_pred: Vec3, rgb_target: Vec3, w_luma: float = 0.35) -> float:
     dr = rgb_pred[0] - rgb_target[0]
     dg = rgb_pred[1] - rgb_target[1]
     db = rgb_pred[2] - rgb_target[2]
-    dl = (0.2126 * dr + 0.7152 * dg + 0.0722 * db)
+    dl = 0.2126 * dr + 0.7152 * dg + 0.0722 * db
     return (dr * dr + dg * dg + db * db) + w_luma * (dl * dl)
 
 
@@ -113,24 +113,25 @@ def opacity_from_transmittance(T: Vec3) -> float:
 @dataclass(frozen=True)
 class FastMaterial:
     """快速材料模型
-    
+
     用于快速颜色预测的简化材料模型
-    
+
     Attributes:
         token: 材料标识符
         color_lin: 线性RGB颜色值
         strength: 材料强度系数
     """
+
     token: str
     color_lin: Vec3
     strength: float
 
     def weight(self, layer_height_mm: float) -> float:
         """根据层高度计算权重
-        
+
         Args:
             layer_height_mm: 层高度（毫米）
-            
+
         Returns:
             计算得到的权重值
         """
@@ -140,15 +141,16 @@ class FastMaterial:
 @dataclass(frozen=True)
 class MaterialLibrary:
     """材料库
-    
+
     存储所有可用材料的数据库
-    
+
     Attributes:
         modes: 模式到材料列表的映射
         fast: 快速材料模型字典
         phys: 物理材料模型字典
         names: 材料名称映射
     """
+
     modes: Dict[str, List[str]]
     fast: Dict[str, FastMaterial]
     phys: Dict[str, object]  # 避免循环引用，使用 object
@@ -158,9 +160,9 @@ class MaterialLibrary:
 @dataclass(frozen=True)
 class PlanResult:
     """规划结果数据类
-    
+
     存储颜色规划算法的输出结果
-    
+
     Attributes:
         method: 使用的规划方法
         rgba: 目标RGBA颜色
@@ -177,6 +179,7 @@ class PlanResult:
         samples: 采样数（可选）
         seed: 随机种子（可选）
     """
+
     method: str
     rgba: RGBA
     mode: str

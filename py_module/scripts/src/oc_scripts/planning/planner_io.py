@@ -16,7 +16,7 @@ from .planner_models import (
 
 def _default_materials_path() -> str:
     """获取默认材料配置文件的路径。
-    
+
     优先返回校准后的材料文件 materials_calibrated.json，
     如果不存在则返回默认材料文件 materials.json。
     """
@@ -38,7 +38,9 @@ def load_materials(materials_json: Optional[str] = None) -> MaterialLibrary:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    modes = {str(k).lower(): [str(x).upper() for x in v] for k, v in data["modes"].items()}
+    modes = {
+        str(k).lower(): [str(x).upper() for x in v] for k, v in data["modes"].items()
+    }
     mats = data["materials"]
 
     fast: Dict[str, FastMaterial] = {}
@@ -51,12 +53,16 @@ def load_materials(materials_json: Optional[str] = None) -> MaterialLibrary:
 
         rgb255 = v.get("color_srgb")
         if rgb255 is None or len(rgb255) != 3:
-            raise ValueError(f"materials.json: materials.{token}.color_srgb must be [r,g,b]")
+            raise ValueError(
+                f"materials.json: materials.{token}.color_srgb must be [r,g,b]"
+            )
         r_lin = srgb_to_linear01(float(rgb255[0]) / 255.0)
         g_lin = srgb_to_linear01(float(rgb255[1]) / 255.0)
         b_lin = srgb_to_linear01(float(rgb255[2]) / 255.0)
         strength = float(v.get("strength", 8.0))
-        fast[token] = FastMaterial(token=token, color_lin=(r_lin, g_lin, b_lin), strength=strength)
+        fast[token] = FastMaterial(
+            token=token, color_lin=(r_lin, g_lin, b_lin), strength=strength
+        )
 
         phys[token] = forward_mc.OpticalProps(
             mu_a=tuple(map(float, v["mu_a"])),
@@ -76,7 +82,7 @@ def predict_fast_rgb_and_opacity(
     backing: str = "white",
 ) -> Tuple[Vec3, float]:
     """使用快速前向模型预测 RGB 颜色和不透明度。
-    
+
     返回: (线性 RGB 元组, 不透明度值)
     """
     if len(seq) != len(heights_mm):
@@ -123,7 +129,9 @@ def predict_rgb_fast_from_sequence(
     backing: str = "white",
 ) -> Vec3:
     """使用快速前向模型从材料序列预测 RGB 颜色。"""
-    rgb, _op = predict_fast_rgb_and_opacity(mats, seq, heights_mm, view=view, backing=backing)
+    rgb, _op = predict_fast_rgb_and_opacity(
+        mats, seq, heights_mm, view=view, backing=backing
+    )
     return rgb
 
 
@@ -137,7 +145,7 @@ def forward_rgb(
     materials_json: Optional[str] = None,
 ) -> Tuple[Vec3, forward_mc.MCResult]:
     """使用蒙特卡洛前向模拟计算材料堆叠的反射颜色。
-    
+
     返回: (RGB 颜色元组, 蒙特卡洛模拟结果对象)
     """
     lib = load_materials(materials_json)
@@ -156,5 +164,7 @@ def forward_rgb(
         seed=int(seed),
     )
 
-    rgb = forward_mc.observed_rgb_under_backing(res.R, res.T, backing_reflectance=backing_reflectance)
+    rgb = forward_mc.observed_rgb_under_backing(
+        res.R, res.T, backing_reflectance=backing_reflectance
+    )
     return rgb, res

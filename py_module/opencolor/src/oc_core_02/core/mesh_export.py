@@ -38,7 +38,9 @@ def _get_cpp_write_binary_stl():
 
         _CPP_WRITE_BINARY_STL = getattr(cpp_geometry, "write_binary_stl_nogil", None)
         if _CPP_WRITE_BINARY_STL is None:
-            logger.warning("C++ 几何模块已加载，但缺少 write_binary_stl_nogil，STL 将回退到 Python 导出")
+            logger.warning(
+                "C++ 几何模块已加载，但缺少 write_binary_stl_nogil，STL 将回退到 Python 导出"
+            )
         return _CPP_WRITE_BINARY_STL
     except Exception as e:
         logger.warning("导入 C++ 几何模块失败，STL 将回退到 Python 导出: {}", e)
@@ -49,16 +51,19 @@ def _get_cpp_write_binary_stl():
 @dataclass
 class VoxelGrid:
     """体素网格数据类
-    
+
     Attributes:
         volume: 布尔数组 (z,y,x)
         voxel_size: 体素尺寸 (sx, sy, sz)
     """
+
     volume: np.ndarray  # 布尔数组 (z,y,x)
     voxel_size: Tuple[float, float, float]  # (sx, sy, sz)
 
 
-def voxel_grid_to_mesh(grid: VoxelGrid, shrink: float = 0.0, weld_vertices: bool = True) -> trimesh.Trimesh:
+def voxel_grid_to_mesh(
+    grid: VoxelGrid, shrink: float = 0.0, weld_vertices: bool = True
+) -> trimesh.Trimesh:
     """将布尔体素体积转换为三角形网格。
 
     使用整数平板网格（轴对齐的盒子）来避免材质之间的层错位，
@@ -68,7 +73,11 @@ def voxel_grid_to_mesh(grid: VoxelGrid, shrink: float = 0.0, weld_vertices: bool
     if vol.ndim != 3:
         raise ValueError("volume 必须是 3D 的 (z,y,x)")
     if vol.max() == 0:
-        return trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=np.int64), process=False)
+        return trimesh.Trimesh(
+            vertices=np.zeros((0, 3)),
+            faces=np.zeros((0, 3), dtype=np.int64),
+            process=False,
+        )
 
     z_layers, height, width = vol.shape
 
@@ -102,7 +111,7 @@ def voxel_grid_to_mesh(grid: VoxelGrid, shrink: float = 0.0, weld_vertices: bool
         y = indices[:, 1].astype(np.float64)
         x = indices[:, 2].astype(np.float64)
 
-        world_y = (float(height - 1) - y)
+        world_y = float(height - 1) - y
 
         x0 = x + float(shrink)
         x1 = (x + 1.0) - float(shrink)
@@ -203,15 +212,21 @@ def voxel_grid_to_mesh(grid: VoxelGrid, shrink: float = 0.0, weld_vertices: bool
         parts_f = []
         vert_offset = 0
 
-        pad_x = np.pad(comp, ((0, 0), (0, 0), (1, 1)), mode="constant", constant_values=False)
+        pad_x = np.pad(
+            comp, ((0, 0), (0, 0), (1, 1)), mode="constant", constant_values=False
+        )
         neg_x = pad_x[:, :, 1:-1] & ~pad_x[:, :, :-2]
         pos_x = pad_x[:, :, 1:-1] & ~pad_x[:, :, 2:]
 
-        pad_y = np.pad(comp, ((0, 0), (1, 1), (0, 0)), mode="constant", constant_values=False)
+        pad_y = np.pad(
+            comp, ((0, 0), (1, 1), (0, 0)), mode="constant", constant_values=False
+        )
         neg_y = pad_y[:, 1:-1, :] & ~pad_y[:, :-2, :]
         pos_y = pad_y[:, 1:-1, :] & ~pad_y[:, 2:, :]
 
-        pad_z = np.pad(comp, ((1, 1), (0, 0), (0, 0)), mode="constant", constant_values=False)
+        pad_z = np.pad(
+            comp, ((1, 1), (0, 0), (0, 0)), mode="constant", constant_values=False
+        )
         neg_z = pad_z[1:-1, :, :] & ~pad_z[:-2, :, :]
         pos_z = pad_z[1:-1, :, :] & ~pad_z[2:, :, :]
 
@@ -258,7 +273,11 @@ def voxel_grid_to_mesh(grid: VoxelGrid, shrink: float = 0.0, weld_vertices: bool
         meshes.append(mesh)
 
     if not meshes:
-        return trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=np.int64), process=False)
+        return trimesh.Trimesh(
+            vertices=np.zeros((0, 3)),
+            faces=np.zeros((0, 3), dtype=np.int64),
+            process=False,
+        )
 
     mesh = trimesh.util.concatenate(meshes)
 
@@ -280,7 +299,11 @@ def export_stl(mesh: trimesh.Trimesh, path: Path) -> None:
         t_done = perf_counter()
         logger.info(
             "STL 导出(C++二进制) 完成: {} | tri={}, 用时={:.3f}s (准备={:.3f}s, 写入={:.3f}s)",
-            path.name, int(f.shape[0]), t_done - t0, t_prep - t0, t_done - t_prep
+            path.name,
+            int(f.shape[0]),
+            t_done - t0,
+            t_prep - t0,
+            t_done - t_prep,
         )
         return
 
@@ -295,7 +318,13 @@ def export_glb(mesh: trimesh.Trimesh, path: Path) -> None:
 
 
 def combine_meshes(meshes: Dict[str, trimesh.Trimesh]) -> trimesh.Trimesh:
-    non_empty = [m for m in meshes.values() if m.vertices.shape[0] > 0 and m.faces.shape[0] > 0]
+    non_empty = [
+        m for m in meshes.values() if m.vertices.shape[0] > 0 and m.faces.shape[0] > 0
+    ]
     if not non_empty:
-        return trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=np.int64), process=False)
+        return trimesh.Trimesh(
+            vertices=np.zeros((0, 3)),
+            faces=np.zeros((0, 3), dtype=np.int64),
+            process=False,
+        )
     return trimesh.util.concatenate(non_empty)

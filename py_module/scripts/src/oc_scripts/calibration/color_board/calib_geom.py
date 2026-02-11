@@ -21,9 +21,9 @@ def order_quad_points(pts: np.ndarray) -> np.ndarray:
     if pts.shape != (4, 2):
         raise ValueError("Expected 4x2 points")
     s = pts.sum(axis=1)
-    diff = (pts[:, 0] - pts[:, 1])
-    tl = pts[np.argmin(s)]   # 左上：和最小
-    br = pts[np.argmax(s)]   # 右下：和最大
+    diff = pts[:, 0] - pts[:, 1]
+    tl = pts[np.argmin(s)]  # 左上：和最小
+    br = pts[np.argmax(s)]  # 右下：和最大
     tr = pts[np.argmax(diff)]  # 右上：x-y差最大
     bl = pts[np.argmin(diff)]  # 左下：x-y差最小
     return np.stack([tl, tr, br, bl], axis=0).astype(np.float32)
@@ -46,7 +46,9 @@ def parse_corners(s: str) -> np.ndarray:
     return np.array(pts, dtype=np.float32)
 
 
-def expand_quad(quad: np.ndarray, expand_frac: float, img_w: int, img_h: int) -> np.ndarray:
+def expand_quad(
+    quad: np.ndarray, expand_frac: float, img_w: int, img_h: int
+) -> np.ndarray:
     """以质心为中心扩展四边形，并限制在图像边界内
 
     Args:
@@ -65,7 +67,9 @@ def expand_quad(quad: np.ndarray, expand_frac: float, img_w: int, img_h: int) ->
     return q2.astype(np.float32)
 
 
-def warp_perspective(img_bgr: np.ndarray, quad_tl_tr_br_bl: np.ndarray, out_w_px: int, out_h_px: int) -> Tuple[np.ndarray, np.ndarray]:
+def warp_perspective(
+    img_bgr: np.ndarray, quad_tl_tr_br_bl: np.ndarray, out_w_px: int, out_h_px: int
+) -> Tuple[np.ndarray, np.ndarray]:
     """执行透视变换将四边形区域变换为矩形
 
     Returns:
@@ -80,7 +84,9 @@ def warp_perspective(img_bgr: np.ndarray, quad_tl_tr_br_bl: np.ndarray, out_w_px
     return warped, H
 
 
-def detect_board_quad_by_chroma(img_bgr: np.ndarray, debug_dir: Optional[Path] = None) -> np.ndarray:
+def detect_board_quad_by_chroma(
+    img_bgr: np.ndarray, debug_dir: Optional[Path] = None
+) -> np.ndarray:
     """通过Lab色度通道检测标定板区域
 
     使用色度掩码对缝隙具有鲁棒性

@@ -16,13 +16,13 @@ from calibrate_color_board_io import _write_png
 
 def gradient_projections(warped_bgr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """计算图像的梯度投影
-    
+
     使用Sobel算子计算图像梯度，然后分别在水平和垂直方向投影，
     用于检测色板中的网格线位置。
-    
+
     参数:
         warped_bgr: 校正后的BGR图像
-        
+
     返回:
         (列投影, 行投影) - 两个一维数组
     """
@@ -39,17 +39,19 @@ def gradient_projections(warped_bgr: np.ndarray) -> Tuple[np.ndarray, np.ndarray
     return col_sum, row_sum
 
 
-def estimate_pitch_fft(signal: np.ndarray, expected_pitch: float, search_frac: float = 0.35) -> float:
+def estimate_pitch_fft(
+    signal: np.ndarray, expected_pitch: float, search_frac: float = 0.35
+) -> float:
     """使用FFT估计信号的主周期（网格间距）
-    
+
     通过频域分析估计一维信号的周期，在预期周期附近搜索，
     用于检测色板网格的像素间距。
-    
+
     参数:
         signal: 一维信号数组
         expected_pitch: 预期周期（像素）
         search_frac: 搜索范围比例，默认在预期值的±35%范围内搜索
-        
+
     返回:
         估计的周期（像素）
     """
@@ -92,12 +94,14 @@ def estimate_pitch_fft(signal: np.ndarray, expected_pitch: float, search_frac: f
     return pitch
 
 
-def draw_projection_debug(signal: np.ndarray, pitch: float, out_path: Path, title: str) -> None:
+def draw_projection_debug(
+    signal: np.ndarray, pitch: float, out_path: Path, title: str
+) -> None:
     """绘制投影调试图像
-    
+
     使用OpenCV绘制一维信号的波形图，并标注估计的周期位置。
     不依赖matplotlib，适合无GUI环境。
-    
+
     参数:
         signal: 一维信号数组
         pitch: 估计的周期
@@ -127,7 +131,15 @@ def draw_projection_debug(signal: np.ndarray, pitch: float, out_path: Path, titl
     cv2.polylines(canvas, [pts], False, (0, 255, 0), 1)
 
     # 添加标题
-    cv2.putText(canvas, f"{title}  pitch_est={pitch:.2f}px", (10, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
+    cv2.putText(
+        canvas,
+        f"{title}  pitch_est={pitch:.2f}px",
+        (10, 18),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        1,
+    )
 
     # 绘制周期标记线
     if pitch > 5:
@@ -140,11 +152,19 @@ def draw_projection_debug(signal: np.ndarray, pitch: float, out_path: Path, titl
     _write_png(out_path, canvas)
 
 
-def refine_dxdy(signal_col: np.ndarray, signal_row: np.ndarray, nx: int, ny: int, pitch_x: float, pitch_y: float, search_steps: int = 61) -> Tuple[float, float, float]:
+def refine_dxdy(
+    signal_col: np.ndarray,
+    signal_row: np.ndarray,
+    nx: int,
+    ny: int,
+    pitch_x: float,
+    pitch_y: float,
+    search_steps: int = 61,
+) -> Tuple[float, float, float]:
     """精细化网格偏移量(dx, dy)估计
-    
+
     通过在可能的偏移范围内搜索，找到使网格线位置投影能量最大的偏移量。
-    
+
     参数:
         signal_col: 列方向投影信号
         signal_row: 行方向投影信号
@@ -153,7 +173,7 @@ def refine_dxdy(signal_col: np.ndarray, signal_row: np.ndarray, nx: int, ny: int
         pitch_x: 水平方向网格间距
         pitch_y: 垂直方向网格间距
         search_steps: 搜索步数
-        
+
     返回:
         (最优dx, 最优dy, 归一化得分)
     """

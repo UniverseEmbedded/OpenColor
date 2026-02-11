@@ -10,10 +10,11 @@ import numpy as np
 from oc_sdf.sdf_io import rasterize_geometry_soft
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _compute_geom_mask_deviation_mm2(
     *,
     geom,
@@ -24,10 +25,10 @@ def _compute_geom_mask_deviation_mm2(
     tol_px: int,
 ) -> float:
     """计算几何体与参考掩码的偏差面积（平方毫米）
-    
+
     将几何体栅格化后与参考掩码比较，计算差异区域的面积。
     支持带容差的比较，允许边缘有一定偏差。
-    
+
     参数:
         geom: shapely几何体对象
         ref_mask_bin: 参考二值掩码
@@ -35,7 +36,7 @@ def _compute_geom_mask_deviation_mm2(
         pixel_w: 像素宽度
         pixel_h: 像素高度
         tol_px: 容差像素数，0表示严格比较
-        
+
     返回:
         偏差面积（平方毫米）
     """

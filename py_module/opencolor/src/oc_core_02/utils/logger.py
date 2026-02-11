@@ -2,7 +2,7 @@
 
 使用示例:
     from oc_core_02.utils.logger import get_logger
-    
+
     logger = get_logger(__name__)
     logger.info("应用启动")
     logger.debug("调试信息: {}", some_var)
@@ -22,7 +22,7 @@ __all__ = ["get_logger", "setup_logger", "logger"]
 
 class LoggerConfig:
     """日志配置类"""
-    
+
     # 详细格式（用于调试）
     DEFAULT_FORMAT = (
         "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
@@ -33,7 +33,7 @@ class LoggerConfig:
 
     # 简洁格式（默认使用）
     SIMPLE_FORMAT = "<level>{message}</level>"
-    
+
     def __init__(
         self,
         level: str = "INFO",
@@ -55,16 +55,16 @@ class LoggerConfig:
 
 def setup_logger(config: Optional[LoggerConfig] = None) -> None:
     """配置全局日志记录器
-    
+
     Args:
         config: 日志配置对象，如果为None则使用默认配置
     """
     if config is None:
         config = LoggerConfig()
-    
+
     # 移除所有现有的处理器
     _logger.remove()
-    
+
     # 添加控制台处理器
     if config.enable_console:
         _logger.add(
@@ -74,7 +74,7 @@ def setup_logger(config: Optional[LoggerConfig] = None) -> None:
             colorize=True,
             enqueue=True,
         )
-    
+
     # 添加文件处理器
     if config.enable_file and config.log_dir:
         config.log_dir.mkdir(parents=True, exist_ok=True)
@@ -92,10 +92,10 @@ def setup_logger(config: Optional[LoggerConfig] = None) -> None:
 
 def get_logger(name: Optional[str] = None) -> "loguru.Logger":
     """获取一个命名日志记录器
-    
+
     Args:
         name: 日志记录器名称，通常使用 __name__
-        
+
     Returns:
         配置好的日志记录器
     """

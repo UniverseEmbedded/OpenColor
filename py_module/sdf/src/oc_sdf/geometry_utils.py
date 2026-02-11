@@ -10,18 +10,19 @@ from shapely.geometry import GeometryCollection, Polygon
 from shapely.ops import unary_union
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _iter_polygons(geom):
     """迭代几何体中的所有多边形
-    
+
     递归遍历几何体，提取所有多边形（包括多边形集合中的多边形）。
-    
+
     参数:
         geom: shapely几何体对象
-        
+
     返回:
         多边形列表
     """
@@ -42,12 +43,12 @@ def _iter_polygons(geom):
 
 def _to_polygonal(geom):
     """将几何体转换为多边形或多边形集合
-    
+
     从几何集合中提取所有多边形，并合并为一个多边形或多边形集合。
-    
+
     参数:
         geom: shapely几何体对象
-        
+
     返回:
         多边形、多边形集合或空几何集合
     """
@@ -62,7 +63,9 @@ def _to_polygonal(geom):
     if gt == "GeometryCollection":
         polys = []
         for g in geom.geoms:
-            if getattr(g, "geom_type", "") in ("Polygon", "MultiPolygon") and (not g.is_empty):
+            if getattr(g, "geom_type", "") in ("Polygon", "MultiPolygon") and (
+                not g.is_empty
+            ):
                 polys.append(g)
         if not polys:
             return GeometryCollection()
@@ -72,13 +75,13 @@ def _to_polygonal(geom):
 
 def _round_to_grid(v: float, step: float) -> float:
     """将值量化到网格
-    
+
     将浮点数值四舍五入到最近的网格点。
-    
+
     参数:
         v: 原始值
         step: 网格步长
-        
+
     返回:
         量化后的值
     """
@@ -87,14 +90,14 @@ def _round_to_grid(v: float, step: float) -> float:
 
 def _ring_point_collinear(a, b, c) -> bool:
     """检查三个点是否共线
-    
+
     通过叉积判断三点是否在同一直线上，且b点位于a和c之间。
-    
+
     参数:
         a: 第一个点坐标(x,y)
         b: 第二个点坐标(x,y)
         c: 第三个点坐标(x,y)
-        
+
     返回:
         如果共线则返回True
     """
@@ -113,12 +116,12 @@ def _ring_point_collinear(a, b, c) -> bool:
 
 def _drop_collinear_open_ring(points):
     """移除共线点
-    
+
     从点序列中移除中间共线的点，简化多边形边界。
-    
+
     参数:
         points: 点坐标列表
-        
+
     返回:
         移除共线点后的点列表
     """
@@ -145,13 +148,13 @@ def _drop_collinear_open_ring(points):
 
 def _quantize_ring_coords(coords, *, step_mm: float):
     """量化环坐标到网格
-    
+
     将多边形环的坐标点量化到指定网格，并移除重复点和共线点。
-    
+
     参数:
         coords: 坐标序列
         step_mm: 网格步长（毫米）
-        
+
     返回:
         量化后的坐标列表
     """
@@ -181,13 +184,13 @@ def _quantize_ring_coords(coords, *, step_mm: float):
 
 def _quantize_geom_to_grid(geom, *, step_mm: float):
     """将几何体量化到网格
-    
+
     使用shapely的set_precision或手工量化将几何体对齐到网格。
-    
+
     参数:
         geom: shapely几何体对象
         step_mm: 网格步长（毫米）
-        
+
     返回:
         量化后的几何体
     """
@@ -207,7 +210,9 @@ def _quantize_geom_to_grid(geom, *, step_mm: float):
                     if not getattr(g2, "is_valid", True):
                         g2 = g2.buffer(0)
                 except Exception as e:
-                    logger.error(f"[警告] 量化后修复几何失败，将继续使用未修复结果。原因={e}")
+                    logger.error(
+                        f"[警告] 量化后修复几何失败，将继续使用未修复结果。原因={e}"
+                    )
                     traceback.print_exc()
                 return g2
     except Exception as e:
@@ -237,7 +242,14 @@ def _quantize_geom_to_grid(geom, *, step_mm: float):
                 if getattr(pp, "geom_type", "") == "Polygon":
                     out_polys.append(pp)
                 else:
-                    out_polys.extend([g for g in getattr(pp, "geoms", []) if getattr(g, "geom_type", "") == "Polygon" and (not g.is_empty)])
+                    out_polys.extend(
+                        [
+                            g
+                            for g in getattr(pp, "geoms", [])
+                            if getattr(g, "geom_type", "") == "Polygon"
+                            and (not g.is_empty)
+                        ]
+                    )
         except Exception as e:
             logger.error(f"[错误] 手工量化失败: {e}")
             traceback.print_exc()
@@ -260,13 +272,13 @@ def _quantize_geom_to_grid(geom, *, step_mm: float):
 
 def _drop_small_holes(poly: Polygon, *, hole_min_area_mm2: float):
     """移除小孔洞
-    
+
     从多边形中移除面积小于阈值的内部孔洞。
-    
+
     参数:
         poly: 多边形对象
         hole_min_area_mm2: 孔洞最小面积阈值（平方毫米）
-        
+
     返回:
         处理后的多边形
     """
@@ -305,9 +317,9 @@ def _simplify_geom(
     hole_min_area_mm2: float,
 ):
     """简化几何体
-    
+
     综合应用量化、拓扑简化、形态学闭运算和碎片过滤来简化几何体。
-    
+
     参数:
         geom: shapely几何体对象
         step_mm: 量化步长（毫米）
@@ -315,7 +327,7 @@ def _simplify_geom(
         closing_mm: 形态学闭运算半径（毫米）
         min_area_mm2: 最小保留面积（平方毫米）
         hole_min_area_mm2: 最小孔洞面积（平方毫米）
-        
+
     返回:
         简化后的几何体
     """
@@ -393,12 +405,12 @@ def _simplify_geom(
 
 def _geom_vertex_stats(geom):
     """统计几何体顶点信息
-    
+
     统计多边形数量、环数量、孔洞数量和顶点总数。
-    
+
     参数:
         geom: shapely几何体对象
-        
+
     返回:
         统计字典，包含polys、rings、holes、pts计数
     """
@@ -439,10 +451,10 @@ def _geom_vertex_stats(geom):
 
 def _geom_total_edge_len_mm(geom) -> float:
     """计算几何体总边长
-    
+
     参数:
         geom: shapely几何体对象
-        
+
     返回:
         总边长（毫米）
     """

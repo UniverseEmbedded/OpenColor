@@ -3,7 +3,6 @@
  */
 
 import { locale, dictionary, _ } from 'svelte-i18n';
-import { derived } from 'svelte/store';
 
 // 翻译字典
 const zhCN = {
@@ -61,12 +60,20 @@ const zhCN = {
   'workspace.current': '当前工作区',
   'workspace.switch': '切换工作区',
   'workspace.create': '新建工作区',
+  'workspace.createNew': '新建工作区',
   'workspace.open': '打开其他工作区',
+  'workspace.openOther': '打开其他工作区',
   'workspace.recent': '最近工作区',
   'workspace.default': '默认工作区',
   'workspace.name': '工作区名称',
   'workspace.path': '工作区路径',
   'workspace.created': '创建时间',
+  'workspace.lastOpened': '最后打开',
+  'workspace.noCurrent': '无当前工作区',
+  'workspace.noRecent': '无最近工作区',
+  'workspace.remove': '从列表移除',
+  'workspace.selectFolder': '选择文件夹',
+  'workspace.openInExplorer': '在资源管理器中打开',
   
   // 设置页面
   'settings.general.title': '通用设置',
@@ -79,11 +86,18 @@ const zhCN = {
   'settings.general.theme.light': '浅色',
   'settings.general.theme.auto': '跟随系统',
   'settings.general.logLevel': '日志级别',
-  
+  'settings.general.windowSizeOverlay': '窗口尺寸提示',
+  'settings.general.showWindowSizeOverlay': '窗口过小时显示提示',
+  'settings.general.windowSizeOverlayDesc': '当窗口尺寸过小时显示覆盖层提示，建议保持开启以获得最佳体验',
+
   'settings.workspace.title': '工作区管理',
+  'settings.workspace.current': '当前工作区',
+  'settings.workspace.actions': '操作',
+  
   'settings.engine.title': '引擎设置',
   'settings.engine.path': '引擎路径',
   'settings.engine.gpu': 'GPU加速',
+  'settings.engine.gpuAcceleration': '启用Vulkan GPU加速',
   'settings.project.title': '项目设置',
   
   // 状态
@@ -107,6 +121,12 @@ const zhCN = {
   'api.test.run': '运行测试',
   'api.test.success': '测试成功',
   'api.test.failed': '测试失败',
+
+  // 提示信息
+  'hint.windowTooSmall': '窗口尺寸过小，请放大窗口以获得更好的体验',
+
+  // 按钮
+  'btn.neverShow': '不再显示',
 };
 
 const enUS = {
@@ -164,13 +184,21 @@ const enUS = {
   'workspace.current': 'Current Workspace',
   'workspace.switch': 'Switch Workspace',
   'workspace.create': 'Create Workspace',
+  'workspace.createNew': 'Create New Workspace',
   'workspace.open': 'Open Other Workspace',
+  'workspace.openOther': 'Open Other Workspace',
   'workspace.recent': 'Recent Workspaces',
   'workspace.default': 'Default Workspace',
   'workspace.name': 'Workspace Name',
   'workspace.path': 'Workspace Path',
   'workspace.created': 'Created At',
-  
+  'workspace.lastOpened': 'Last Opened',
+  'workspace.noCurrent': 'No Current Workspace',
+  'workspace.noRecent': 'No Recent Workspaces',
+  'workspace.remove': 'Remove from List',
+  'workspace.selectFolder': 'Select Folder',
+  'workspace.openInExplorer': 'Open in Explorer',
+
   // Settings pages
   'settings.general.title': 'General Settings',
   'settings.general.language': 'Language',
@@ -182,11 +210,18 @@ const enUS = {
   'settings.general.theme.light': 'Light',
   'settings.general.theme.auto': 'System',
   'settings.general.logLevel': 'Log Level',
-  
+  'settings.general.windowSizeOverlay': 'Window Size Hint',
+  'settings.general.showWindowSizeOverlay': 'Show hint when window is too small',
+  'settings.general.windowSizeOverlayDesc': 'Display an overlay hint when the window size is too small. Recommended to keep enabled for the best experience.',
+
   'settings.workspace.title': 'Workspace Management',
+  'settings.workspace.current': 'Current Workspace',
+  'settings.workspace.actions': 'Actions',
+  
   'settings.engine.title': 'Engine Settings',
   'settings.engine.path': 'Engine Path',
   'settings.engine.gpu': 'GPU Acceleration',
+  'settings.engine.gpuAcceleration': 'Enable Vulkan GPU Acceleration',
   'settings.project.title': 'Project Settings',
   
   // Status
@@ -210,6 +245,12 @@ const enUS = {
   'api.test.run': 'Run Test',
   'api.test.success': 'Test Success',
   'api.test.failed': 'Test Failed',
+
+  // Hints
+  'hint.windowTooSmall': 'Window size is too small. Please resize for a better experience.',
+
+  // Buttons
+  'btn.neverShow': 'Never Show',
 };
 
 // 设置字典
@@ -242,6 +283,6 @@ export function setLanguage(lang: 'zh-CN' | 'en-US' | 'auto') {
 // 获取当前语言
 export function getCurrentLanguage(): string {
   let current = 'zh-CN';
-  locale.subscribe(l => { current = l; })();
+  locale.subscribe(l => { current = l || 'zh-CN'; })();
   return current;
 }

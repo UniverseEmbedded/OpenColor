@@ -8,7 +8,12 @@ from typing import List, Tuple
 import numpy as np
 
 
-def add_mesh_accum(verts_acc: List[np.ndarray], faces_acc: List[np.ndarray], v: np.ndarray, f: np.ndarray) -> None:
+def add_mesh_accum(
+    verts_acc: List[np.ndarray],
+    faces_acc: List[np.ndarray],
+    v: np.ndarray,
+    f: np.ndarray,
+) -> None:
     """累积添加网格数据，自动处理顶点偏移"""
     if v.size == 0 or f.size == 0:
         return
@@ -19,14 +24,16 @@ def add_mesh_accum(verts_acc: List[np.ndarray], faces_acc: List[np.ndarray], v: 
     faces_acc.append(f + offset)
 
 
-def prism(x0: float, x1: float, y0: float, y1: float, z0: float, z1: float) -> Tuple[np.ndarray, np.ndarray]:
+def prism(
+    x0: float, x1: float, y0: float, y1: float, z0: float, z1: float
+) -> Tuple[np.ndarray, np.ndarray]:
     """创建一个棱柱体（长方体）的顶点和面
-    
+
     Args:
         x0, x1: X 轴范围
         y0, y1: Y 轴范围
         z0, z1: Z 轴范围
-    
+
     Returns:
         (顶点数组, 面数组)
     """
@@ -45,12 +52,18 @@ def prism(x0: float, x1: float, y0: float, y1: float, z0: float, z1: float) -> T
     )
     f = np.array(
         [
-            [0, 1, 2], [0, 2, 3],  # 底面
-            [4, 6, 5], [4, 7, 6],  # 顶面
-            [0, 4, 5], [0, 5, 1],  # 侧面
-            [1, 5, 6], [1, 6, 2],
-            [2, 6, 7], [2, 7, 3],
-            [3, 7, 4], [3, 4, 0],
+            [0, 1, 2],
+            [0, 2, 3],  # 底面
+            [4, 6, 5],
+            [4, 7, 6],  # 顶面
+            [0, 4, 5],
+            [0, 5, 1],  # 侧面
+            [1, 5, 6],
+            [1, 6, 2],
+            [2, 6, 7],
+            [2, 7, 3],
+            [3, 7, 4],
+            [3, 4, 0],
         ],
         dtype=np.int64,
     )
@@ -170,10 +183,24 @@ def add_first_layer_border_segments(
     mi_bottom = row_stripe_material_index(0, mats_count)
     mi_top = row_stripe_material_index(max(0, ny - 1), mats_count)
 
-    v, f = prism(x0_inner - border_mm, x1_inner + border_mm, y0_inner - border_mm, y0_inner, z0, z1)
+    v, f = prism(
+        x0_inner - border_mm,
+        x1_inner + border_mm,
+        y0_inner - border_mm,
+        y0_inner,
+        z0,
+        z1,
+    )
     add_mesh_accum(all_verts[mi_bottom], all_faces[mi_bottom], v, f)
 
-    v, f = prism(x0_inner - border_mm, x1_inner + border_mm, y1_inner, y1_inner + border_mm, z0, z1)
+    v, f = prism(
+        x0_inner - border_mm,
+        x1_inner + border_mm,
+        y1_inner,
+        y1_inner + border_mm,
+        z0,
+        z1,
+    )
     add_mesh_accum(all_verts[mi_top], all_faces[mi_top], v, f)
 
     for iy in range(int(ny)):

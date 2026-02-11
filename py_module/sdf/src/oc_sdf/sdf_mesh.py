@@ -36,7 +36,9 @@ def _get_cpp_mesh_clean_basic():
 
         _CPP_MESH_CLEAN = getattr(cpp_geometry, "mesh_clean_basic_nogil", None)
         if _CPP_MESH_CLEAN is None:
-            logger.warning("C++ 几何模块已加载，但缺少 mesh_clean_basic_nogil，网格清理将回退到 Python")
+            logger.warning(
+                "C++ 几何模块已加载，但缺少 mesh_clean_basic_nogil，网格清理将回退到 Python"
+            )
         return _CPP_MESH_CLEAN
     except Exception as e:
         logger.warning("导入 C++ 几何模块失败，网格清理将回退到 Python: {}", e)
@@ -45,6 +47,7 @@ def _get_cpp_mesh_clean_basic():
         traceback.print_exc()
         _CPP_MESH_CLEAN = None
         return None
+
 
 def clean_mesh(m: trimesh.Trimesh, slot_name: str) -> trimesh.Trimesh:
     """对网格进行保守清理，避免破坏拓扑结构。
@@ -91,16 +94,28 @@ def clean_mesh(m: trimesh.Trimesh, slot_name: str) -> trimesh.Trimesh:
                     out.fix_normals()
             else:
                 # 大网格：跳过法线修复，依赖C++清理已经处理了法线
-                logger.info("网格较大，跳过 fix_normals 以提升性能: slot={}, faces={}", slot_name, face_n)
+                logger.info(
+                    "网格较大，跳过 fix_normals 以提升性能: slot={}, faces={}",
+                    slot_name,
+                    face_n,
+                )
             t_normals = perf_counter()
 
             logger.info(
                 "网格清理(C++基础清理) 完成: slot={} | {} | 用时={:.3f}s (准备={:.3f}s, C++={:.3f}s, 构网格={:.3f}s, 法线={:.3f}s)",
-                slot_name, rep, t_normals - t0, t_prep - t0, t_cpp - t_prep, t_mesh - t_cpp, t_normals - t_mesh
+                slot_name,
+                rep,
+                t_normals - t0,
+                t_prep - t0,
+                t_cpp - t_prep,
+                t_mesh - t_cpp,
+                t_normals - t_mesh,
             )
             return out
         except Exception as e:
-            logger.error("C++ 网格清理失败，将回退到 Python: slot={}, 原因={}", slot_name, e)
+            logger.error(
+                "C++ 网格清理失败，将回退到 Python: slot={}, 原因={}", slot_name, e
+            )
             import traceback
 
             traceback.print_exc()
@@ -148,12 +163,22 @@ def clean_mesh(m: trimesh.Trimesh, slot_name: str) -> trimesh.Trimesh:
                 m.fix_normals()
         else:
             # 大网格：跳过法线修复
-            logger.info("网格较大，跳过 fix_normals 以提升性能: slot={}, faces={}", slot_name, face_n)
+            logger.info(
+                "网格较大，跳过 fix_normals 以提升性能: slot={}, faces={}",
+                slot_name,
+                face_n,
+            )
         t6 = perf_counter()
 
         logger.info(
             "网格清理(Python) 完成: slot={} | NaN/Inf={:.3f}s, 退化面={:.3f}s, 重复面={:.3f}s, 去未引用点={:.3f}s, 法线={:.3f}s, 总计={:.3f}s",
-            slot_name, t2 - t1, t3 - t2, t4 - t3, t5 - t4, t6 - t5, t6 - t0
+            slot_name,
+            t2 - t1,
+            t3 - t2,
+            t4 - t3,
+            t5 - t4,
+            t6 - t5,
+            t6 - t0,
         )
     except Exception as e:
         logger.error("网格清理失败(slot={}): {}", slot_name, e)

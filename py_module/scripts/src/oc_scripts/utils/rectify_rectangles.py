@@ -30,7 +30,6 @@ import cv2
 import numpy as np
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,12 +39,14 @@ U_HASH_RE = re.compile(r"#U([0-9a-fA-F]{4,6})")
 
 def decode_u_hash(s: str) -> str:
     """解码文件名如 '#U767d#U8272#U53cd#U5149.jpg' -> '白色反光.jpg'"""
+
     def _rep(m: re.Match) -> str:
         code = int(m.group(1), 16)
         try:
             return chr(code)
         except ValueError:
             return m.group(0)
+
     return U_HASH_RE.sub(_rep, s)
 
 
@@ -95,7 +96,9 @@ def detect_quad(image_bgr: np.ndarray, max_dim: int = 1600) -> np.ndarray:
     scale = 1.0
     if max(h, w) > max_dim:
         scale = max_dim / float(max(h, w))
-        small = cv2.resize(image_bgr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        small = cv2.resize(
+            image_bgr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA
+        )
     else:
         small = image_bgr.copy()
 
@@ -158,15 +161,15 @@ def warp_perspective(image_bgr: np.ndarray, quad: np.ndarray) -> np.ndarray:
     maxWidth = max(maxWidth, 1)
     maxHeight = max(maxHeight, 1)
 
-    dst = np.array([
-        [0, 0],
-        [maxWidth - 1, 0],
-        [maxWidth - 1, maxHeight - 1],
-        [0, maxHeight - 1]
-    ], dtype=np.float32)
+    dst = np.array(
+        [[0, 0], [maxWidth - 1, 0], [maxWidth - 1, maxHeight - 1], [0, maxHeight - 1]],
+        dtype=np.float32,
+    )
 
     M = cv2.getPerspectiveTransform(quad, dst)
-    warped = cv2.warpPerspective(image_bgr, M, (maxWidth, maxHeight), flags=cv2.INTER_CUBIC)
+    warped = cv2.warpPerspective(
+        image_bgr, M, (maxWidth, maxHeight), flags=cv2.INTER_CUBIC
+    )
     return warped
 
 
@@ -175,7 +178,7 @@ def draw_preview(image_bgr: np.ndarray, quad: np.ndarray) -> np.ndarray:
     overlay = image_bgr.copy()
     quad_i = order_points(quad).astype(int)
     cv2.polylines(overlay, [quad_i], isClosed=True, color=(0, 255, 0), thickness=8)
-    for (x, y) in quad_i:
+    for x, y in quad_i:
         cv2.circle(overlay, (int(x), int(y)), 18, (0, 255, 0), -1)
     return overlay
 

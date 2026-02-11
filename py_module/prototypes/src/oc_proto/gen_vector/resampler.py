@@ -53,7 +53,9 @@ def _to_polygonal(geom):
     if gt == "GeometryCollection":
         polys = []
         for g in geom.geoms:
-            if getattr(g, "geom_type", "") in ("Polygon", "MultiPolygon") and (not g.is_empty):
+            if getattr(g, "geom_type", "") in ("Polygon", "MultiPolygon") and (
+                not g.is_empty
+            ):
                 polys.append(g)
         if not polys:
             return GeometryCollection()
@@ -105,7 +107,9 @@ def _loops_to_evenodd_polygon(loops):
         if p.geom_type == "Polygon":
             rings.append(p)
         else:
-            rings.extend([g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9])
+            rings.extend(
+                [g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9]
+            )
 
     if not rings:
         return Polygon()
@@ -115,33 +119,43 @@ def _loops_to_evenodd_polygon(loops):
         result = result.symmetric_difference(r)
     return result
 
+
 def resample_line(line, interval=0.1):
     """对 LineString 进行等间距重采样"""
     if line.length <= 1e-7:
         return line
-        
+
     if line.length <= interval:
         return LineString([line.coords[0], line.coords[-1]])
-    
+
     distances = np.arange(0, line.length, interval)
     if distances[-1] < line.length - 1e-7:
         distances = np.append(distances, line.length)
-        
+
     points = [line.interpolate(d) for d in distances]
-    
+
     # 强制网格对齐 (0.001mm)，减少浮点误差导致的拓扑破碎
     unique_points = []
     for p in points:
         pt = (round(p.x, 4), round(p.y, 4))
         if not unique_points or pt != unique_points[-1]:
             unique_points.append(pt)
-    
+
     if len(unique_points) < 2:
         return line
-        
+
     return LineString(unique_points)
 
-def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_mask_poly: Polygon = None, *, use_cpp: bool = True, progress: bool = True, tag: str = "") -> dict:
+
+def resample_shared_boundaries(
+    layer_polys: dict,
+    tolerance: float = 0.15,
+    full_mask_poly: Polygon = None,
+    *,
+    use_cpp: bool = True,
+    progress: bool = True,
+    tag: str = "",
+) -> dict:
     """
     对同一层内的多个色块多边形进行共享边界重采样。
 
@@ -155,12 +169,16 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
         return {}
 
     prefix = f"{tag} " if tag else ""
-    print_ts(f"  [Resampler] {prefix}正在执行共享边界对齐 (针对 {len(layer_polys)} 个色块)...")
+    print_ts(
+        f"  [Resampler] {prefix}正在执行共享边界对齐 (针对 {len(layer_polys)} 个色块)..."
+    )
 
     grid_size = max(float(tolerance) / 5.0, 1e-4)
 
     if use_cpp and (cpp_geometry is None):
-        raise RuntimeError(f"  [Resampler] {prefix}已选择 C++ 实现，但未能加载 opencolor_geometry")
+        raise RuntimeError(
+            f"  [Resampler] {prefix}已选择 C++ 实现，但未能加载 opencolor_geometry"
+        )
 
     if use_cpp and (cpp_geometry is not None):
         try:
@@ -175,23 +193,35 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
             n = len(slot_names)
             if _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT is not None:
                 est = _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT * float(max(n, 1))
-                print_ts(f"  [Resampler] {prefix}共享边界对齐(C++)：开始，色块数={n}，预计 {est:.3f}s")
+                print_ts(
+                    f"  [Resampler] {prefix}共享边界对齐(C++)：开始，色块数={n}，预计 {est:.3f}s"
+                )
             else:
-                print_ts(f"  [Resampler] {prefix}共享边界对齐(C++)：开始，色块数={n}，暂无历史数据无法预估")
+                print_ts(
+                    f"  [Resampler] {prefix}共享边界对齐(C++)：开始，色块数={n}，暂无历史数据无法预估"
+                )
 
             t0 = perf_counter()
-            out_loops = cpp_geometry.clipper_make_exclusive_nogil(slots_loops, scale=scale)
+            out_loops = cpp_geometry.clipper_make_exclusive_nogil(
+                slots_loops, scale=scale
+            )
             dt = perf_counter() - t0
 
             if n > 0:
                 per = dt / float(n)
-                _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT = per if _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT is None else (0.8 * _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT + 0.2 * per)
+                _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT = (
+                    per
+                    if _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT is None
+                    else (0.8 * _CPP_EXCLUSIVE_AVG_SEC_PER_SLOT + 0.2 * per)
+                )
             print_ts(f"  [Resampler] {prefix}共享边界对齐(C++)完成，用时 {dt:.3f}s")
 
             out = {}
             for name, loops in zip(slot_names, out_loops):
                 try:
-                    polys = cpp_geometry.clipper_union_all_to_polygons_nogil(loops, scale=scale)
+                    polys = cpp_geometry.clipper_union_all_to_polygons_nogil(
+                        loops, scale=scale
+                    )
                     built = []
                     for shell, holes in polys:
                         p = Polygon(shell, holes)
@@ -204,7 +234,9 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
                     else:
                         g = Polygon()
                 except Exception as e:
-                    print_ts(f"  [Resampler][错误] C++输出重建失败: slot={name}，原因={e}")
+                    print_ts(
+                        f"  [Resampler][错误] C++输出重建失败: slot={name}，原因={e}"
+                    )
                     traceback.print_exc()
                     raise
 
@@ -232,7 +264,9 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
             boundaries.append(fm.boundary)
 
     t0 = perf_counter()
-    for name in _tqdm(slot_names, total=len(slot_names), desc=f"{prefix}预处理", enabled=progress):
+    for name in _tqdm(
+        slot_names, total=len(slot_names), desc=f"{prefix}预处理", enabled=progress
+    ):
         p = layer_polys.get(name)
         if p is None or p.is_empty:
             continue
@@ -250,7 +284,9 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
 
     ref_lines = unary_union(boundaries) if boundaries else None
     snapped_polys = {}
-    for name in _tqdm(slot_names, total=len(slot_names), desc=f"{prefix}snap", enabled=progress):
+    for name in _tqdm(
+        slot_names, total=len(slot_names), desc=f"{prefix}snap", enabled=progress
+    ):
         p = fixed_polys.get(name)
         if p is None:
             snapped_polys[name] = Polygon()
@@ -272,7 +308,9 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
 
     final_polys = {}
     layer_occupied = Polygon()
-    for name in _tqdm(slot_names, total=len(slot_names), desc=f"{prefix}排他分配", enabled=progress):
+    for name in _tqdm(
+        slot_names, total=len(slot_names), desc=f"{prefix}排他分配", enabled=progress
+    ):
         p = snapped_polys.get(name, Polygon())
         p = _to_polygonal(p)
         if p.is_empty:
@@ -283,14 +321,18 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
             try:
                 p = p.difference(layer_occupied, grid_size=grid_size)
             except GEOSException as e:
-                print_ts(f"  [Resampler][警告] difference 启用grid_size失败，回退到普通差集。slot={name}，原因={e}")
+                print_ts(
+                    f"  [Resampler][警告] difference 启用grid_size失败，回退到普通差集。slot={name}，原因={e}"
+                )
                 p = p.difference(layer_occupied)
             except Exception as e:
                 print_ts(f"  [Resampler][错误] difference 失败，slot={name}，原因={e}")
                 try:
                     p = p.buffer(0).difference(layer_occupied.buffer(0))
                 except Exception as e2:
-                    print_ts(f"  [Resampler][错误] difference 回退失败，slot={name}，原因={e2}")
+                    print_ts(
+                        f"  [Resampler][错误] difference 回退失败，slot={name}，原因={e2}"
+                    )
         p = _to_polygonal(p)
         p = wkt.loads(wkt.dumps(p, rounding_precision=4))
         if not p.is_valid:
@@ -299,9 +341,13 @@ def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_
         final_polys[name] = p if not p.is_empty else Polygon()
         if not final_polys[name].is_empty:
             try:
-                layer_occupied = _to_polygonal(layer_occupied).union(final_polys[name], grid_size=grid_size)
+                layer_occupied = _to_polygonal(layer_occupied).union(
+                    final_polys[name], grid_size=grid_size
+                )
             except GEOSException as e:
-                print_ts(f"  [Resampler][警告] 更新占用区域(union)启用grid_size失败，回退到普通并集。原因={e}")
+                print_ts(
+                    f"  [Resampler][警告] 更新占用区域(union)启用grid_size失败，回退到普通并集。原因={e}"
+                )
                 layer_occupied = _to_polygonal(layer_occupied).union(final_polys[name])
             except Exception as e:
                 print_ts(f"  [Resampler][错误] 更新占用区域失败，原因={e}")

@@ -104,7 +104,9 @@ def load_cells(dataset_json: Path) -> Tuple[List[List[str]], np.ndarray]:
     return seqs, np.asarray(rgb01, dtype=np.float32)
 
 
-def normalize_seqs(seqs: List[List[str]], n_layers: int, empty_token: str = "EMPTY") -> List[List[str]]:
+def normalize_seqs(
+    seqs: List[List[str]], n_layers: int, empty_token: str = "EMPTY"
+) -> List[List[str]]:
     """将序列归一化为固定层数"""
     out: List[List[str]] = []
     for s in seqs:
@@ -132,17 +134,25 @@ def materials_from_seqs(seqs: List[List[str]], empty_token: str = "EMPTY") -> Li
     return mats_list
 
 
-def pack_params(alpha: np.ndarray, beta: np.ndarray, gamma_rb: np.ndarray) -> np.ndarray:
+def pack_params(
+    alpha: np.ndarray, beta: np.ndarray, gamma_rb: np.ndarray
+) -> np.ndarray:
     """打包参数
 
     alpha/beta可以是(M,3)或(M,L,3)取决于模式
     """
-    return np.concatenate([np.asarray(alpha).ravel(), np.asarray(beta).ravel(), np.asarray(gamma_rb).ravel()]).astype(
-        np.float64
-    )
+    return np.concatenate(
+        [
+            np.asarray(alpha).ravel(),
+            np.asarray(beta).ravel(),
+            np.asarray(gamma_rb).ravel(),
+        ]
+    ).astype(np.float64)
 
 
-def unpack_params(x: np.ndarray, n_mats: int, n_layers: int, layered: bool) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def unpack_params(
+    x: np.ndarray, n_mats: int, n_layers: int, layered: bool
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """解包参数
 
     如果layered=False：
@@ -155,14 +165,14 @@ def unpack_params(x: np.ndarray, n_mats: int, n_layers: int, layered: bool) -> T
     if layered:
         n = n_mats * n_layers * 3
         alpha = x[:n].reshape((n_mats, n_layers, 3))
-        beta = x[n:2 * n].reshape((n_mats, n_layers, 3))
-        gamma = x[2 * n:2 * n + 3].reshape((3,))
+        beta = x[n : 2 * n].reshape((n_mats, n_layers, 3))
+        gamma = x[2 * n : 2 * n + 3].reshape((3,))
         return alpha, beta, gamma
     else:
         n = n_mats * 3
         alpha = x[:n].reshape((n_mats, 3))
-        beta = x[n:2 * n].reshape((n_mats, 3))
-        gamma = x[2 * n:2 * n + 3].reshape((3,))
+        beta = x[n : 2 * n].reshape((n_mats, 3))
+        gamma = x[2 * n : 2 * n + 3].reshape((3,))
         return alpha, beta, gamma
 
 
@@ -288,7 +298,9 @@ def forward_reflectance_srgb(
     empty_token: str = "EMPTY",
 ) -> np.ndarray:
     """预测给定序列的sRGB01 (N,3)"""
-    lin = forward_reflectance_linear(seqs, mats, alpha, beta, gamma_rb, order, empty_token=empty_token)
+    lin = forward_reflectance_linear(
+        seqs, mats, alpha, beta, gamma_rb, order, empty_token=empty_token
+    )
     srgb = linear01_to_srgb01_f64(lin)
     return np.clip(srgb, 0.0, 1.0).astype(np.float32)
 
@@ -329,7 +341,9 @@ def fit_on_A(
     yA_lin = srgb01_to_linear01_f64(yA_srgb01)
 
     def residual(x: np.ndarray) -> np.ndarray:
-        alpha, beta, gamma = unpack_params(x, n_mats, n_layers=n_layers, layered=layered)
+        alpha, beta, gamma = unpack_params(
+            x, n_mats, n_layers=n_layers, layered=layered
+        )
         # 计算每种材料每个通道的r,t（float64）
         r = sigmoid(alpha)
         t = sigmoid(beta) * (1.0 - r)
@@ -354,11 +368,13 @@ def fit_on_A(
         # 使用显式有限差分步长。默认值可能太小，
         # 一旦前向模型为cv2 Lab转换转换为float32
         diff_step=diff_step,
-        x_scale='jac',
+        x_scale="jac",
         verbose=0,
     )
 
-    alpha, beta, gamma = unpack_params(res.x, n_mats, n_layers=n_layers, layered=layered)
+    alpha, beta, gamma = unpack_params(
+        res.x, n_mats, n_layers=n_layers, layered=layered
+    )
 
     # 计算A的deltaE
     # 通过预计算的idxA快速预测A
@@ -403,7 +419,12 @@ def eval_palette(
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data-root", type=str, required=True, help="指向calib_extracted/out的路径（包含Board_A..）")
+    ap.add_argument(
+        "--data-root",
+        type=str,
+        required=True,
+        help="指向calib_extracted/out的路径（包含Board_A..）",
+    )
     ap.add_argument("--n-layers", type=int, default=5)
     ap.add_argument(
         "--layered",
@@ -411,8 +432,12 @@ def main() -> int:
         help="使用每层位置的材料参数（更灵活，可减少偏差但可能过拟合）",
     )
     ap.add_argument("--max-nfev", type=int, default=120)
-    ap.add_argument("--reg", type=float, default=1e-3, help="参数L2正则化权重（拟合空间）")
-    ap.add_argument("--diff-step", type=float, default=0.05, help="Jacobian的有限差分步长")
+    ap.add_argument(
+        "--reg", type=float, default=1e-3, help="参数L2正则化权重（拟合空间）"
+    )
+    ap.add_argument(
+        "--diff-step", type=float, default=0.05, help="Jacobian的有限差分步长"
+    )
     ap.add_argument(
         "--huber-f-scale",
         type=float,
@@ -455,8 +480,12 @@ def main() -> int:
 
     logger.info("=== 仅在A上拟合 ===")
     logger.info(f"顺序: {best_order}")
-    logger.info(f"A 平均dE76: {stA['A_mean']:.4f} | 中位数: {stA['A_median']:.4f} | p95: {stA['A_p95']:.4f}")
-    logger.info(f"nfev: {stA['nfev']} | 成功: {stA['success']} | 代价: {stA['cost']:.4f}")
+    logger.info(
+        f"A 平均dE76: {stA['A_mean']:.4f} | 中位数: {stA['A_median']:.4f} | p95: {stA['A_p95']:.4f}"
+    )
+    logger.info(
+        f"nfev: {stA['nfev']} | 成功: {stA['success']} | 代价: {stA['cost']:.4f}"
+    )
 
     # 评估B..E
     for pid in ["B", "C", "D", "E"]:
@@ -465,7 +494,9 @@ def main() -> int:
         # 确保不在A中的材料映射到EMPTY
         seq = [[m if m in set(mats) else "EMPTY" for m in s] for s in seq]
         st = eval_palette(seq, y, mats, alpha, beta, gamma, order=best_order)
-        logger.info(f"{pid} 平均dE76: {st['mean']:.4f} | 中位数: {st['median']:.4f} | p95: {st['p95']:.4f}")
+        logger.info(
+            f"{pid} 平均dE76: {st['mean']:.4f} | 中位数: {st['median']:.4f} | p95: {st['p95']:.4f}"
+        )
 
     return 0
 

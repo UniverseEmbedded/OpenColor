@@ -7,17 +7,20 @@ from pydantic import BaseModel, Field
 
 # --- 基础协议 ---
 
+
 class JsonRpcRequest(BaseModel):
     jsonrpc: str = "2.0"
     id: str
     method: str
     params: Dict[str, Any] = {}
 
+
 class JsonRpcResponse(BaseModel):
     jsonrpc: str = "2.0"
     id: str
     result: Optional[Any] = None
     error: Optional[Dict[str, Any]] = None
+
 
 class JobEvent(BaseModel):
     event: str
@@ -27,12 +30,15 @@ class JobEvent(BaseModel):
     message: Optional[str] = None
     result: Optional[Any] = None
 
+
 # --- 方法特定参数和结果 ---
+
 
 class HealthPingResult(BaseModel):
     status: str
     version: str
     timestamp: float
+
 
 class BoardGenerateParams(BaseModel):
     out_dir: Optional[str] = None
@@ -63,56 +69,66 @@ class BoardExportParams(BaseModel):
     export_format: str = "3mf"
     export_formats: List[str] = Field(default_factory=lambda: ["3mf"])
 
+
 class LutExtractParams(BaseModel):
     photo_path: str
     recipes_path: str
     out_dir: Optional[str] = None
 
+
 class LutDetectParams(BaseModel):
     photo_path: str
     out_dir: Optional[str] = None
+
 
 class DatasetCreateParams(BaseModel):
     name: str
     out_dir: Optional[str] = None
 
+
 class DatasetAddObservationParams(BaseModel):
     dataset_path: str
     observation_path: str
+
 
 class DatasetAggregateParams(BaseModel):
     dataset_path: str
     out_dir: Optional[str] = None
 
+
 class McrtValidateParams(BaseModel):
     dataset_path: str
     out_dir: Optional[str] = None
+
 
 class JobManifest(BaseModel):
     """
     任务产物清单（Manifest）
     定义了任务生成的物理产物、材料分配、坐标系等核心信息
     """
+
     job_id: str
     kind: str
     out_dir: str
     created_at: float
-    
+
     # 物理产物
     artifacts: Dict[str, Union[str, List[str]]] = Field(default_factory=dict)
-    
+
     # 打印板相关信息 (如果适用)
     plate_info: Optional[Dict[str, Any]] = None
-    
+
     # 材料分配 (Slot -> Material ID/Name)
     materials: List[Dict[str, Any]] = Field(default_factory=list)
-    
+
     # 扩展元数据
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
 
 class JobInfo(BaseModel):
     job_id: str
     out_dir: str
+
 
 class BitmapExportParams(BaseModel):
     image_path: str
@@ -122,6 +138,7 @@ class BitmapExportParams(BaseModel):
     n_layers: int = 4
     output_format: str = "stl"
     out_dir: Optional[str] = None
+
 
 class SvgExportParams(BaseModel):
     svg_path: str

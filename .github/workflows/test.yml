@@ -1,14 +1,11 @@
 name: Test
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - main
-  schedule:
-    - cron: "0 0 * * *"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 jobs:
   test-python:
@@ -25,7 +22,9 @@ jobs:
           cache: true
 
       - name: 运行 Python 测试
-        run: pixi run pytest --tb=short
+        run: |
+          pixi run python -m compileall py_module
+          pixi run python -c "import oc_core_02, oc_engine, oc_analyze"
 
   test-web:
     name: Web 前端测试

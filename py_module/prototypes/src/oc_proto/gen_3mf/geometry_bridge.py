@@ -66,7 +66,9 @@ def _cpp_polygons_to_shapely(polys) -> object:
         if p.geom_type == "Polygon":
             out_polys.append(p)
         else:
-            out_polys.extend([g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9])
+            out_polys.extend(
+                [g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9]
+            )
 
     if not out_polys:
         return Polygon()
@@ -80,7 +82,9 @@ def _cpp_polygons_to_shapely(polys) -> object:
     return g
 
 
-def _make_exclusive_by_layer_cpp(slot_geoms_in_order: list[object | None], *, scale: float = 10000.0) -> list[object | None]:
+def _make_exclusive_by_layer_cpp(
+    slot_geoms_in_order: list[object | None], *, scale: float = 10000.0
+) -> list[object | None]:
     """使用C++进行层内互斥裁剪"""
     if cpp_geometry is None:
         raise RuntimeError("未加载 C++ 几何模块(opencolor_geometry)，无法进行互斥裁剪")
@@ -88,7 +92,9 @@ def _make_exclusive_by_layer_cpp(slot_geoms_in_order: list[object | None], *, sc
     make_exclusive = getattr(cpp_geometry, "clipper_make_exclusive_nogil", None)
     to_polys = getattr(cpp_geometry, "clipper_union_all_to_polygons_nogil", None)
     if make_exclusive is None or to_polys is None:
-        raise RuntimeError("C++ 几何模块缺少 clipper_make_exclusive_nogil/clipper_union_all_to_polygons_nogil")
+        raise RuntimeError(
+            "C++ 几何模块缺少 clipper_make_exclusive_nogil/clipper_union_all_to_polygons_nogil"
+        )
 
     slots_loops = []
     for g in slot_geoms_in_order:
@@ -114,30 +120,32 @@ def _make_exclusive_by_layer_cpp(slot_geoms_in_order: list[object | None], *, sc
 
 def _union_polys_cpp(polys: list, *, scale: float = 10000.0) -> object:
     """使用C++合并多个多边形
-    
+
     Args:
         polys: 多边形列表 (Polygon 或 MultiPolygon)
         scale: Clipper 缩放因子
-        
+
     Returns:
         合并后的几何体 (Polygon 或 MultiPolygon)
     """
     if cpp_geometry is None:
-        raise RuntimeError("未加载 C++ 几何模块(opencolor_geometry)，无法进行多边形合并")
-    
+        raise RuntimeError(
+            "未加载 C++ 几何模块(opencolor_geometry)，无法进行多边形合并"
+        )
+
     union_fn = getattr(cpp_geometry, "clipper_union_all_to_polygons_nogil", None)
     if union_fn is None:
         raise RuntimeError("C++ 几何模块缺少 clipper_union_all_to_polygons_nogil")
-    
+
     # 收集所有环
     all_loops = []
     for poly in polys:
         loops = _geom_to_loops_evenodd(poly)
         all_loops.extend(loops)
-    
+
     if not all_loops:
         return Polygon()
-    
+
     # 调用C++合并
     result_polys = union_fn(all_loops, scale=float(scale))
     return _cpp_polygons_to_shapely(result_polys)

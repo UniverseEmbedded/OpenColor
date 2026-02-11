@@ -7,10 +7,10 @@ import cv2
 import numpy as np
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 def _boundary_length_4(labels: np.ndarray, roi: np.ndarray) -> int:
     """计算4连通边线长度"""
@@ -24,7 +24,9 @@ def _boundary_length_4(labels: np.ndarray, roi: np.ndarray) -> int:
     return int(np.count_nonzero(e1) + np.count_nonzero(e2))
 
 
-def _perimeter_by_slot_4(labels: np.ndarray, roi: np.ndarray, *, n_slots: int) -> np.ndarray:
+def _perimeter_by_slot_4(
+    labels: np.ndarray, roi: np.ndarray, *, n_slots: int
+) -> np.ndarray:
     """计算每个色块的周长"""
     lab = np.asarray(labels)
     r = np.asarray(roi, dtype=bool)
@@ -38,11 +40,19 @@ def _perimeter_by_slot_4(labels: np.ndarray, roi: np.ndarray, *, n_slots: int) -
         if not bool(np.any(m)):
             continue
 
-        e1_in = r[:, 1:] & r[:, :-1] & ((lab[:, 1:] == int(s)) ^ (lab[:, :-1] == int(s)))
-        e2_in = r[1:, :] & r[:-1, :] & ((lab[1:, :] == int(s)) ^ (lab[:-1, :] == int(s)))
+        e1_in = (
+            r[:, 1:] & r[:, :-1] & ((lab[:, 1:] == int(s)) ^ (lab[:, :-1] == int(s)))
+        )
+        e2_in = (
+            r[1:, :] & r[:-1, :] & ((lab[1:, :] == int(s)) ^ (lab[:-1, :] == int(s)))
+        )
 
-        e1_out = (r[:, 1:] ^ r[:, :-1]) & ((lab[:, 1:] == int(s)) & r[:, 1:] | (lab[:, :-1] == int(s)) & r[:, :-1])
-        e2_out = (r[1:, :] ^ r[:-1, :]) & ((lab[1:, :] == int(s)) & r[1:, :] | (lab[:-1, :] == int(s)) & r[:-1, :])
+        e1_out = (r[:, 1:] ^ r[:, :-1]) & (
+            (lab[:, 1:] == int(s)) & r[:, 1:] | (lab[:, :-1] == int(s)) & r[:, :-1]
+        )
+        e2_out = (r[1:, :] ^ r[:-1, :]) & (
+            (lab[1:, :] == int(s)) & r[1:, :] | (lab[:-1, :] == int(s)) & r[:-1, :]
+        )
 
         border = 0
         border += int(np.count_nonzero(m[0, :]))
@@ -50,7 +60,13 @@ def _perimeter_by_slot_4(labels: np.ndarray, roi: np.ndarray, *, n_slots: int) -
         border += int(np.count_nonzero(m[:, 0]))
         border += int(np.count_nonzero(m[:, -1]))
 
-        out[int(s)] = int(np.count_nonzero(e1_in) + np.count_nonzero(e2_in) + np.count_nonzero(e1_out) + np.count_nonzero(e2_out) + border)
+        out[int(s)] = int(
+            np.count_nonzero(e1_in)
+            + np.count_nonzero(e2_in)
+            + np.count_nonzero(e1_out)
+            + np.count_nonzero(e2_out)
+            + border
+        )
 
     return out
 
@@ -76,7 +92,7 @@ def _island_score_of_area(area: np.ndarray, *, alpha: float) -> np.ndarray:
     al = float(alpha)
     if al <= 0.0:
         return (aa > 0.0).astype(np.float32)
-    return (aa > 0.0).astype(np.float32) / np.maximum(aa ** al, 1e-12)
+    return (aa > 0.0).astype(np.float32) / np.maximum(aa**al, 1e-12)
 
 
 def _build_components_by_label_4(
@@ -88,7 +104,7 @@ def _build_components_by_label_4(
     with_bins: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, np.ndarray]:
     """构建连通域信息
-    
+
     Returns:
         comp_id: 每个像素所属的连通域ID (-1表示无)
         comp_sizes: 每个连通域的大小
@@ -113,7 +129,9 @@ def _build_components_by_label_4(
         if int(n) <= 1:
             continue
         area = stats[1:, cv2.CC_STAT_AREA].astype(np.int32, copy=False)
-        sc = _island_score_of_area(area, alpha=float(alpha)).astype(np.float32, copy=False)
+        sc = _island_score_of_area(area, alpha=float(alpha)).astype(
+            np.float32, copy=False
+        )
         sizes.append(area.astype(np.int32, copy=False))
         scores.append(sc)
 
@@ -137,7 +155,7 @@ def _build_components_by_label_4(
                 else:
                     area_bins[7] += 1
         cc2 = cc.astype(np.int32, copy=False)
-        inside = (cc2 > 0)
+        inside = cc2 > 0
         if bool(np.any(inside)):
             comp_id[inside] = (offset + (cc2[inside] - 1)).astype(np.int32, copy=False)
         offset += int(n) - 1
@@ -164,7 +182,8 @@ def _print_island_stats(
     """打印小色块统计信息"""
     b = np.asarray(area_bins, dtype=np.int64).reshape(-1)
     total_cnt = int(np.sum(b))
-    logger.info(f"[信息] {layer_tag} 小色块统计: 总色块数={total_cnt}, "
+    logger.info(
+        f"[信息] {layer_tag} 小色块统计: 总色块数={total_cnt}, "
         f"<=1={int(b[0])},<=2={int(b[1])},<=3={int(b[2])},<=4={int(b[3])},<=8={int(b[4])},<=16={int(b[5])},<=32={int(b[6])},>32={int(b[7])}, "
         f"加权分数(alpha={float(alpha):.3f})={float(total_score):.6f}"
     )

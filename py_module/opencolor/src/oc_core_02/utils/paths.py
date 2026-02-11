@@ -26,9 +26,14 @@ RESOURCES = {
     "photo_01b": PROJECT_ROOT / "data" / "calibration" / "photos" / "01.jpg",
     "photo_01": PROJECT_ROOT / "cache" / "色盘" / "01.jpg",
     "photo_02": PROJECT_ROOT / "data" / "calibration" / "photos" / "02.jpg",
-    "spec_b": PROJECT_ROOT / "out_calibration_board_8" / "8-Color_Board_B_board_spec.json",
-    "spec_a": PROJECT_ROOT / "out_calibration_board_8" / "8-Color_Board_A_board_spec.json",
+    "spec_b": PROJECT_ROOT
+    / "out_calibration_board_8"
+    / "8-Color_Board_B_board_spec.json",
+    "spec_a": PROJECT_ROOT
+    / "out_calibration_board_8"
+    / "8-Color_Board_A_board_spec.json",
 }
+
 
 def ensure_data(prototype_dir, resource_keys):
     """
@@ -36,7 +41,7 @@ def ensure_data(prototype_dir, resource_keys):
     """
     data_dir = Path(prototype_dir) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    
+
     for key in resource_keys:
         if key in RESOURCES:
             src = RESOURCES[key]
@@ -50,6 +55,7 @@ def ensure_data(prototype_dir, resource_keys):
         else:
             logger.warning(f"警告: 未找到资源键 '{key}'")
     return data_dir
+
 
 def get_out_dir(prototype_dir):
     """
@@ -79,7 +85,9 @@ def make_out_subdir_name_for_file(path: Path) -> str:
     return f"{p.stem}_{calc_file_hash6(p)}"
 
 
-def select_latest_subdir(base_dir: Path, *, required_relpaths: list[str] | None = None) -> Path | None:
+def select_latest_subdir(
+    base_dir: Path, *, required_relpaths: list[str] | None = None
+) -> Path | None:
     """在 base_dir 下选择最近修改的子目录（可要求包含指定文件）"""
     d = Path(base_dir)
     if not d.exists():

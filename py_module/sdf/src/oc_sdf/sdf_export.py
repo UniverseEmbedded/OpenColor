@@ -32,7 +32,7 @@ def finalize_slot_mesh(
     out_dir: Path,
     mesh_report: Dict[str, Any],
     *,
-    use_cpp_union: bool = False
+    use_cpp_union: bool = False,
 ) -> Tuple[trimesh.Trimesh, Path]:
     """完成槽位网格处理并导出 STL
 
@@ -54,20 +54,28 @@ def finalize_slot_mesh(
         RuntimeError: 当网格处理失败时抛出
     """
     t0 = perf_counter()
-    logger.info(f"[进度] finalize_slot_mesh({slot_name}): 开始合并 {len(layer_meshes)} 个网格...")
+    logger.info(
+        f"[进度] finalize_slot_mesh({slot_name}): 开始合并 {len(layer_meshes)} 个网格..."
+    )
     # 合并所有层网格
     if not layer_meshes:
-        full_mesh = trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=np.int64))
+        full_mesh = trimesh.Trimesh(
+            vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=np.int64)
+        )
     else:
         full_mesh = trimesh.util.concatenate(layer_meshes)
     t_merge = perf_counter()
-    logger.info(f"[进度] finalize_slot_mesh({slot_name}): 网格合并完成，顶点={len(full_mesh.vertices)}, 面={len(full_mesh.faces)}, 用时={t_merge - t0:.3f}s")
+    logger.info(
+        f"[进度] finalize_slot_mesh({slot_name}): 网格合并完成，顶点={len(full_mesh.vertices)}, 面={len(full_mesh.faces)}, 用时={t_merge - t0:.3f}s"
+    )
 
     # 使用 C++ 布尔运算去除层间内部面
     if bool(use_cpp_union) and len(layer_meshes) >= 2:
         import opencolor_geometry as cpp_geometry
 
-        union_fn = getattr(cpp_geometry, "manifold_union_nogil", None) or getattr(cpp_geometry, "manifold_union", None)
+        union_fn = getattr(cpp_geometry, "manifold_union_nogil", None) or getattr(
+            cpp_geometry, "manifold_union", None
+        )
         if union_fn is None:
             raise RuntimeError("C++ 几何模块缺少 manifold_union(_nogil)")
 
@@ -80,7 +88,10 @@ def finalize_slot_mesh(
         for m in layer_meshes:
             if m is None or bool(getattr(m, "is_empty", False)):
                 continue
-            if getattr(m, "vertices", None) is None or getattr(m, "faces", None) is None:
+            if (
+                getattr(m, "vertices", None) is None
+                or getattr(m, "faces", None) is None
+            ):
                 continue
             if int(getattr(m.faces, "shape", [0])[0]) <= 0:
                 continue
@@ -91,12 +102,18 @@ def finalize_slot_mesh(
             try:
                 watertight_flags.append(bool(getattr(m, "is_watertight", False)))
             except Exception as e:
-                logger.error("[错误] 计算 watertight 失败，将按非封闭处理: slot={}, 原因={} ", slot_name, e)
+                logger.error(
+                    "[错误] 计算 watertight 失败，将按非封闭处理: slot={}, 原因={} ",
+                    slot_name,
+                    e,
+                )
                 watertight_flags.append(False)
 
         watertight_count = int(sum(1 for x in watertight_flags if x))
         mesh_report[slot_name]["cpp_union_input_meshes"] = int(len(cpp_meshes))
-        mesh_report[slot_name]["cpp_union_input_watertight_meshes"] = int(watertight_count)
+        mesh_report[slot_name]["cpp_union_input_watertight_meshes"] = int(
+            watertight_count
+        )
 
         if len(cpp_meshes) >= 2:
             logger.info(
@@ -118,9 +135,16 @@ def finalize_slot_mesh(
                 if m_idx is not None:
                     try:
                         fail_local_idx = int(m_idx.group(1))
-                        fail_mesh = cpp_mesh_src[fail_local_idx] if 0 <= fail_local_idx < len(cpp_mesh_src) else None
+                        fail_mesh = (
+                            cpp_mesh_src[fail_local_idx]
+                            if 0 <= fail_local_idx < len(cpp_mesh_src)
+                            else None
+                        )
                         if fail_mesh is not None:
-                            debug_path = out_dir / f"debug_union_fail_{slot_name}_idx{fail_local_idx}.stl"
+                            debug_path = (
+                                out_dir
+                                / f"debug_union_fail_{slot_name}_idx{fail_local_idx}.stl"
+                            )
                             export_stl(fail_mesh, debug_path)
                             logger.error(
                                 "[错误] 已导出失败输入网格用于排查: slot={}, idx={}, path={}",
@@ -129,7 +153,11 @@ def finalize_slot_mesh(
                                 debug_path.name,
                             )
                     except Exception as dump_e:
-                        logger.error("[错误] 导出失败输入网格也失败: slot={}, 原因={}", slot_name, dump_e)
+                        logger.error(
+                            "[错误] 导出失败输入网格也失败: slot={}, 原因={}",
+                            slot_name,
+                            dump_e,
+                        )
 
                 raise RuntimeError(f"3D 并集失败: slot={slot_name}, 原因={e}") from e
             t_u1 = perf_counter()
@@ -138,20 +166,28 @@ def finalize_slot_mesh(
             if out_faces <= 0 and int(getattr(full_mesh.faces, "shape", [0])[0]) > 0:
                 raise RuntimeError("3D 并集返回空网格")
             full_mesh = trimesh.Trimesh(vertices=u_v, faces=u_f, process=False)
-            logger.info(f"[信息] 3D 并集：完成: slot={slot_name}, faces={out_faces}, 用时={t_u1 - t_u0:.3f}s")
+            logger.info(
+                f"[信息] 3D 并集：完成: slot={slot_name}, faces={out_faces}, 用时={t_u1 - t_u0:.3f}s"
+            )
 
     # 分析清理前的网格
     logger.info(f"[进度] finalize_slot_mesh({slot_name}): 开始分析清理前网格...")
     mesh_report.setdefault(slot_name, {})
     t_analyze_before0 = perf_counter()
     try:
-        mesh_report[slot_name]["before_clean"] = analyze_mesh(full_mesh, f"SDF/{cs.name}/{slot_name}/清理前")
-        mesh_report[slot_name]["before_watertight"] = bool(mesh_report[slot_name]["before_clean"].get("watertight", 0))
+        mesh_report[slot_name]["before_clean"] = analyze_mesh(
+            full_mesh, f"SDF/{cs.name}/{slot_name}/清理前"
+        )
+        mesh_report[slot_name]["before_watertight"] = bool(
+            mesh_report[slot_name]["before_clean"].get("watertight", 0)
+        )
     except Exception as e:
         logger.error("[错误] 清理前分析失败({}): {}", slot_name, e)
         raise
     t_analyze_before1 = perf_counter()
-    logger.info(f"[进度] finalize_slot_mesh({slot_name}): 清理前分析完成，watertight={mesh_report[slot_name]['before_watertight']}, 用时={t_analyze_before1 - t_analyze_before0:.3f}s")
+    logger.info(
+        f"[进度] finalize_slot_mesh({slot_name}): 清理前分析完成，watertight={mesh_report[slot_name]['before_watertight']}, 用时={t_analyze_before1 - t_analyze_before0:.3f}s"
+    )
 
     t_before = perf_counter()
 
@@ -164,7 +200,9 @@ def finalize_slot_mesh(
         logger.error("[错误] 网格清理失败({}): {}", slot_name, e)
         raise
     t_clean1 = perf_counter()
-    logger.info(f"[进度] finalize_slot_mesh({slot_name}): 网格清理完成，顶点={len(cleaned_mesh.vertices)}, 面={len(cleaned_mesh.faces)}, 用时={t_clean1 - t_clean0:.3f}s")
+    logger.info(
+        f"[进度] finalize_slot_mesh({slot_name}): 网格清理完成，顶点={len(cleaned_mesh.vertices)}, 面={len(cleaned_mesh.faces)}, 用时={t_clean1 - t_clean0:.3f}s"
+    )
 
     t_clean = perf_counter()
 
@@ -172,13 +210,19 @@ def finalize_slot_mesh(
     logger.info(f"[进度] finalize_slot_mesh({slot_name}): 开始分析清理后网格...")
     t_analyze_after0 = perf_counter()
     try:
-        mesh_report[slot_name]["after_clean"] = analyze_mesh(cleaned_mesh, f"SDF/{cs.name}/{slot_name}/清理后")
-        mesh_report[slot_name]["after_watertight"] = bool(mesh_report[slot_name]["after_clean"].get("watertight", 0))
+        mesh_report[slot_name]["after_clean"] = analyze_mesh(
+            cleaned_mesh, f"SDF/{cs.name}/{slot_name}/清理后"
+        )
+        mesh_report[slot_name]["after_watertight"] = bool(
+            mesh_report[slot_name]["after_clean"].get("watertight", 0)
+        )
     except Exception as e:
         logger.error("[错误] 清理后分析失败({}): {}", slot_name, e)
         raise
     t_analyze_after1 = perf_counter()
-    logger.info(f"[进度] finalize_slot_mesh({slot_name}): 清理后分析完成，watertight={mesh_report[slot_name]['after_watertight']}, 用时={t_analyze_after1 - t_analyze_after0:.3f}s")
+    logger.info(
+        f"[进度] finalize_slot_mesh({slot_name}): 清理后分析完成，watertight={mesh_report[slot_name]['after_watertight']}, 用时={t_analyze_after1 - t_analyze_after0:.3f}s"
+    )
 
     t_after = perf_counter()
 
@@ -188,16 +232,23 @@ def finalize_slot_mesh(
     stl_path = out_dir / f"model_{cs.name}_{slot_name}.stl"
     export_stl(cleaned_mesh, stl_path)
     t_export1 = perf_counter()
-    logger.info(f"[进度] finalize_slot_mesh({slot_name}): STL导出完成，路径={stl_path.name}, 用时={t_export1 - t_export0:.3f}s")
+    logger.info(
+        f"[进度] finalize_slot_mesh({slot_name}): STL导出完成，路径={stl_path.name}, 用时={t_export1 - t_export0:.3f}s"
+    )
 
     t_export = perf_counter()
 
-    logger.info(f"[信息] 槽位网格处理完成: slot={slot_name} | 合并={t_merge - t0:.3f}s, 分析前={t_analyze_before1 - t_analyze_before0:.3f}s, 清理={t_clean1 - t_clean0:.3f}s, 分析后={t_analyze_after1 - t_analyze_after0:.3f}s, 导出={t_export1 - t_export0:.3f}s, 总计={t_export - t0:.3f}s"
+    logger.info(
+        f"[信息] 槽位网格处理完成: slot={slot_name} | 合并={t_merge - t0:.3f}s, 分析前={t_analyze_before1 - t_analyze_before0:.3f}s, 清理={t_clean1 - t_clean0:.3f}s, 分析后={t_analyze_after1 - t_analyze_after0:.3f}s, 导出={t_export1 - t_export0:.3f}s, 总计={t_export - t0:.3f}s"
     )
     return cleaned_mesh, stl_path
 
 
-def export_3mf_generic(out_3mf: Path, slot_meshes: Dict[str, trimesh.Trimesh], slot_preview_rgb: Dict[str, Tuple[int, int, int]]) -> Path | None:
+def export_3mf_generic(
+    out_3mf: Path,
+    slot_meshes: Dict[str, trimesh.Trimesh],
+    slot_preview_rgb: Dict[str, Tuple[int, int, int]],
+) -> Path | None:
     """导出通用 3MF 文件
 
     将多个槽位的网格导出为标准的 3MF 格式文件，支持多颜色/多材质

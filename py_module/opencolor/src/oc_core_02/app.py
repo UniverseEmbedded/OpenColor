@@ -17,17 +17,22 @@ logger = get_logger(__name__)
 
 APP_TITLE = "LumenBoardTool (from-scratch)"
 
+
 def build_ui(default_photo=None, default_spec=None):
     """构建Gradio用户界面"""
     with gr.Blocks(title=APP_TITLE) as demo:
-        gr.Markdown(f"# {APP_TITLE}\n\n从零实现：校准板 → LUT → 位图映射 → 多耗材 STL + 预览。")
+        gr.Markdown(
+            f"# {APP_TITLE}\n\n从零实现：校准板 → LUT → 位图映射 → 多耗材 STL + 预览。"
+        )
 
         with gr.Tabs():
             # 标签页 1: 校准板生成
             build_board_ui()
 
             # 标签页 2: 从照片提取数据
-            calib_outputs = build_calibration_ui(default_photo=default_photo, default_spec=default_spec)
+            calib_outputs = build_calibration_ui(
+                default_photo=default_photo, default_spec=default_spec
+            )
 
             # 标签页 3: 位图转打印文件
             bitmap_outputs = build_bitmap_ui()
@@ -36,17 +41,17 @@ def build_ui(default_photo=None, default_spec=None):
             calib_outputs["mcrt_btn"].click(
                 ui_run_mcrt_analysis,
                 inputs=[
-                    calib_outputs["obs_state"], 
-                    calib_outputs["board_spec_state"], 
-                    calib_outputs["all_samples_state"], 
-                    bitmap_outputs["cs_dropdown"], # 从位图标签页获取
-                    calib_outputs["mcrt_disable_cpp"]
+                    calib_outputs["obs_state"],
+                    calib_outputs["board_spec_state"],
+                    calib_outputs["all_samples_state"],
+                    bitmap_outputs["cs_dropdown"],  # 从位图标签页获取
+                    calib_outputs["mcrt_disable_cpp"],
                 ],
                 outputs=[
-                    calib_outputs["obs_state"], 
-                    calib_outputs["lut_prev"], 
-                    calib_outputs["probe_html"]
-                ]
+                    calib_outputs["obs_state"],
+                    calib_outputs["lut_prev"],
+                    calib_outputs["probe_html"],
+                ],
             )
 
         gr.Markdown(
@@ -58,12 +63,13 @@ def build_ui(default_photo=None, default_spec=None):
 
     return demo
 
+
 if __name__ == "__main__":
     logger.debug("Gradio version: {}", gr.__version__)
     logger.debug("Python executable: {}", sys.executable)
-    
+
     photo_path = os.environ.get("LBT_DEFAULT_PHOTO")
     spec_path = os.environ.get("LBT_DEFAULT_SPEC")
-    
+
     demo = build_ui(default_photo=photo_path, default_spec=spec_path)
     demo.launch()

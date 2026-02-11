@@ -15,10 +15,11 @@ from .joint_refinement_cleanup import _despeckle_single_pixels_4
 from .main_utils import _guided_filter_gray
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def smooth_labels_by_convolution(
     labels_by_layer: list[np.ndarray],
     *,
@@ -43,7 +44,9 @@ def smooth_labels_by_convolution(
     total_votes = int(k * k)
     maj_frac = float(min_majority_frac)
     if not (0.0 < maj_frac <= 1.0):
-        logger.warning(f"[警告] min_majority_frac 参数非法: {min_majority_frac}，将使用 0.52")
+        logger.warning(
+            f"[警告] min_majority_frac 参数非法: {min_majority_frac}，将使用 0.52"
+        )
         maj_frac = 0.52
     min_maj_votes = int(np.ceil(total_votes * maj_frac - 1e-9))
     margin = max(1, int(min_vote_margin))
@@ -89,7 +92,8 @@ def smooth_labels_by_convolution(
             moved_total += moved
 
         per1 = _boundary_length_4(labels, roi)
-        logger.info(f"[信息] L{z:02d} 卷积平滑完成: moved_px={moved_total}, perim4_before={per0}, perim4_after={per1}, "
+        logger.info(
+            f"[信息] L{z:02d} 卷积平滑完成: moved_px={moved_total}, perim4_before={per0}, perim4_after={per1}, "
             f"kernel={k}, passes={p}, min_majority_votes={min_maj_votes}/{total_votes}, min_vote_margin={margin}"
         )
         out_layers.append(labels)
@@ -142,7 +146,7 @@ def smooth_labels_by_guided_filter(
 
     margin = max(0.0, float(min_soft_margin))
     out_layers: list[np.ndarray] = []
-    
+
     for z, labels0 in enumerate(labels_by_layer):
         labels = np.asarray(labels0, dtype=np.int16).copy()
         labels[~roi] = -1
@@ -153,7 +157,7 @@ def smooth_labels_by_guided_filter(
         per0 = _boundary_length_4(labels, roi)
         moved_total = 0
         changed_soft_total = 0
-        
+
         for _ in range(p):
             soft = []
             for s in range(n_slots):
@@ -180,12 +184,15 @@ def smooth_labels_by_guided_filter(
             labels[change] = best[change]
             moved_total += moved
 
-        labels2, n_des = _despeckle_single_pixels_4(labels, roi, iters=int(despeckle_iters), n_slots=n_slots)
+        labels2, n_des = _despeckle_single_pixels_4(
+            labels, roi, iters=int(despeckle_iters), n_slots=n_slots
+        )
         labels = labels2
         moved_total += int(n_des)
 
         per1 = _boundary_length_4(labels, roi)
-        logger.info(f"[信息] L{z:02d} 引导滤波平滑完成: moved_px={moved_total}, soft_change_px={changed_soft_total}, "
+        logger.info(
+            f"[信息] L{z:02d} 引导滤波平滑完成: moved_px={moved_total}, soft_change_px={changed_soft_total}, "
             f"single_px_fixed={int(n_des)}, perim4_before={per0}, perim4_after={per1}, radius={r}, passes={p}, "
             f"min_soft_margin={margin:.4f}"
         )
@@ -194,15 +201,17 @@ def smooth_labels_by_guided_filter(
     return out_layers
 
 
-def volumes_to_labels(volumes: dict, cs, full_mask: np.ndarray, n_layers: int) -> list[np.ndarray]:
+def volumes_to_labels(
+    volumes: dict, cs, full_mask: np.ndarray, n_layers: int
+) -> list[np.ndarray]:
     """将体积数据转换为标签图
-    
+
     Args:
         volumes: 体积数据字典 {slot_name: (n_layers, h, w) bool}
         cs: ColorSystem 颜色系统
         full_mask: 完整掩码
         n_layers: 层数
-    
+
     Returns:
         每层标签图列表
     """
@@ -223,34 +232,44 @@ def volumes_to_labels(volumes: dict, cs, full_mask: np.ndarray, n_layers: int) -
         overlap = int(np.count_nonzero(roi & (count > 1)))
         gap = int(np.count_nonzero(roi & (count == 0)))
         if overlap > 0 or gap > 0:
-            logger.warning(f"[警告] L{z:02d} 位图分区存在问题: overlap_px={overlap}, gap_px={gap}")
+            logger.warning(
+                f"[警告] L{z:02d} 位图分区存在问题: overlap_px={overlap}, gap_px={gap}"
+            )
         labels_by_layer.append(labels)
     return labels_by_layer
 
 
-def labels_to_volumes(labels_by_layer: list[np.ndarray], cs, n_layers: int) -> dict[str, np.ndarray]:
+def labels_to_volumes(
+    labels_by_layer: list[np.ndarray], cs, n_layers: int
+) -> dict[str, np.ndarray]:
     """将标签图转换为体积数据
-    
+
     Args:
         labels_by_layer: 每层标签图列表
         cs: ColorSystem 颜色系统
         n_layers: 层数
-    
+
     Returns:
         体积数据字典 {slot_name: (n_layers, h, w) bool}
     """
     if not labels_by_layer:
-        return {name: np.zeros((int(n_layers), 1, 1), dtype=bool) for name in cs.slot_names}
+        return {
+            name: np.zeros((int(n_layers), 1, 1), dtype=bool) for name in cs.slot_names
+        }
     h, w = int(labels_by_layer[0].shape[0]), int(labels_by_layer[0].shape[1])
-    out: dict[str, np.ndarray] = {name: np.zeros((int(n_layers), h, w), dtype=bool) for name in cs.slot_names}
+    out: dict[str, np.ndarray] = {
+        name: np.zeros((int(n_layers), h, w), dtype=bool) for name in cs.slot_names
+    }
     for z in range(int(n_layers)):
         lab = labels_by_layer[z]
         for s, slot_name in enumerate(cs.slot_names):
-            out[slot_name][z] = (lab == int(s))
+            out[slot_name][z] = lab == int(s)
     return out
 
 
-def _pick_neighbor_label(labels: np.ndarray, comp_mask_u8: np.ndarray, *, n_slots: int) -> int | None:
+def _pick_neighbor_label(
+    labels: np.ndarray, comp_mask_u8: np.ndarray, *, n_slots: int
+) -> int | None:
     """选择邻居标签（用于小洞填充和小色块替换）"""
     k = np.ones((3, 3), dtype=np.uint8)
     dil = cv2.dilate(comp_mask_u8, k, iterations=1)
@@ -279,7 +298,7 @@ def suppress_small_islands(
     passes: int,
 ) -> list[np.ndarray]:
     """抑制小岛屿（小色块）和填充小空洞
-    
+
     Args:
         labels_by_layer: 每层标签图列表
         full_mask: 完整掩码
@@ -288,7 +307,7 @@ def suppress_small_islands(
         max_gap_area_px: 最大空洞面积（小于此面积的空洞将被填充）
         connectivity: 连通性 (4 或 8)
         passes: 迭代次数
-    
+
     Returns:
         处理后的标签图列表
     """
@@ -320,15 +339,19 @@ def suppress_small_islands(
                 gap_mask = (roi & (labels < 0)).astype(np.uint8)
                 if int(np.count_nonzero(gap_mask)) > 0:
                     try:
-                        num_g, cc_g, stats_g, _ = cv2.connectedComponentsWithStats(gap_mask, connectivity=conn)
+                        num_g, cc_g, stats_g, _ = cv2.connectedComponentsWithStats(
+                            gap_mask, connectivity=conn
+                        )
                         for cid in range(1, int(num_g)):
                             area = int(stats_g[cid, cv2.CC_STAT_AREA])
                             if area > int(max_gap_area_px):
                                 continue
-                            comp = (cc_g == cid)
+                            comp = cc_g == cid
                             if not bool(np.any(comp)):
                                 continue
-                            nb = _pick_neighbor_label(labels, comp.astype(np.uint8), n_slots=n_slots)
+                            nb = _pick_neighbor_label(
+                                labels, comp.astype(np.uint8), n_slots=n_slots
+                            )
                             if nb is None:
                                 continue
                             labels[comp] = np.int16(nb)
@@ -344,9 +367,13 @@ def suppress_small_islands(
                     if int(np.count_nonzero(mask)) <= 0:
                         continue
                     try:
-                        num, cc, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=conn)
+                        num, cc, stats, _ = cv2.connectedComponentsWithStats(
+                            mask, connectivity=conn
+                        )
                     except Exception as e:
-                        logger.error(f"[错误] 连通域分析失败: L{z:02d} slot={slot_names[s]}，原因={e}")
+                        logger.error(
+                            f"[错误] 连通域分析失败: L{z:02d} slot={slot_names[s]}，原因={e}"
+                        )
                         traceback.print_exc()
                         continue
                     if int(num) <= 1:
@@ -357,10 +384,12 @@ def suppress_small_islands(
                         area = int(stats[cid, cv2.CC_STAT_AREA])
                         if area >= int(min_island_area_px):
                             continue
-                        comp = (cc == cid)
+                        comp = cc == cid
                         if not bool(np.any(comp)):
                             continue
-                        nb = _pick_neighbor_label(labels, comp.astype(np.uint8), n_slots=n_slots)
+                        nb = _pick_neighbor_label(
+                            labels, comp.astype(np.uint8), n_slots=n_slots
+                        )
                         if nb is None:
                             continue
                         labels[comp] = np.int16(nb)
@@ -374,7 +403,8 @@ def suppress_small_islands(
             total_components += components_pass
 
         if total_moved > 0 or total_gap_filled > 0:
-            logger.info(f"[信息] L{z:02d} 小块剔除完成: moved_px={total_moved}, filled_gap_px={total_gap_filled}, "
+            logger.info(
+                f"[信息] L{z:02d} 小块剔除完成: moved_px={total_moved}, filled_gap_px={total_gap_filled}, "
                 f"removed_cc={total_removed}, scanned_cc={total_components}, min_area_px={int(min_island_area_px)}, "
                 f"max_gap_px={int(max_gap_area_px)}, passes={int(passes)}"
             )

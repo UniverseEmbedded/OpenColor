@@ -47,7 +47,7 @@ export const navItems: NavItem[] = [
       { id: 'settings/general', label: 'nav.settings.general', icon: 'ti-adjustments' },
       { id: 'settings/workspace', label: 'nav.settings.workspace', icon: 'ti-folder' },
       { id: 'settings/engine', label: 'nav.settings.engine', icon: 'ti-engine' },
-      { id: 'settings/project', label: 'nav.settings.project', icon: 'ti-config' },
+      { id: 'settings/project', label: 'nav.settings.project', icon: 'ti-file-settings' },
     ],
   },
 ];

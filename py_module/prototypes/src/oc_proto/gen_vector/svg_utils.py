@@ -1,7 +1,9 @@
 """SVG工具模块 - 提供SVG生成和转换功能"""
 
 
-def _mm_ring_to_px_coords(ring_coords, *, mm_per_px_x: float, mm_per_px_y: float, pixel_h: int):
+def _mm_ring_to_px_coords(
+    ring_coords, *, mm_per_px_x: float, mm_per_px_y: float, pixel_h: int
+):
     """将毫米坐标转换为像素坐标
 
     将几何坐标（毫米）转换为图像坐标（像素），
@@ -54,7 +56,9 @@ def _iter_polygons(geom):
     return []
 
 
-def _mm_geom_to_vtracer_tool_svg_text(geom, *, board_mm: float, pixel_w: int, pixel_h: int) -> str:
+def _mm_geom_to_vtracer_tool_svg_text(
+    geom, *, board_mm: float, pixel_w: int, pixel_h: int
+) -> str:
     """将几何体转换为vtracer工具SVG文本
 
     将Shapely几何对象转换为SVG路径字符串，用于vtracer工具处理
@@ -77,7 +81,12 @@ def _mm_geom_to_vtracer_tool_svg_text(geom, *, board_mm: float, pixel_w: int, pi
             continue
 
         # 处理外边界
-        outer = _mm_ring_to_px_coords(poly.exterior.coords, mm_per_px_x=mm_per_px_x, mm_per_px_y=mm_per_px_y, pixel_h=int(pixel_h))
+        outer = _mm_ring_to_px_coords(
+            poly.exterior.coords,
+            mm_per_px_x=mm_per_px_x,
+            mm_per_px_y=mm_per_px_y,
+            pixel_h=int(pixel_h),
+        )
         if len(outer) >= 3:
             d = [f"M {outer[0][0]:.3f} {outer[0][1]:.3f}"]
             for x, y in outer[1:]:
@@ -87,7 +96,12 @@ def _mm_geom_to_vtracer_tool_svg_text(geom, *, board_mm: float, pixel_w: int, pi
 
         # 处理内孔
         for hole in list(getattr(poly, "interiors", []) or []):
-            inner = _mm_ring_to_px_coords(hole.coords, mm_per_px_x=mm_per_px_x, mm_per_px_y=mm_per_px_y, pixel_h=int(pixel_h))
+            inner = _mm_ring_to_px_coords(
+                hole.coords,
+                mm_per_px_x=mm_per_px_x,
+                mm_per_px_y=mm_per_px_y,
+                pixel_h=int(pixel_h),
+            )
             if len(inner) < 3:
                 continue
             d = [f"M {inner[0][0]:.3f} {inner[0][1]:.3f}"]

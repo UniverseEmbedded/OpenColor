@@ -38,23 +38,27 @@ def srgb_to_linear01(srgb01: np.ndarray) -> np.ndarray:
     """将 sRGB 从非线性空间转换到线性空间（0-1范围）"""
     a = 0.055
     x = np.clip(np.asarray(srgb01, dtype=np.float32), 0.0, 1.0)
-    return np.where(x <= 0.04045, x / 12.92, ((x + a) / (1 + a)) ** 2.4).astype(np.float32)
+    return np.where(x <= 0.04045, x / 12.92, ((x + a) / (1 + a)) ** 2.4).astype(
+        np.float32
+    )
 
 
 def linear01_to_srgb01(lin01: np.ndarray) -> np.ndarray:
     """将线性 sRGB 从线性空间转换到非线性空间（0-1范围）"""
     a = 0.055
     x = np.clip(np.asarray(lin01, dtype=np.float32), 0.0, 1.0)
-    return np.where(x <= 0.0031308, x * 12.92, (1 + a) * (x ** (1 / 2.4)) - a).astype(np.float32)
+    return np.where(x <= 0.0031308, x * 12.92, (1 + a) * (x ** (1 / 2.4)) - a).astype(
+        np.float32
+    )
 
 
 def delta_e_cie76(lab1: np.ndarray, lab2: np.ndarray) -> np.ndarray:
     """计算 CIE76 Delta E 颜色差异
-    
+
     Args:
         lab1: 第一个 Lab 颜色数组 (N, 3)
         lab2: 第二个 Lab 颜色数组 (N, 3)
-        
+
     Returns:
         Delta E 差异值数组 (N,)
     """

@@ -94,7 +94,9 @@ def _get_dataset(dataset_id: str) -> Dict[str, Any]:
         return record
 
 
-def handle_dataset_create(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_dataset_create(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理数据集创建请求
 
     创建一个新的校准数据集，可选择性地添加色盘规格
@@ -130,7 +132,9 @@ def handle_dataset_create(job: Job, params: Dict[str, Any], progress: Callable[[
     }
 
 
-def handle_dataset_add_observation(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_dataset_add_observation(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理添加观测到数据集请求
 
     将观测数据添加到指定的数据集中
@@ -169,7 +173,9 @@ def handle_dataset_add_observation(job: Job, params: Dict[str, Any], progress: C
     }
 
 
-def handle_dataset_aggregate(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_dataset_aggregate(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理数据集汇总请求
 
     汇总数据集中的所有观测数据，计算统计信息并保存结果

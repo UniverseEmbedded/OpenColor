@@ -38,7 +38,6 @@ import cv2
 import numpy as np
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -49,6 +48,7 @@ _U_RE = re.compile(r"#U([0-9a-fA-F]{4,6})")
 
 def decode_u_filename(name: str) -> str:
     """解码如 #U7ea2#U8272#U53cd#U5149.jpg -> 红色反光.jpg 的名称"""
+
     def repl(m: re.Match) -> str:
         code = int(m.group(1), 16)
         return chr(code)
@@ -136,7 +136,11 @@ def robust_band_stats(img_bgr: np.ndarray, y0: int, y1: int) -> Dict[str, np.nda
     mean = np.mean(rgb_lin.reshape(-1, 3), axis=0)
 
     # 用于对比度的亮度
-    luma = (0.2126 * rgb_lin[:, :, 0] + 0.7152 * rgb_lin[:, :, 1] + 0.0722 * rgb_lin[:, :, 2])
+    luma = (
+        0.2126 * rgb_lin[:, :, 0]
+        + 0.7152 * rgb_lin[:, :, 1]
+        + 0.0722 * rgb_lin[:, :, 2]
+    )
     luma_row = np.mean(luma, axis=1)
     return {
         "median_lin": med,
@@ -201,7 +205,9 @@ def estimate_transmit(img_bgr: np.ndarray) -> Dict:
     ref_med_x = np.median(ref_lin, axis=0)
 
     # 避免接近黑色的参考列
-    ref_luma = 0.2126 * ref_med_x[:, 0] + 0.7152 * ref_med_x[:, 1] + 0.0722 * ref_med_x[:, 2]
+    ref_luma = (
+        0.2126 * ref_med_x[:, 0] + 0.7152 * ref_med_x[:, 1] + 0.0722 * ref_med_x[:, 2]
+    )
     mask = ref_luma > np.percentile(ref_luma, 20)  # 忽略最暗的20%
 
     eps = 1e-6
@@ -214,7 +220,9 @@ def estimate_transmit(img_bgr: np.ndarray) -> Dict:
     t_rgb = np.median(ratio_x[mask], axis=0)
 
     # 雾度：X轴上亮度信号的对比度降低
-    cov_luma_x = 0.2126 * cov_med_x[:, 0] + 0.7152 * cov_med_x[:, 1] + 0.0722 * cov_med_x[:, 2]
+    cov_luma_x = (
+        0.2126 * cov_med_x[:, 0] + 0.7152 * cov_med_x[:, 1] + 0.0722 * cov_med_x[:, 2]
+    )
     ref_luma_x = ref_luma
 
     # 归一化使其尺度不变
@@ -251,15 +259,47 @@ def draw_debug_overlay(img_bgr: np.ndarray, info: Dict, mode: str) -> np.ndarray
         mat0, mat1 = info["mat_band"]
         cv2.rectangle(out, (0, ref0), (w - 1, ref1), (255, 0, 0), 2)
         cv2.rectangle(out, (0, mat0), (w - 1, mat1), (0, 255, 0), 2)
-        cv2.putText(out, "纸张参考", (10, min(ref1 - 10, h - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
-        cv2.putText(out, "材料", (10, min(mat1 - 10, h - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        cv2.putText(
+            out,
+            "纸张参考",
+            (10, min(ref1 - 10, h - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 0, 0),
+            2,
+        )
+        cv2.putText(
+            out,
+            "材料",
+            (10, min(mat1 - 10, h - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2,
+        )
     else:
         cov0, cov1 = info["covered_band"]
         ref0, ref1 = info["ref_band"]
         cv2.rectangle(out, (0, cov0), (w - 1, cov1), (0, 255, 0), 2)
         cv2.rectangle(out, (0, ref0), (w - 1, ref1), (255, 0, 0), 2)
-        cv2.putText(out, "覆盖区", (10, min(cov1 - 10, h - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-        cv2.putText(out, "屏幕参考", (10, min(ref1 - 10, h - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+        cv2.putText(
+            out,
+            "覆盖区",
+            (10, min(cov1 - 10, h - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2,
+        )
+        cv2.putText(
+            out,
+            "屏幕参考",
+            (10, min(ref1 - 10, h - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 0, 0),
+            2,
+        )
 
     return out
 
@@ -280,7 +320,9 @@ def main() -> None:
     overlay_dir = out_dir / "debug_overlays"
     overlay_dir.mkdir(parents=True, exist_ok=True)
 
-    files = sorted([p for p in in_dir.iterdir() if p.suffix.lower() in (".jpg", ".jpeg")])
+    files = sorted(
+        [p for p in in_dir.iterdir() if p.suffix.lower() in (".jpg", ".jpeg")]
+    )
     if not files:
         raise SystemExit(f"在 {in_dir} 中未找到JPG文件")
 
@@ -321,7 +363,9 @@ def main() -> None:
         profile = {
             "name": color,
             "reflectance_rgb_lin": entry.get("reflect", {}).get("reflectance_rgb_lin"),
-            "transmittance_rgb_lin": entry.get("transmit", {}).get("transmittance_rgb_lin"),
+            "transmittance_rgb_lin": entry.get("transmit", {}).get(
+                "transmittance_rgb_lin"
+            ),
             "haze": entry.get("transmit", {}).get("haze"),
             "specular": entry.get("reflect", {}).get("specular"),
         }
@@ -335,9 +379,7 @@ def main() -> None:
         json.dump(by_color, f, ensure_ascii=False, indent=2)
 
     # 同时写入扁平化JSON以便轻松导入
-    flat = {
-        color: data["profile_guess"] for color, data in by_color.items()
-    }
+    flat = {color: data["profile_guess"] for color, data in by_color.items()}
     with (out_dir / "profiles_flat.json").open("w", encoding="utf-8") as f:
         json.dump(flat, f, ensure_ascii=False, indent=2)
 

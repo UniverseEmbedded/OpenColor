@@ -37,10 +37,10 @@ def solve_layers_fast(
     materials_json: Optional[str] = None,
 ) -> PlanResult:
     """使用快速前向模型搜索最优层序列
-    
+
     基于简化的光学模型快速评估候选序列，返回最优结果。
     适合需要快速响应的场景。
-    
+
     参数:
         rgba: 目标RGBA颜色
         mode: 颜色模式，如"rgbw"、"cmyk"等
@@ -56,7 +56,7 @@ def solve_layers_fast(
         brute_force_threshold: 暴力搜索阈值
         opacity_weight: 不透明度权重
         materials_json: 材料定义JSON文件路径
-        
+
     返回:
         规划结果对象
     """
@@ -116,10 +116,10 @@ def solve_layers_phys(
     materials_json: Optional[str] = None,
 ) -> PlanResult:
     """使用蒙特卡洛物理前向模型优化层序列
-    
+
     首先使用快速模型筛选候选序列，然后使用物理精确模型进行精细评估，
     返回最优结果。适合需要高精度预测的场景。
-    
+
     参数:
         rgba: 目标RGBA颜色
         mode: 颜色模式
@@ -137,7 +137,7 @@ def solve_layers_phys(
         brute_force_threshold: 暴力搜索阈值
         opacity_weight: 不透明度权重
         materials_json: 材料定义JSON文件路径
-        
+
     返回:
         规划结果对象
     """
@@ -185,7 +185,9 @@ def solve_layers_phys(
         opacity_pred = _clamp(1.0 - t_luma)
 
         # 计算损失
-        Lp = loss_rgba_like(pred_lin, rgb_target, opacity_pred, opacity_target, float(opacity_weight))
+        Lp = loss_rgba_like(
+            pred_lin, rgb_target, opacity_pred, opacity_target, float(opacity_weight)
+        )
 
         # 构建结果对象
         pr = PlanResult(

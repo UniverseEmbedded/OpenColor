@@ -10,10 +10,11 @@ import numpy as np
 from PIL import Image
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def solve_layer_colors_with_cpp(
     layer_idx: int,
     layer_mask_u8: np.ndarray,

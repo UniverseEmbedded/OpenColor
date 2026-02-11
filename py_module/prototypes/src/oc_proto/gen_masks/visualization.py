@@ -24,7 +24,9 @@ def _save_layer_total_contour_viz(
     viz = np.ones((h, w, 3), dtype=np.uint8) * 255
 
     # 找到轮廓
-    contours, _ = cv2.findContours(layer_mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        layer_mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     # 绘制轮廓
     cv2.drawContours(viz, contours, -1, contour_color, thickness)
@@ -77,7 +79,12 @@ def _save_layer_solved_palette_viz(
         y = 40 + row * (swatch_size + 10)
 
         # 绘制色块
-        draw.rectangle([x, y, x + swatch_size, y + swatch_size], fill=rgb, outline=(0, 0, 0), width=1)
+        draw.rectangle(
+            [x, y, x + swatch_size, y + swatch_size],
+            fill=rgb,
+            outline=(0, 0, 0),
+            width=1,
+        )
 
         # 绘制颜色值
         color_text = f"{rgb[0]},{rgb[1]},{rgb[2]}"
@@ -119,13 +126,17 @@ def _analyze_solved_palette_vs_solver_input(
         "mappings": [],
     }
 
-    for i, (input_rgb, closest_idx, dist) in enumerate(zip(input_palette, closest_indices, min_distances)):
+    for i, (input_rgb, closest_idx, dist) in enumerate(
+        zip(input_palette, closest_indices, min_distances)
+    ):
         solved_rgb = solved_palette[closest_idx]
-        stats["mappings"].append({
-            "input": input_rgb,
-            "solved": solved_rgb,
-            "distance": float(dist),
-        })
+        stats["mappings"].append(
+            {
+                "input": input_rgb,
+                "solved": solved_rgb,
+                "distance": float(dist),
+            }
+        )
 
     # 生成可视化
     n_input = len(input_palette)
@@ -148,7 +159,12 @@ def _analyze_solved_palette_vs_solver_input(
 
     # 标题
     draw.text((10, 10), f"图层 {layer_idx} 调色板分析", fill=(0, 0, 0), font=font)
-    draw.text((10, 35), f"输入颜色数: {n_input}, 求解颜色数: {n_solved}", fill=(0, 0, 0), font=font_small)
+    draw.text(
+        (10, 35),
+        f"输入颜色数: {n_input}, 求解颜色数: {n_solved}",
+        fill=(0, 0, 0),
+        font=font_small,
+    )
 
     # 绘制输入和求解调色板对比
     y_offset = 60
@@ -156,14 +172,32 @@ def _analyze_solved_palette_vs_solver_input(
         # 输入颜色
         if i < n_input:
             input_rgb = input_palette[i]
-            draw.rectangle([10, y_offset, 50, y_offset + swatch_size], fill=input_rgb, outline=(0, 0, 0))
-            draw.text((55, y_offset + 10), f"输入: {input_rgb}", fill=(0, 0, 0), font=font_small)
+            draw.rectangle(
+                [10, y_offset, 50, y_offset + swatch_size],
+                fill=input_rgb,
+                outline=(0, 0, 0),
+            )
+            draw.text(
+                (55, y_offset + 10),
+                f"输入: {input_rgb}",
+                fill=(0, 0, 0),
+                font=font_small,
+            )
 
         # 求解颜色
         if i < n_solved:
             solved_rgb = solved_palette[i]
-            draw.rectangle([200, y_offset, 240, y_offset + swatch_size], fill=solved_rgb, outline=(0, 0, 0))
-            draw.text((245, y_offset + 10), f"求解: {solved_rgb}", fill=(0, 0, 0), font=font_small)
+            draw.rectangle(
+                [200, y_offset, 240, y_offset + swatch_size],
+                fill=solved_rgb,
+                outline=(0, 0, 0),
+            )
+            draw.text(
+                (245, y_offset + 10),
+                f"求解: {solved_rgb}",
+                fill=(0, 0, 0),
+                font=font_small,
+            )
 
         y_offset += swatch_size + 10
 

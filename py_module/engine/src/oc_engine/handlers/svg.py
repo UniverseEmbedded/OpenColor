@@ -62,14 +62,16 @@ def _get_int(params: Dict[str, Any], key: str, default: int) -> int:
         raise ValueError(f"{key} 参数无效: {val}") from e
 
 
-def handle_svg_export(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_svg_export(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理SVG导出任务
-    
+
     参数:
         job: 任务对象
         params: 任务参数字典，包含svg_path、width_mm、thickness_mm等
         progress: 进度回调函数，接收(进度值, 阶段, 描述)
-    
+
     返回:
         包含输出文件路径的结果字典
     """
@@ -168,7 +170,9 @@ def handle_svg_export(job: Job, params: Dict[str, Any], progress: Callable[[floa
 
     # 为每个槽位生成STL文件
     for key in ["R", "G", "B", "W"]:
-        geom = union_clean(buckets[key], simplify_mm=simplify_mm, min_area_mm2=min_area_mm2)
+        geom = union_clean(
+            buckets[key], simplify_mm=simplify_mm, min_area_mm2=min_area_mm2
+        )
         if geom is None:
             continue
         mesh = extrude_polygon_to_mesh(geom, thickness_mm)
@@ -188,8 +192,14 @@ def handle_svg_export(job: Job, params: Dict[str, Any], progress: Callable[[floa
     has_standard_flag = "export_3mf_standard" in params
     has_bambu_flag = "export_3mf_bambu" in params
     default_standard_3mf = export_fmt_raw is None
-    want_standard_3mf = (bool(params.get("export_3mf_standard")) if has_standard_flag else default_standard_3mf) or export_fmt in {"3mf", "mf3"}
-    want_bambu_3mf = (bool(params.get("export_3mf_bambu")) if has_bambu_flag else False) or export_fmt in {"3mf", "mf3"}
+    want_standard_3mf = (
+        bool(params.get("export_3mf_standard"))
+        if has_standard_flag
+        else default_standard_3mf
+    ) or export_fmt in {"3mf", "mf3"}
+    want_bambu_3mf = (
+        bool(params.get("export_3mf_bambu")) if has_bambu_flag else False
+    ) or export_fmt in {"3mf", "mf3"}
 
     standard_3mf_path = None
     bambu_3mf_path = None
@@ -199,19 +209,26 @@ def handle_svg_export(job: Job, params: Dict[str, Any], progress: Callable[[floa
         progress(0.8, "export_3mf", "导出标准 3MF")
         standard_3mf_path_raw = params.get("standard_3mf_path")
         if standard_3mf_path_raw:
-            standard_3mf_path = Path(standard_3mf_path_raw).parent / _build_3mf_name("s")
+            standard_3mf_path = Path(standard_3mf_path_raw).parent / _build_3mf_name(
+                "s"
+            )
         else:
             standard_3mf_path = artifacts_dir / _build_3mf_name("s")
         standard_3mf_path.parent.mkdir(parents=True, exist_ok=True)
         standard_3mf_path = _unique_path(standard_3mf_path)
-        export_standard_3mf(out_3mf=standard_3mf_path, stl_paths=stl_paths, slot_names=slot_names)
+        export_standard_3mf(
+            out_3mf=standard_3mf_path, stl_paths=stl_paths, slot_names=slot_names
+        )
 
     # 导出拓竹项目3MF
     if want_bambu_3mf:
         progress(0.9, "export_bambu", "导出拓竹项目 3MF")
         from oc_core_02.core.app_paths import get_data_path
 
-        template_path = Path(params.get("bambu_template") or get_data_path("bambu_3mf_template", "rgbw_cubes.3mf"))
+        template_path = Path(
+            params.get("bambu_template")
+            or get_data_path("bambu_3mf_template", "rgbw_cubes.3mf")
+        )
         bambu_3mf_path_raw = params.get("bambu_3mf_path")
         if bambu_3mf_path_raw:
             bambu_3mf_path = Path(bambu_3mf_path_raw).parent / _build_3mf_name("b")
@@ -240,14 +257,19 @@ def handle_svg_export(job: Job, params: Dict[str, Any], progress: Callable[[floa
             "palette_mode": palette_mode,
             "palette_tol": palette_tol,
         },
-        "stats": {"skipped_paths": int(skipped), "auto_classified": int(auto_classified)},
+        "stats": {
+            "skipped_paths": int(skipped),
+            "auto_classified": int(auto_classified),
+        },
         "artifacts": {
             "stls": [str(p) for p in stl_paths],
             "standard_3mf": str(standard_3mf_path) if standard_3mf_path else "",
             "bambu_3mf": str(bambu_3mf_path) if bambu_3mf_path else "",
         },
     }
-    (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / "meta.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 更新库项
     short_common = {

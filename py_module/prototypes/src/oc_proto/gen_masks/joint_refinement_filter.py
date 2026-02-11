@@ -11,10 +11,11 @@ from .joint_refinement_cleanup import _despeckle_single_pixels_4
 from .main_utils import _guided_filter_gray
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def smooth_labels_by_guided_filter(
     labels_by_layer: list[np.ndarray],
     *,
@@ -43,7 +44,7 @@ def smooth_labels_by_guided_filter(
 
     margin = max(0.0, float(min_soft_margin))
     out_layers: list[np.ndarray] = []
-    
+
     for z, labels0 in enumerate(labels_by_layer):
         labels = np.asarray(labels0, dtype=np.int16).copy()
         labels[~roi] = -1
@@ -54,7 +55,7 @@ def smooth_labels_by_guided_filter(
         per0 = _boundary_length_4(labels, roi)
         moved_total = 0
         changed_soft_total = 0
-        
+
         for _ in range(p):
             soft = []
             for s in range(n_slots):
@@ -77,12 +78,15 @@ def smooth_labels_by_guided_filter(
             labels[change] = best[change]
             moved_total += moved
 
-        labels2, n_des = _despeckle_single_pixels_4(labels, roi, iters=int(despickle_iters), n_slots=n_slots)
+        labels2, n_des = _despeckle_single_pixels_4(
+            labels, roi, iters=int(despickle_iters), n_slots=n_slots
+        )
         labels = labels2
         moved_total += int(n_des)
 
         per1 = _boundary_length_4(labels, roi)
-        logger.info(f"[信息] L{z:02d} 引导滤波平滑完成: moved_px={moved_total}, soft_change_px={changed_soft_total}, "
+        logger.info(
+            f"[信息] L{z:02d} 引导滤波平滑完成: moved_px={moved_total}, soft_change_px={changed_soft_total}, "
             f"single_px_fixed={int(n_des)}, perim4_before={per0}, perim4_after={per1}, radius={r}, passes={p}, min_soft_margin={margin:.4f}"
         )
         out_layers.append(labels)

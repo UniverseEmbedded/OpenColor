@@ -39,19 +39,22 @@ def mix_srgb(ch_fracs: Dict[str, float]) -> Tuple[int, int, int]:
     g = 255.0 * (fG + fW)
     b = 255.0 * (fB + fW)
 
-    return (int(clamp(round(r), 0, 255)),
-            int(clamp(round(g), 0, 255)),
-            int(clamp(round(b), 0, 255)))
+    return (
+        int(clamp(round(r), 0, 255)),
+        int(clamp(round(g), 0, 255)),
+        int(clamp(round(b), 0, 255)),
+    )
 
 
 @dataclass
 class SwatchRecipe:
     """色块配方数据类，描述色块的打印配置"""
-    channels: List[str]          # 使用的通道列表（如['R','G']）
+
+    channels: List[str]  # 使用的通道列表（如['R','G']）
     fractions: Dict[str, float]  # 各通道的比例
-    total_layers: int            # 总层数
-    layer_height_mm: float       # 每层高度（毫米）
-    layer_sequence: List[str]    # 层序列表
+    total_layers: int  # 总层数
+    layer_height_mm: float  # 每层高度（毫米）
+    layer_sequence: List[str]  # 层序列表
 
 
 def make_layer_sequence(fractions: Dict[str, float], total_layers: int) -> List[str]:
@@ -98,11 +101,11 @@ def make_layer_sequence(fractions: Dict[str, float], total_layers: int) -> List[
 
 
 def generate_swatch_recipes(
-        layer_height_mm: float,
-        single_layers: List[int],
-        mix_layers: int,
-        mix_steps: List[float],
-        include_white_mixes: bool = True,
+    layer_height_mm: float,
+    single_layers: List[int],
+    mix_layers: int,
+    mix_steps: List[float],
+    include_white_mixes: bool = True,
 ) -> List[Tuple[str, str, SwatchRecipe, str]]:
     """
     生成色块配方列表
@@ -117,8 +120,13 @@ def generate_swatch_recipes(
         for L in single_layers:
             fr = {c: 1.0}
             seq = make_layer_sequence(fr, L)
-            rcp = SwatchRecipe(channels=[c], fractions=fr, total_layers=L,
-                               layer_height_mm=layer_height_mm, layer_sequence=seq)
+            rcp = SwatchRecipe(
+                channels=[c],
+                fractions=fr,
+                total_layers=L,
+                layer_height_mm=layer_height_mm,
+                layer_sequence=seq,
+            )
             key = f"SINGLE_{c}_L{L}"
             label = f"{c}  L={L}"
             out.append(("single", key, rcp, label))
@@ -134,10 +142,15 @@ def generate_swatch_recipes(
             fb = 1.0 - fa
             fr = {a: fa, b: fb}
             seq = make_layer_sequence(fr, mix_layers)
-            rcp = SwatchRecipe(channels=[a, b], fractions=fr, total_layers=mix_layers,
-                               layer_height_mm=layer_height_mm, layer_sequence=seq)
-            key = f"PAIR_{a}{b}_A{int(round(fa*100)):03d}_L{mix_layers}"
-            label = f"{a}:{int(round(fa*100))}% {b}:{int(round(fb*100))}%"
+            rcp = SwatchRecipe(
+                channels=[a, b],
+                fractions=fr,
+                total_layers=mix_layers,
+                layer_height_mm=layer_height_mm,
+                layer_sequence=seq,
+            )
+            key = f"PAIR_{a}{b}_A{int(round(fa * 100)):03d}_L{mix_layers}"
+            label = f"{a}:{int(round(fa * 100))}% {b}:{int(round(fb * 100))}%"
             out.append(("pair_mix", key, rcp, label))
 
     return out

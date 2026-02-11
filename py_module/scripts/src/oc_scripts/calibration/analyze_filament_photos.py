@@ -31,10 +31,11 @@ import numpy as np
 from PIL import Image
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def srgb_to_linear(u: np.ndarray) -> np.ndarray:
     """近似sRGB -> 线性RGB转换"""
     u = np.clip(u, 0.0, 1.0)
@@ -81,11 +82,12 @@ def rgb_to_hsv(rgb: np.ndarray) -> np.ndarray:
 @dataclass
 class SampleStats:
     """样本统计信息"""
+
     rgb_srgb_median: np.ndarray  # 3
-    rgb_lin_median: np.ndarray   # 3
-    hsv_median: np.ndarray       # 3
-    specular_fraction: float     # 高光比例
-    used_fraction: float         # 使用的像素比例
+    rgb_lin_median: np.ndarray  # 3
+    hsv_median: np.ndarray  # 3
+    specular_fraction: float  # 高光比例
+    used_fraction: float  # 使用的像素比例
 
 
 def load_image(path: Path) -> np.ndarray:
@@ -159,7 +161,9 @@ def guess_haze_from_sat(sat: float) -> float:
     return float(np.clip(haze, 0.10, 0.65))
 
 
-def guess_k_rgb(color_rgb: np.ndarray, white_rgb: np.ndarray, t0_mm: float) -> np.ndarray:
+def guess_k_rgb(
+    color_rgb: np.ndarray, white_rgb: np.ndarray, t0_mm: float
+) -> np.ndarray:
     """从相对反射率计算有效衰减代理（mm^-1）"""
     eps = 1e-3
     num = np.clip(color_rgb, eps, 1.0)
@@ -250,7 +254,9 @@ def main() -> None:
         }
 
     out_path = Path(args.out)
-    out_path.write_text(json.dumps(profiles, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(profiles, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 打印简洁的汇总表
     def fmt(v):
@@ -266,7 +272,8 @@ def main() -> None:
         haze = pr["optical_priors"]["haze"]
         spec = pr["specular_fraction"]
         k_rgb = pr["optical_priors"]["k_rgb_mm-1"]
-        logger.info(f"{name:<6} {fmt(rgb):<22} {pr['base_reflect_hex']:<8} "
+        logger.info(
+            f"{name:<6} {fmt(rgb):<22} {pr['base_reflect_hex']:<8} "
             f"{haze:>4.2f}   {spec:>6.3f}   "
             f"[{k_rgb[0]:.2f} {k_rgb[1]:.2f} {k_rgb[2]:.2f}]"
         )

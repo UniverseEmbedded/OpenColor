@@ -5,6 +5,7 @@
 
 # 导入具体模型实现（这会触发注册）
 from .phys_gpr_model import PhysGPRModelImpl
+
 # 导入基类
 from oc_xgb.model_base import (
     ColorPredictionModel,
@@ -18,5 +19,5 @@ __all__ = [
     "PredictionResult",
     "ModelCapabilities",
     "create_model_from_checkpoint",
-    "PhysGPRModelImpl"
+    "PhysGPRModelImpl",
 ]

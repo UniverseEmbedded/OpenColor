@@ -7,10 +7,11 @@ import subprocess
 from pathlib import Path
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _run(cmd: list[str], cwd: Path | None = None) -> None:
     """执行命令并打印命令内容"""
     logger.info(f"[命令] {' '.join(cmd)}")
@@ -32,12 +33,16 @@ def main() -> None:
     # 检查是否为 Git 仓库
     git_dir = project_root / ".git"
     if not git_dir.exists():
-        raise RuntimeError("未检测到 Git 仓库，无法初始化 vcpkg 子模块，请先确保项目为 git 仓库")
+        raise RuntimeError(
+            "未检测到 Git 仓库，无法初始化 vcpkg 子模块，请先确保项目为 git 仓库"
+        )
 
     # 获取 vcpkg 仓库地址（可从环境变量配置）
-    url_raw = os.environ.get("VCPKG_URL", "https://github.com/microsoft/vcpkg.git").strip()
+    url_raw = os.environ.get(
+        "VCPKG_URL", "https://github.com/microsoft/vcpkg.git"
+    ).strip()
     url = url_raw.strip().strip("`\"'")
-    
+
     # 检查是否已存在 vcpkg 子模块配置
     gitmodules = project_root / ".gitmodules"
     has_submodule = False
@@ -65,16 +70,34 @@ def main() -> None:
     # 如果未作为子模块跟踪，则添加子模块
     if not tracked_as_submodule:
         logger.info(f"[信息] 未检测到 vcpkg 子模块，将通过子模块从 {url} 拉取")
-        _run(["git", "submodule", "add", "-f", "--depth", "1", url, vcpkg_rel.as_posix()], cwd=project_root)
+        _run(
+            [
+                "git",
+                "submodule",
+                "add",
+                "-f",
+                "--depth",
+                "1",
+                url,
+                vcpkg_rel.as_posix(),
+            ],
+            cwd=project_root,
+        )
 
     # 初始化并更新子模块
-    _run(["git", "submodule", "update", "--init", "--depth", "1", vcpkg_rel.as_posix()], cwd=project_root)
+    _run(
+        ["git", "submodule", "update", "--init", "--depth", "1", vcpkg_rel.as_posix()],
+        cwd=project_root,
+    )
 
     # 切换到指定的 vcpkg 版本
     vcpkg_ref = os.environ.get("VCPKG_REF", "2024.12.16").strip()
     if vcpkg_ref:
         logger.info(f"[信息] 已设置 VCPKG_REF={vcpkg_ref}，将拉取并切换到指定版本")
-        _run(["git", "-C", str(vcpkg_dir), "fetch", "--depth", "1", "origin", vcpkg_ref], cwd=project_root)
+        _run(
+            ["git", "-C", str(vcpkg_dir), "fetch", "--depth", "1", "origin", vcpkg_ref],
+            cwd=project_root,
+        )
         _run(["git", "-C", str(vcpkg_dir), "checkout", "FETCH_HEAD"], cwd=project_root)
 
     # 根据操作系统执行对应的引导脚本

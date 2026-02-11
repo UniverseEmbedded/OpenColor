@@ -31,6 +31,7 @@ from svg_mesh_verify_geom import parse_length, parse_number_list, _strip_ns
 @dataclass
 class ViewBox:
     """SVG 视口定义"""
+
     x: float
     y: float
     w: float
@@ -53,12 +54,16 @@ def render_svg_to_image(svg_bytes: bytes, vb: ViewBox, scale: float) -> Image.Im
     """将 SVG 渲染为图像"""
     out_w = max(1, int(math.ceil(vb.w * scale)))
     out_h = max(1, int(math.ceil(vb.h * scale)))
-    png_bytes = cairosvg.svg2png(bytestring=svg_bytes, output_width=out_w, output_height=out_h)
+    png_bytes = cairosvg.svg2png(
+        bytestring=svg_bytes, output_width=out_w, output_height=out_h
+    )
     img = Image.open(BytesIO(png_bytes)).convert("RGBA")
     return img
 
 
-def composite_rgba_to_rgb(arr_rgba_u8: np.ndarray, bg_rgb_u8: Tuple[int, int, int]) -> np.ndarray:
+def composite_rgba_to_rgb(
+    arr_rgba_u8: np.ndarray, bg_rgb_u8: Tuple[int, int, int]
+) -> np.ndarray:
     """将 RGBA 图像合成到指定背景色上，返回 RGB"""
     rgb = arr_rgba_u8[..., :3].astype(np.float32)
     a = arr_rgba_u8[..., 3:4].astype(np.float32) / 255.0
@@ -76,7 +81,9 @@ def premultiply_rgba(arr_rgba_u8: np.ndarray) -> np.ndarray:
     return out
 
 
-def compare_images(img_a: Image.Image, img_b: Image.Image, bg: str, diff_max: float, diff_gamma: float) -> Tuple[Image.Image, Dict[str, float]]:
+def compare_images(
+    img_a: Image.Image, img_b: Image.Image, bg: str, diff_max: float, diff_gamma: float
+) -> Tuple[Image.Image, Dict[str, float]]:
     """比较两幅图像，返回差异图和指标"""
     if img_a.size != img_b.size:
         raise ValueError(f"两张图尺寸不一致：{img_a.size} vs {img_b.size}")
@@ -93,19 +100,19 @@ def compare_images(img_a: Image.Image, img_b: Image.Image, bg: str, diff_max: fl
         bb = composite_rgba_to_rgb(b, (255, 255, 255))
         diff = aa - bb
         mse = float(np.mean((diff / 255.0) ** 2))
-        mag = np.sqrt(np.sum(diff ** 2, axis=-1)) / (math.sqrt(3.0) * 255.0)
+        mag = np.sqrt(np.sum(diff**2, axis=-1)) / (math.sqrt(3.0) * 255.0)
     elif bg == "black":
         aa = composite_rgba_to_rgb(a, (0, 0, 0))
         bb = composite_rgba_to_rgb(b, (0, 0, 0))
         diff = aa - bb
         mse = float(np.mean((diff / 255.0) ** 2))
-        mag = np.sqrt(np.sum(diff ** 2, axis=-1)) / (math.sqrt(3.0) * 255.0)
+        mag = np.sqrt(np.sum(diff**2, axis=-1)) / (math.sqrt(3.0) * 255.0)
     elif bg == "transparent":
         aa = premultiply_rgba(a)
         bb = premultiply_rgba(b)
         diff = aa - bb
         mse = float(np.mean((diff / 255.0) ** 2))
-        mag = np.sqrt(np.sum(diff ** 2, axis=-1)) / (math.sqrt(4.0) * 255.0)
+        mag = np.sqrt(np.sum(diff**2, axis=-1)) / (math.sqrt(4.0) * 255.0)
     else:
         raise ValueError(f"未知背景模式：{bg}")
 
@@ -133,7 +140,9 @@ def compare_images(img_a: Image.Image, img_b: Image.Image, bg: str, diff_max: fl
     return diff_img, metrics
 
 
-def sample_rgba_bilinear(img: Image.Image, x: float, y: float) -> Tuple[float, float, float, float]:
+def sample_rgba_bilinear(
+    img: Image.Image, x: float, y: float
+) -> Tuple[float, float, float, float]:
     """双线性插值采样 RGBA 值"""
     w, h = img.size
     x = max(0.0, min(x, w - 1.001))
@@ -159,7 +168,9 @@ def fmt_float(x: float) -> str:
     return f"{x:.4f}".rstrip("0").rstrip(".")
 
 
-def tri_to_pathd(a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float]) -> str:
+def tri_to_pathd(
+    a: Tuple[float, float], b: Tuple[float, float], c: Tuple[float, float]
+) -> str:
     """将三角形转换为 SVG path 数据字符串"""
     return f"M {fmt_float(a[0])} {fmt_float(a[1])} L {fmt_float(b[0])} {fmt_float(b[1])} L {fmt_float(c[0])} {fmt_float(c[1])} Z"
 
@@ -185,7 +196,12 @@ def copy_defs(original_root: etree._Element, out_root: etree._Element):
             break
 
 
-def set_opacity_attrs(el: etree._Element, opacity: Optional[str], fill_opacity: Optional[str], stroke_opacity: Optional[str]):
+def set_opacity_attrs(
+    el: etree._Element,
+    opacity: Optional[str],
+    fill_opacity: Optional[str],
+    stroke_opacity: Optional[str],
+):
     """设置元素的透明度属性"""
     if opacity and opacity.strip() not in ("", "1", "1.0"):
         el.set("opacity", opacity.strip())

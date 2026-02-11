@@ -18,20 +18,24 @@ from oc_calib.board import (
     render_board_preview,
 )
 from oc_calib.calib_types import BoardSpec
-from oc_scripts.stl.thick_grad_card import build_thickness_gradient_plate, add_bezel_feet, add_back_ribs
+from oc_scripts.stl.thick_grad_card import (
+    build_thickness_gradient_plate,
+    add_bezel_feet,
+    add_back_ribs,
+)
 from . import upsert_library_item, _get_relative_path
 from ..jobs import Job
 
 
 def _unique_path(p: Path) -> Path:
     """生成唯一的文件路径，避免文件名冲突
-    
+
     如果目标路径已存在，则在文件名后添加数字后缀（_1, _2, ...）
     如果数字后缀达到1000，则使用时间戳作为后缀
-    
+
     参数:
         p: 目标文件路径
-        
+
     返回:
         唯一的文件路径
     """
@@ -44,16 +48,18 @@ def _unique_path(p: Path) -> Path:
     return p.with_name(f"{p.stem}_{int(time.time())}{p.suffix}")
 
 
-def handle_board_generate(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_board_generate(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理色盘生成任务
-    
+
     根据参数生成色盘规格文件、3MF模型、STL文件和预览图
-    
+
     参数:
         job: 任务对象，包含输出目录等信息
         params: 任务参数字典，包含材料、行列数、单元格大小等
         progress: 进度回调函数，接收进度值(0-1)、状态和描述
-        
+
     返回:
         包含生成文件路径的结果字典
     """
@@ -87,8 +93,18 @@ def handle_board_generate(job: Job, params: Dict[str, Any], progress: Callable[[
             mats = list(DEFAULT_MATERIALS_8)
         bp = BoardParams(
             n_layers=int(params.get("layers", params.get("n_layers", 5))),
-            cell_size_mm=float(params.get("tileSizeMm", params.get("tile_size_mm", params.get("cell_size_mm", 6.0)))),
-            layer_height_mm=float(params.get("layerHeightMm", params.get("layer_height_mm", params.get("layer_height_mm", 0.12)))),
+            cell_size_mm=float(
+                params.get(
+                    "tileSizeMm",
+                    params.get("tile_size_mm", params.get("cell_size_mm", 6.0)),
+                )
+            ),
+            layer_height_mm=float(
+                params.get(
+                    "layerHeightMm",
+                    params.get("layer_height_mm", params.get("layer_height_mm", 0.12)),
+                )
+            ),
             total_cells=int(total),
             data_cells=int(data),
             materials=mats,
@@ -126,12 +142,12 @@ def handle_board_generate(job: Job, params: Dict[str, Any], progress: Callable[[
 
     def _build_name(suffix: str) -> str:
         """构建文件名
-        
+
         根据色盘参数生成规范的文件名
-        
+
         参数:
             suffix: 文件后缀名
-            
+
         返回:
             生成的文件名
         """
@@ -192,7 +208,9 @@ def handle_board_generate(job: Job, params: Dict[str, Any], progress: Callable[[
     }
     meta_path = out_dir / _build_name("_meta.json")
     meta_path = _unique_path(meta_path)
-    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    meta_path.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 构建简化的元数据
     short_common = {
@@ -209,18 +227,29 @@ def handle_board_generate(job: Job, params: Dict[str, Any], progress: Callable[[
     long = {"method": "board.generate", "job_id": job.job_id, "meta": meta}
 
     # 将生成的文件添加到库中
-    upsert_library_item(file_path=Path(spec_path), kind="json", short=short_common, long=long)
+    upsert_library_item(
+        file_path=Path(spec_path), kind="json", short=short_common, long=long
+    )
     upsert_library_item(
         file_path=Path(meta_path),
         kind="json",
         short={**short_common, "kind": "bd_meta"},
         long=long,
     )
-    upsert_library_item(file_path=Path(preview_path), kind="color_plate", short=short_common, long=long)
+    upsert_library_item(
+        file_path=Path(preview_path), kind="color_plate", short=short_common, long=long
+    )
     if out_3mf_path is not None:
-        upsert_library_item(file_path=Path(out_3mf_path), kind="board_model", short=short_common, long=long)
+        upsert_library_item(
+            file_path=Path(out_3mf_path),
+            kind="board_model",
+            short=short_common,
+            long=long,
+        )
     for _, p in renamed_stls.items():
-        upsert_library_item(file_path=Path(p), kind="board_model", short=short_common, long=long)
+        upsert_library_item(
+            file_path=Path(p), kind="board_model", short=short_common, long=long
+        )
 
     progress(1.0, "done", "完成")
 
@@ -234,19 +263,21 @@ def handle_board_generate(job: Job, params: Dict[str, Any], progress: Callable[[
     }
 
 
-def handle_board_export_from_spec(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_board_export_from_spec(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """从色盘规格文件导出模型
-    
+
     读取已有的色盘规格文件，导出为 3MF 或 STL 格式
-    
+
     参数:
         job: 任务对象，包含输出目录等信息
         params: 任务参数字典，包含规格文件路径和导出格式
         progress: 进度回调函数，接收进度值(0-1)、状态和描述
-        
+
     返回:
         包含导出文件路径的结果字典
-        
+
     异常:
         ValueError: 缺少 spec_path 参数
         FileNotFoundError: 规格文件不存在
@@ -277,12 +308,12 @@ def handle_board_export_from_spec(job: Job, params: Dict[str, Any], progress: Ca
 
     def _build_name(suffix: str) -> str:
         """构建文件名
-        
+
         根据规格名称生成导出文件名
-        
+
         参数:
             suffix: 文件后缀名
-            
+
         返回:
             生成的文件名
         """
@@ -319,16 +350,18 @@ def handle_board_export_from_spec(job: Job, params: Dict[str, Any], progress: Ca
     }
 
 
-def handle_quick_calib_card_generate(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_quick_calib_card_generate(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """生成快速校准卡
-    
+
     生成一个厚度梯度板，用于打印机流量校准
-    
+
     参数:
         job: 任务对象，包含输出目录等信息
         params: 任务参数字典，包含尺寸、厚度范围、网格密度等参数
         progress: 进度回调函数，接收进度值(0-1)、状态和描述
-        
+
     返回:
         包含生成文件路径的结果字典
     """
@@ -338,14 +371,14 @@ def handle_quick_calib_card_generate(job: Job, params: Dict[str, Any], progress:
     progress(0.1, "prepare", "准备参数")
     # 解析参数
     w = float(params.get("w", 120.0))  # 板宽度（毫米）
-    h = float(params.get("h", 80.0))   # 板高度（毫米）
+    h = float(params.get("h", 80.0))  # 板高度（毫米）
     t_min = float(params.get("t_min", 0.20))  # 最小厚度（毫米）
     t_max = float(params.get("t_max", 1.20))  # 最大厚度（毫米）
-    ny = int(params.get("ny", 220))    # Y方向网格数
-    profile = params.get("profile", "ease")   # 厚度变化曲线类型
+    ny = int(params.get("ny", 220))  # Y方向网格数
+    profile = params.get("profile", "ease")  # 厚度变化曲线类型
     reverse = bool(params.get("reverse", False))  # 是否反转厚度方向
-    feet = bool(params.get("feet", True))   # 是否添加支脚
-    ribs = bool(params.get("ribs", True))   # 是否添加加强筋
+    feet = bool(params.get("feet", True))  # 是否添加支脚
+    ribs = bool(params.get("ribs", True))  # 是否添加加强筋
 
     progress(0.3, "generate", "生成基础梯度板")
     mesh = build_thickness_gradient_plate(

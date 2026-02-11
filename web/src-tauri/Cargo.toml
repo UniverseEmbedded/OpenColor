@@ -29,3 +29,4 @@ tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
 rand = "0.8"
 pyo3 = { version = "0.27.2", features = ["auto-initialize", "serde"] }
+chrono = "0.4"

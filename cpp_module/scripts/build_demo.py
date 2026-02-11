@@ -9,10 +9,11 @@ import sys
 from pathlib import Path
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _run(cmd: list[str], cwd: Path | None = None) -> None:
     """执行命令并打印"""
     logger.info(f"[命令] {' '.join(cmd)}")
@@ -29,7 +30,9 @@ def main() -> None:
 
     # 检查vcpkg是否存在，不存在则自动执行setup-cpp
     if not (vcpkg_dir / "vcpkg.exe").exists() and not (vcpkg_dir / "vcpkg").exists():
-        logger.info("[信息] 未检测到 vcpkg 可执行文件，正在自动运行：pixi run setup-cpp")
+        logger.info(
+            "[信息] 未检测到 vcpkg 可执行文件，正在自动运行：pixi run setup-cpp"
+        )
         subprocess.run(["pixi", "run", "setup-cpp"], check=True)
 
     # 检查工具链文件
@@ -46,7 +49,11 @@ def main() -> None:
     # Python路径配置
     python_root = Path(sys.executable).resolve().parent
     python_include = python_root / "Include"
-    python_library = python_root / "libs" / f"python{sys.version_info.major}{sys.version_info.minor}.lib"
+    python_library = (
+        python_root
+        / "libs"
+        / f"python{sys.version_info.major}{sys.version_info.minor}.lib"
+    )
 
     # 检查CMake缓存是否匹配当前目录
     cache_path = build_dir / "CMakeCache.txt"
@@ -57,7 +64,9 @@ def main() -> None:
             if line.startswith(marker):
                 cached_dir = line[len(marker) :].strip()
                 if Path(cached_dir).resolve() != cpp_dir.resolve():
-                    logger.info("[信息] 检测到旧的 CMake 缓存目录不匹配，将清理 build 目录")
+                    logger.info(
+                        "[信息] 检测到旧的 CMake 缓存目录不匹配，将清理 build 目录"
+                    )
                     shutil.rmtree(build_dir)
                 break
 
@@ -99,7 +108,9 @@ def main() -> None:
     if exe.exists():
         logger.info(f"[完成] 构建成功：{exe}")
     else:
-        logger.warning("[警告] 未找到输出 exe（可能使用了不同的生成器/配置），请在 build 目录下查找")
+        logger.warning(
+            "[警告] 未找到输出 exe（可能使用了不同的生成器/配置），请在 build 目录下查找"
+        )
 
     # 复制Web探测程序到Tauri资源目录
     web_probe = build_dir / config / "opencolor_web_probe.exe"

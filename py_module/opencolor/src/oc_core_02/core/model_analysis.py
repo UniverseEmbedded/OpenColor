@@ -45,7 +45,9 @@ def _get_cpp_analyze_fn():
 
     fn = getattr(cpp_geometry, "mesh_analyze_basic_nogil", None)
     if fn is None:
-        raise RuntimeError("C++ 几何模块缺少 mesh_analyze_basic_nogil，无法进行模型分析(通用网格)")
+        raise RuntimeError(
+            "C++ 几何模块缺少 mesh_analyze_basic_nogil，无法进行模型分析(通用网格)"
+        )
 
     _CPP_ANALYZE_FN = fn
     return _CPP_ANALYZE_FN
@@ -156,7 +158,14 @@ def analyze_mesh(mesh: trimesh.Trimesh, label: str) -> Dict[str, int]:
     watertight = bool(result.get("watertight", False))
     logger.info(
         "模型分析(通用网格): {} 顶点={} 面={} 非流形边={} 边界边={} 退化面={} 重复面={} 封闭={}",
-        label, v_count, f_count, non_manifold_edges, boundary_edges, degenerate_faces, duplicate_faces, watertight
+        label,
+        v_count,
+        f_count,
+        non_manifold_edges,
+        boundary_edges,
+        degenerate_faces,
+        duplicate_faces,
+        watertight,
     )
     return {
         "vertices": v_count,
@@ -200,7 +209,11 @@ def analyze_3mf_lib3mf(path: Path) -> None:
             obj_type = type(obj).__name__
             logger.info(
                 "3MF分析(lib3mf): 文件={} 对象序号={} 资源ID={} 名称={} 类型={} 跳过",
-                path.name, idx, rid, name, obj_type
+                path.name,
+                idx,
+                rid,
+                name,
+                obj_type,
             )
             continue
         v_count = obj.GetVertexCount()
@@ -213,7 +226,13 @@ def analyze_3mf_lib3mf(path: Path) -> None:
                 logger.warning("3MF分析(lib3mf)对象检测失败: {}", e)
         logger.info(
             "3MF分析(lib3mf): 文件={} 对象序号={} 资源ID={} 名称={} 顶点={} 面={} 流形且定向={}",
-            path.name, idx, rid, name, v_count, t_count, is_manifold
+            path.name,
+            idx,
+            rid,
+            name,
+            v_count,
+            t_count,
+            is_manifold,
         )
 
 

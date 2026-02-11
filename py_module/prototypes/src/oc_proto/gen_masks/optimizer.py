@@ -6,10 +6,11 @@ from typing import Tuple, List
 import numpy as np
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _bias_first_print_layer_to_target(
     unique_target_rgb01: np.ndarray,
     recipes_print_order: np.ndarray,
@@ -21,10 +22,10 @@ def _bias_first_print_layer_to_target(
     weights: np.ndarray | None = None,
 ) -> np.ndarray:
     """首层贴近原图优化
-    
+
     基于训练好的物理模型，评估不同首层选择对最终色差的影响，
     在允许的最终色差松弛范围内，选择使首层颜色最接近目标图像颜色的配方。
-    
+
     Args:
         unique_target_rgb01: 唯一目标颜色数组 (N, 3) float32 0-1
         recipes_print_order: 打印顺序配方索引 (N, n_layers) int32
@@ -33,24 +34,26 @@ def _bias_first_print_layer_to_target(
         enabled: 是否启用优化
         final_slack_de76: 允许最终色差恶化的松弛量
         weights: 各颜色的权重（用于加权统计）
-    
+
     Returns:
         优化后的打印顺序配方索引 (N, n_layers) int32
     """
     if not bool(enabled):
         return recipes_print_order
-    
+
     recipes0 = np.asarray(recipes_print_order)
     if recipes0.ndim != 2 or int(recipes0.shape[1]) <= 0:
         return recipes_print_order
 
     # 获取调色板颜色
-    rgb_lut_u8 = np.asarray([cs.slot_preview_rgb[n] for n in cs.slot_names], dtype=np.uint8)
+    rgb_lut_u8 = np.asarray(
+        [cs.slot_preview_rgb[n] for n in cs.slot_names], dtype=np.uint8
+    )
     palette_rgb01 = rgb_lut_u8.astype(np.float32) / 255.0
-    
+
     # 导入颜色空间转换函数
     from ..calib_color_rts.color_space import rgb01_to_lab, delta_e_cie76
-    
+
     palette_lab = rgb01_to_lab(palette_rgb01)
 
     tgt_rgb01 = np.asarray(unique_target_rgb01, dtype=np.float32)
@@ -63,7 +66,7 @@ def _bias_first_print_layer_to_target(
 
     recipes = recipes0.astype(np.int32, copy=True)
     slots = np.arange(n_slots, dtype=np.int32)
-    
+
     # 构建候选配方：每个配方的首层分别替换为所有可能的颜色
     cand = np.repeat(recipes, n_slots, axis=0)
     cand[:, 0] = np.tile(slots, n)
@@ -89,7 +92,7 @@ def _bias_first_print_layer_to_target(
     # 基于当前选择的基线色差
     old_s = recipes[:, 0].astype(np.int32, copy=False)
     base_final = de_final[np.arange(n), old_s][:, None]
-    
+
     # 筛选出在松弛范围内的候选
     ok = de_final <= (base_final + slack)
     de_l0_masked = np.where(ok, de_l0, np.inf)
@@ -102,7 +105,7 @@ def _bias_first_print_layer_to_target(
 
     changed = old_s != best_s
     changed_n = int(np.count_nonzero(changed))
-    
+
     if changed_n > 0:
         before_l0 = de_l0[np.arange(n), old_s]
         after_l0 = de_l0[np.arange(n), best_s]
@@ -129,14 +132,17 @@ def _bias_first_print_layer_to_target(
             mean_before_f = float(np.sum(before_f * w) / sw)
             mean_after_f = float(np.sum(after_f * w) / sw)
 
-        logger.info("[信息] 首层贴近原图优化完成: "
+        logger.info(
+            "[信息] 首层贴近原图优化完成: "
             f"changed={changed_n}/{n}, "
             f"mean_l0_de76 {mean_before_l0:.4f}->{mean_after_l0:.4f}, "
             f"mean_final_de76 {mean_before_f:.4f}->{mean_after_f:.4f}, "
             f"final_slack_de76={slack:.3f}"
         )
     else:
-        logger.info(f"[信息] 首层贴近原图优化完成: 未发生修改 (final_slack_de76={slack:.3f})")
+        logger.info(
+            f"[信息] 首层贴近原图优化完成: 未发生修改 (final_slack_de76={slack:.3f})"
+        )
 
     recipes[:, 0] = best_s
     return recipes
@@ -149,7 +155,7 @@ def optimize_first_layer_color(
     white_rgb: Tuple[int, int, int] = (255, 255, 255),
 ) -> np.ndarray:
     """优化首层颜色（简单版本，保持兼容性）
-    
+
     Args:
         image_u8: 输入图像
         first_layer_mask: 首层掩码
@@ -162,7 +168,11 @@ def optimize_first_layer_color(
     if not target_white:
         return image_u8.copy()
 
-    mask_bool = first_layer_mask > 127 if first_layer_mask.dtype == np.uint8 else first_layer_mask.astype(bool)
+    mask_bool = (
+        first_layer_mask > 127
+        if first_layer_mask.dtype == np.uint8
+        else first_layer_mask.astype(bool)
+    )
 
     result = image_u8.copy()
     if not np.any(mask_bool):
@@ -175,12 +185,16 @@ def optimize_first_layer_color(
     return np.clip(result_float, 0, 255).astype(np.uint8)
 
 
-def compute_color_distance(rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]) -> float:
+def compute_color_distance(
+    rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]
+) -> float:
     """计算两个颜色之间的欧氏距离"""
     return np.linalg.norm(np.array(rgb1) - np.array(rgb2))
 
 
-def find_closest_palette_color(rgb: Tuple[int, int, int], palette: List[Tuple[int, int, int]]) -> Tuple[int, int, int]:
+def find_closest_palette_color(
+    rgb: Tuple[int, int, int], palette: List[Tuple[int, int, int]]
+) -> Tuple[int, int, int]:
     """在调色板中找到最接近的颜色"""
     min_dist = float("inf")
     closest = palette[0]
@@ -194,7 +208,9 @@ def find_closest_palette_color(rgb: Tuple[int, int, int], palette: List[Tuple[in
     return closest
 
 
-def quantize_to_palette(image_u8: np.ndarray, palette: List[Tuple[int, int, int]]) -> np.ndarray:
+def quantize_to_palette(
+    image_u8: np.ndarray, palette: List[Tuple[int, int, int]]
+) -> np.ndarray:
     """将图像量化到指定调色板"""
     h, w = image_u8.shape[:2]
     result = np.zeros_like(image_u8)

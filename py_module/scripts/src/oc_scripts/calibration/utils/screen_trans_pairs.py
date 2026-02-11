@@ -36,10 +36,11 @@ import cv2
 import matplotlib.pyplot as plt
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def srgb_to_linear(x: np.ndarray) -> np.ndarray:
     # x 在 [0,1] 范围内
     a = 0.055
@@ -172,11 +173,13 @@ def detect_horizontal_bands(lum_roi: np.ndarray, max_bands: int = 32) -> list[in
     return cleaned
 
 
-def save_debug_overlay(rgb: np.ndarray, roi: tuple[int, int, int, int], bounds: list[int], out_path: Path):
+def save_debug_overlay(
+    rgb: np.ndarray, roi: tuple[int, int, int, int], bounds: list[int], out_path: Path
+):
     """
     保存带有ROI矩形和检测到的带边界的叠加图像
     """
-    vis = (np.clip(rgb ** (1/2.4), 0, 1) * 255.0).astype(np.uint8)  # 近似回到sRGB
+    vis = (np.clip(rgb ** (1 / 2.4), 0, 1) * 255.0).astype(np.uint8)  # 近似回到sRGB
     vis_bgr = cv2.cvtColor(vis, cv2.COLOR_RGB2BGR)
     x0, y0, x1, y1 = roi
     cv2.rectangle(vis_bgr, (x0, y0), (x1, y1), (0, 255, 255), 3)
@@ -240,15 +243,17 @@ def main():
         p10 = np.percentile(band.reshape(-1, 3), 10, axis=0)
         p90 = np.percentile(band.reshape(-1, 3), 90, axis=0)
 
-        band_stats.append({
-            "band_index": i,
-            "y0_in_roi": int(a),
-            "y1_in_roi": int(b),
-            "height_px": int(b - a),
-            "Trel_median_rgb": [float(x) for x in med],
-            "Trel_p10_rgb": [float(x) for x in p10],
-            "Trel_p90_rgb": [float(x) for x in p90],
-        })
+        band_stats.append(
+            {
+                "band_index": i,
+                "y0_in_roi": int(a),
+                "y1_in_roi": int(b),
+                "height_px": int(b - a),
+                "Trel_median_rgb": [float(x) for x in med],
+                "Trel_p10_rgb": [float(x) for x in p10],
+                "Trel_p90_rgb": [float(x) for x in p90],
+            }
+        )
 
     meta = {
         "ref": args.ref,
@@ -262,7 +267,10 @@ def main():
         ),
     }
 
-    (outdir / "bands.json").write_text(json.dumps({"meta": meta, "bands": band_stats}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (outdir / "bands.json").write_text(
+        json.dumps({"meta": meta, "bands": band_stats}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     # 在参考图像上保存调试叠加
     save_debug_overlay(ref, roi, bounds, outdir / "debug_roi_and_bands.png")
@@ -279,10 +287,12 @@ def main():
 
     # 为几个带绘制示例曲线
     # 对于每个选定的带，绘制Y带上的中位数作为X的函数
-    pick = [0, (len(bounds)-2)//2, len(bounds)-2] if (len(bounds)-1) >= 3 else [0]
+    pick = (
+        [0, (len(bounds) - 2) // 2, len(bounds) - 2] if (len(bounds) - 1) >= 3 else [0]
+    )
     plt.figure(figsize=(12, 7))
     for idx in pick:
-        a, b = bounds[idx], bounds[idx+1]
+        a, b = bounds[idx], bounds[idx + 1]
         band = Trel[a:b, :, :]
         # 带内跨Y的中位数 -> X的函数
         tx = np.median(band, axis=0)  # Wx3

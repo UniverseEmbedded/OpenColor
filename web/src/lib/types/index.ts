@@ -33,6 +33,8 @@ export interface AppSettings {
   enginePath: string;
   gpuAcceleration: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  skipWindowSizeCheck: boolean;
+  showWindowSizeOverlay: boolean; // 恢复展示小窗口覆盖层
 }
 
 // 项目设置
@@ -82,4 +84,125 @@ export interface ApiError {
   message: string;
   details?: any;
   level: 'warn' | 'error' | 'fatal';
+}
+
+// ============================================
+// CP3: 校准环节类型定义
+// ============================================
+
+// 坐标点
+export interface Point {
+  x: number;
+  y: number;
+}
+
+// RGB颜色
+export interface Rgb {
+  r: number;
+  g: number;
+  b: number;
+}
+
+// 校准板规格
+export interface BoardSpec {
+  name: string;
+  rows: number;
+  cols: number;
+  cellSizeMm: number;
+  layerHeightMm: number;
+  cells: BoardCell[];
+}
+
+// 校准板格子
+export interface BoardCell {
+  row: number;
+  col: number;
+  targetRgb: Rgb;
+  recipe: Record<string, number>;
+}
+
+// 校准板列表项
+export interface BoardItem {
+  path: string;
+  name: string;
+  rows: number;
+  cols: number;
+  modifiedAt: string;
+}
+
+// 校正参数
+export interface WarpParams {
+  specPath: string;
+  cornerPoints: Point[];
+  rotationCount: number;
+}
+
+// 样本格子
+export interface SampleCell {
+  row: number;
+  col: number;
+  enabled: boolean;
+  measuredRgb: Rgb;
+  targetRgb: Rgb;
+  recipe: Record<string, number>;
+}
+
+// 样本数据集
+export interface SampleDataset {
+  version: string;
+  specName: string;
+  rows: number;
+  cols: number;
+  warpedImage: string;
+  specPath: string;
+  patchedPath: string | null;
+  cells: SampleCell[];
+}
+
+// 训练配置
+export interface TrainingConfig {
+  datasetPaths: string[];
+  materialGroupId: string;
+  layerHeightMm: number;
+  opticalModel: 'rts' | 'four_flux' | 'tmm';
+  useVulkan: boolean;
+  gprParams?: GprParams;
+}
+
+// GPR参数
+export interface GprParams {
+  kernel: string;
+  lengthScale: number;
+  noiseLevel: number;
+}
+
+// 训练进度
+export interface TrainingProgress {
+  epoch: number;
+  totalEpochs: number;
+  loss: number;
+  avgDeltaE: number;
+}
+
+// 训练好的模型
+export interface ModelItem {
+  path: string;
+  name: string;
+  materialGroup: string;
+  layerHeightMm: number;
+  avgDeltaE: number;
+  trainedAt: string;
+}
+
+// 颜色模型
+export interface ColorModel {
+  version: string;
+  materialGroup: string;
+  layerHeightMm: number;
+  trainingStats: {
+    epochs: number;
+    finalLoss: number;
+    avgDeltaE: number;
+  };
+  modelParams: any;
 }

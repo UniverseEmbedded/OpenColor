@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class ErrorInfo:
     """错误信息结构。"""
+
     code: str
     message: str
     suggestion: str = ""
@@ -44,7 +45,6 @@ ERROR_CODES = {
         "message": "参数错误",
         "suggestion": "请检查参数是否完整且有效",
     },
-    
     # 任务相关错误
     "E_JOB": {
         "message": "任务执行失败",
@@ -54,7 +54,6 @@ ERROR_CODES = {
         "message": "任务已被取消",
         "suggestion": "任务已被用户取消",
     },
-    
     # 文件相关错误
     "E_FILE_NOT_FOUND": {
         "message": "文件不存在",
@@ -68,7 +67,6 @@ ERROR_CODES = {
         "message": "文件写入失败",
         "suggestion": "请检查磁盘空间和写入权限",
     },
-    
     # 参数相关错误
     "E_INVALID_PARAM": {
         "message": "参数无效",
@@ -78,7 +76,6 @@ ERROR_CODES = {
         "message": "缺少必需参数",
         "suggestion": "请提供所有必需的参数",
     },
-    
     # 处理相关错误
     "E_PROCESSING": {
         "message": "处理失败",
@@ -131,14 +128,14 @@ def export_diagnostic_package(
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # 生成诊断包文件名
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     diag_filename = f"diagnostic_{timestamp}.zip"
     diag_path = output_path / diag_filename
-    
+
     import zipfile
-    
+
     diagnostic_data = {
         "error": {
             "code": error_info.code,
@@ -148,7 +145,7 @@ def export_diagnostic_package(
         },
         "diagnostics": collect_diagnostic_info(),
     }
-    
+
     try:
         with zipfile.ZipFile(diag_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             # 添加诊断信息 JSON
@@ -156,13 +153,13 @@ def export_diagnostic_package(
                 "diagnostic_info.json",
                 json.dumps(diagnostic_data, ensure_ascii=False, indent=2),
             )
-            
+
             # 添加堆栈跟踪
             zf.writestr(
                 "traceback.txt",
                 traceback.format_exc(),
             )
-            
+
             # 添加额外文件
             if extra_files:
                 for file_path in extra_files:
@@ -173,7 +170,7 @@ def export_diagnostic_package(
         sys.stderr.write(f"[错误] 导出诊断包失败: {e}\n")
         sys.stderr.flush()
         raise
-    
+
     return str(diag_path)
 
 
@@ -183,5 +180,7 @@ def log_error(error_info: ErrorInfo) -> None:
     if error_info.suggestion:
         sys.stderr.write(f"[建议] {error_info.suggestion}\n")
     if error_info.details:
-        sys.stderr.write(f"[详情] {json.dumps(error_info.details, ensure_ascii=False)}\n")
+        sys.stderr.write(
+            f"[详情] {json.dumps(error_info.details, ensure_ascii=False)}\n"
+        )
     sys.stderr.flush()

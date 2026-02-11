@@ -12,7 +12,7 @@ from oc_calib.calibration import (
     WarpParams,
     perspective_warp_bgr,
     render_grid_overlay_bgr,
-    extract_lut_from_warped_bgr
+    extract_lut_from_warped_bgr,
 )
 from oc_calib.calib_types import BoardSpec, Observation, create_legacy_32x32_spec
 from oc_scripts.calibration.color_board.calib_geom import detect_board_quad_by_chroma
@@ -71,12 +71,16 @@ def _load_board_spec(params: Dict[str, Any]) -> BoardSpec:
         return BoardSpec.load(Path(str(board_spec_path)))
 
     if board_id:
-        raise ValueError("未找到指定 board_id，请传入 board_spec_json 或 board_spec_path")
+        raise ValueError(
+            "未找到指定 board_id，请传入 board_spec_json 或 board_spec_path"
+        )
 
     return create_legacy_32x32_spec()
 
 
-def handle_lut_detect(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_lut_detect(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理 LUT 检测：自动识别色盘角点
 
     通过颜色分析自动识别照片中色盘的四角位置
@@ -110,12 +114,12 @@ def handle_lut_detect(job: Job, params: Dict[str, Any], progress: Callable[[floa
         raise RuntimeError(f"自动角点识别失败: {e}")
 
     progress(1.0, "done", "识别完成")
-    return {
-        "corner_points": pts
-    }
+    return {"corner_points": pts}
 
 
-def handle_lut_extract(job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]) -> Dict[str, Any]:
+def handle_lut_extract(
+    job: Job, params: Dict[str, Any], progress: Callable[[float, str, str], None]
+) -> Dict[str, Any]:
     """处理 LUT 提取：从照片中提取颜色查找表
 
     根据用户指定的四角坐标，对照片进行透视校正，
@@ -173,7 +177,12 @@ def handle_lut_extract(job: Job, params: Dict[str, Any], progress: Callable[[flo
     cv2.imwrite(str(warped_path), warped)
 
     progress(0.7, "lut", "提取 LUT")
-    lut = extract_lut_from_warped_bgr(warped, total_cells=wp.total_cells, data_cells=data_cells, window_px=int(params.get("window_px", 8)))
+    lut = extract_lut_from_warped_bgr(
+        warped,
+        total_cells=wp.total_cells,
+        data_cells=data_cells,
+        window_px=int(params.get("window_px", 8)),
+    )
     lut_path = out_dir / "lut.npy"
     np.save(str(lut_path), lut)
 

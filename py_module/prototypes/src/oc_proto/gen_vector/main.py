@@ -60,7 +60,9 @@ def _rmtree_retry(p: Path, *, tries: int = 8, wait_s: float = 0.2) -> None:
         except PermissionError as e:
             if i >= int(tries) - 1:
                 raise
-            logger.error(f"警告: 删除目录失败(可能被占用)，将重试 {i + 1}/{tries}: {p}，原因={e}")
+            logger.error(
+                f"警告: 删除目录失败(可能被占用)，将重试 {i + 1}/{tries}: {p}，原因={e}"
+            )
             time.sleep(float(wait_s))
 
 
@@ -72,7 +74,9 @@ def _unlink_retry(p: Path, *, tries: int = 8, wait_s: float = 0.2) -> None:
         except PermissionError as e:
             if i >= int(tries) - 1:
                 raise
-            logger.error(f"警告: 删除文件失败(可能被占用)，将重试 {i + 1}/{tries}: {p}，原因={e}")
+            logger.error(
+                f"警告: 删除文件失败(可能被占用)，将重试 {i + 1}/{tries}: {p}，原因={e}"
+            )
             time.sleep(float(wait_s))
 
 
@@ -173,18 +177,24 @@ def run(
             return False
 
     if is_default_input:
-        mask_run_dir = select_latest_subdir(mask_input_path, required_relpaths=["mask_manifest.json", "02_masks"])
+        mask_run_dir = select_latest_subdir(
+            mask_input_path, required_relpaths=["mask_manifest.json", "02_masks"]
+        )
         if mask_run_dir is None and _looks_like_mask_run_dir(mask_input_path):
             mask_run_dir = mask_input_path
     else:
         if _looks_like_mask_run_dir(mask_input_path):
             mask_run_dir = mask_input_path
         else:
-            mask_run_dir = select_latest_subdir(mask_input_path, required_relpaths=["mask_manifest.json", "02_masks"])
+            mask_run_dir = select_latest_subdir(
+                mask_input_path, required_relpaths=["mask_manifest.json", "02_masks"]
+            )
 
     if mask_run_dir is None:
         print_ts(f"[错误] 未在输入目录中找到可用的掩码运行子目录: {mask_input_path}")
-        print_ts("[提示] 期望目录结构: <out>/<文件名>_<hash6>/mask_manifest.json 与 02_masks/")
+        print_ts(
+            "[提示] 期望目录结构: <out>/<文件名>_<hash6>/mask_manifest.json 与 02_masks/"
+        )
         return
 
     manifest_path = mask_run_dir / "mask_manifest.json"
@@ -216,12 +226,16 @@ def run(
         mask_dir, vtracer_dir, poly_dir = _prepare_dirs(out_dir)
     except PermissionError as e:
         out_dir = _make_fallback_out_dir()
-        logger.warning(f"警告: 输出目录被占用，无法清理旧文件，将改为写入新目录: {out_dir}，原因={e}")
+        logger.warning(
+            f"警告: 输出目录被占用，无法清理旧文件，将改为写入新目录: {out_dir}，原因={e}"
+        )
         mask_dir, vtracer_dir, poly_dir = _prepare_dirs(out_dir)
 
     print_ts("[信息] 正在同步掩码文件...")
     mask_files = list((mask_run_dir / "02_masks").glob("*.png"))
-    for m_file in _tqdm(mask_files, total=len(mask_files), desc="同步 02_masks", enabled=progress):
+    for m_file in _tqdm(
+        mask_files, total=len(mask_files), desc="同步 02_masks", enabled=progress
+    ):
         shutil.copy2(m_file, mask_dir / m_file.name)
 
     print_ts(f"[信息] 掩码同步完成: 数量={len(mask_files)}")
@@ -232,7 +246,9 @@ def run(
     n_layers = manifest["n_layers"]
     slot_names = manifest["slot_names"]
     layer_height_mm = manifest.get("layer_height_mm")
-    print_ts(f"[信息] 参数: pixel={pixel_w}x{pixel_h}, board_mm={float(board_mm):.3f}, layers={int(n_layers)}, slots={len(slot_names)}")
+    print_ts(
+        f"[信息] 参数: pixel={pixel_w}x{pixel_h}, board_mm={float(board_mm):.3f}, layers={int(n_layers)}, slots={len(slot_names)}"
+    )
 
     slot_preview_rgb = manifest.get("slot_preview_rgb")
 
@@ -249,7 +265,9 @@ def run(
                     s = 1
                 full_mask_bin_hi = np.repeat(np.repeat(fm_bin, s, axis=0), s, axis=1)
         except Exception as e:
-            logger.error(f"[警告] reconcile 读取 full_mask.png 失败，将跳过 reconcile。原因={e}")
+            logger.error(
+                f"[警告] reconcile 读取 full_mask.png 失败，将跳过 reconcile。原因={e}"
+            )
             traceback.print_exc()
             full_mask_bin_hi = None
 
@@ -274,15 +292,23 @@ def run(
                 vtracer_params[k] = v
 
     if int(vtracer_params.get("input_scale", 1)) != 1:
-        logger.warning(f"警告: 检测到 vtracer 输入mask超分 input_scale={vtracer_params.get('input_scale')}，为了避免像素轮廓问题，已强制关闭(设为 1)。")
+        logger.warning(
+            f"警告: 检测到 vtracer 输入mask超分 input_scale={vtracer_params.get('input_scale')}，为了避免像素轮廓问题，已强制关闭(设为 1)。"
+        )
         vtracer_params["input_scale"] = 1
 
-    logger.info(f"开始处理 [矢量化] 阶段: {manifest['image_name']} (重采样: {'启用' if resample else '禁用'})")
+    logger.info(
+        f"开始处理 [矢量化] 阶段: {manifest['image_name']} (重采样: {'启用' if resample else '禁用'})"
+    )
     logger.info(f"本次矢量化后端: {str(vector_backend).strip().lower()}")
-    logger.info(f"vtracer参数: colormode={vtracer_params.get('colormode')}, mode={vtracer_params.get('mode')}, filter_speckle={vtracer_params.get('filter_speckle')}, corner_threshold={vtracer_params.get('corner_threshold')}, length_threshold={vtracer_params.get('length_threshold')}, input_scale={vtracer_params.get('input_scale')}")
-    logger.info(f"cv2参数: simplify_mm={float(cv2_simplify_mm)}, min_area_px={int(cv2_min_area_px)}")
+    logger.info(
+        f"vtracer参数: colormode={vtracer_params.get('colormode')}, mode={vtracer_params.get('mode')}, filter_speckle={vtracer_params.get('filter_speckle')}, corner_threshold={vtracer_params.get('corner_threshold')}, length_threshold={vtracer_params.get('length_threshold')}, input_scale={vtracer_params.get('input_scale')}"
+    )
+    logger.info(
+        f"cv2参数: simplify_mm={float(cv2_simplify_mm)}, min_area_px={int(cv2_min_area_px)}"
+    )
 
-    use_cpp = (str(impl).strip().lower() == "cpp")
+    use_cpp = str(impl).strip().lower() == "cpp"
     logger.info(f"本次运行后端选择: {'C++' if use_cpp else 'Python'}")
 
     jobs_req = int(jobs)
@@ -324,7 +350,12 @@ def run(
             )
             if fm_polys:
                 full_mask_poly = unary_union(fm_polys)
-                save_svg(full_mask_poly, poly_dir / "full_mask_ref_poly_final.svg", board_mm, board_mm)
+                save_svg(
+                    full_mask_poly,
+                    poly_dir / "full_mask_ref_poly_final.svg",
+                    board_mm,
+                    board_mm,
+                )
                 logger.info(f"DEBUG: 全局参考边界 (full_mask) 矢量化完成。")
 
     # 逐层处理
@@ -334,7 +365,9 @@ def run(
 
         layer_sum = np.zeros((pixel_h, pixel_w), dtype=np.uint16)
         t_layer0 = perf_counter()
-        it_slots = _tqdm(slot_names, total=len(slot_names), desc=f"L{z:02d} 矢量化", enabled=progress)
+        it_slots = _tqdm(
+            slot_names, total=len(slot_names), desc=f"L{z:02d} 矢量化", enabled=progress
+        )
         for slot_name in it_slots:
             prefix = f"L{z:02d}_{slot_name}"
             mask_path = mask_dir / f"{prefix}_mask.png"
@@ -381,7 +414,9 @@ def run(
         # 并行或串行矢量化
         if jobs_req >= 2 and len(slot_inputs) >= 2:
             logger.info(f"L{z:02d} 层：开始并行矢量化，任务数={len(slot_inputs)}")
-            with concurrent.futures.ProcessPoolExecutor(max_workers=min(jobs_req, len(slot_inputs))) as ex:
+            with concurrent.futures.ProcessPoolExecutor(
+                max_workers=min(jobs_req, len(slot_inputs))
+            ) as ex:
                 futs = []
                 for slot_name, prefix, mp in slot_inputs:
                     futs.append(
@@ -397,14 +432,18 @@ def run(
                             board_mm=board_mm,
                             pixel_w=pixel_w,
                             pixel_h=pixel_h,
-                            vtracer_dir=str(vtracer_dir) if vtracer_dir is not None else None,
+                            vtracer_dir=str(vtracer_dir)
+                            if vtracer_dir is not None
+                            else None,
                             use_cpp=use_cpp,
                             union_jobs=union_jobs_req,
                         )
                     )
 
                 it = concurrent.futures.as_completed(futs)
-                it = _tqdm(it, total=len(futs), desc=f"L{z:02d} 矢量化(并行)", enabled=progress)
+                it = _tqdm(
+                    it, total=len(futs), desc=f"L{z:02d} 矢量化(并行)", enabled=progress
+                )
                 for f in it:
                     try:
                         slot_name, wkb_bytes, dt = f.result()
@@ -414,7 +453,9 @@ def run(
                         continue
 
                     if dt >= 1.0:
-                        logger.info(f"[信息] L{z:02d}_{slot_name} 矢量化任务完成，用时 {dt:.3f}s")
+                        logger.info(
+                            f"[信息] L{z:02d}_{slot_name} 矢量化任务完成，用时 {dt:.3f}s"
+                        )
 
                     if wkb_bytes is None:
                         continue
@@ -462,50 +503,104 @@ def run(
         logger.info(f"L{z:02d} 层：矢量化完成，用时 {perf_counter() - t_layer0:.3f}s")
 
         # 互斥裁剪
-        layer_polys = _make_layer_exclusive(layer_polys, slot_names_no_bg, grid_size, use_cpp=use_cpp, progress=progress, tag=f"L{z:02d}")
+        layer_polys = _make_layer_exclusive(
+            layer_polys,
+            slot_names_no_bg,
+            grid_size,
+            use_cpp=use_cpp,
+            progress=progress,
+            tag=f"L{z:02d}",
+        )
 
         # 重采样
         if resample and layer_polys:
             try:
-                layer_polys = resample_shared_boundaries(layer_polys, full_mask_poly=full_mask_poly, use_cpp=use_cpp, progress=progress, tag=f"L{z:02d}")
+                layer_polys = resample_shared_boundaries(
+                    layer_polys,
+                    full_mask_poly=full_mask_poly,
+                    use_cpp=use_cpp,
+                    progress=progress,
+                    tag=f"L{z:02d}",
+                )
             except Exception as e:
-                logger.error(f"  [重采样器][错误] 重采样失败，回退到未重采样版本。原因={e}")
+                logger.error(
+                    f"  [重采样器][错误] 重采样失败，回退到未重采样版本。原因={e}"
+                )
 
         if layer_polys:
-            layer_polys = _make_layer_exclusive(layer_polys, slot_names_no_bg, grid_size, use_cpp=use_cpp, progress=progress, tag=f"L{z:02d}")
+            layer_polys = _make_layer_exclusive(
+                layer_polys,
+                slot_names_no_bg,
+                grid_size,
+                use_cpp=use_cpp,
+                progress=progress,
+                tag=f"L{z:02d}",
+            )
 
         # 处理背景
         if background_slot and full_mask_poly is not None:
             ordered_slots = slot_names_no_bg + [background_slot]
             if layer_polys:
                 t_occ0 = perf_counter()
-                occupied = unary_union([p.buffer(0) if not p.is_valid else p for p in layer_polys.values()])
-                print_ts(f"[信息] L{z:02d} 背景计算: 已合并占用区域，用时 {perf_counter() - t_occ0:.3f}s")
+                occupied = unary_union(
+                    [p.buffer(0) if not p.is_valid else p for p in layer_polys.values()]
+                )
+                print_ts(
+                    f"[信息] L{z:02d} 背景计算: 已合并占用区域，用时 {perf_counter() - t_occ0:.3f}s"
+                )
             else:
                 occupied = GeometryCollection()
 
             t_diff0 = perf_counter()
             bg_poly = full_mask_poly.difference(occupied)
-            print_ts(f"[信息] L{z:02d} 背景计算: full_mask - occupied 完成，用时 {perf_counter() - t_diff0:.3f}s")
+            print_ts(
+                f"[信息] L{z:02d} 背景计算: full_mask - occupied 完成，用时 {perf_counter() - t_diff0:.3f}s"
+            )
             if not bg_poly.is_empty:
                 if not bg_poly.is_valid:
                     bg_poly = bg_poly.buffer(0)
                 if not bg_poly.is_empty:
                     layer_polys[background_slot] = bg_poly
 
-            layer_polys = _make_layer_exclusive(layer_polys, ordered_slots, grid_size, use_cpp=use_cpp, progress=progress, tag=f"L{z:02d}")
+            layer_polys = _make_layer_exclusive(
+                layer_polys,
+                ordered_slots,
+                grid_size,
+                use_cpp=use_cpp,
+                progress=progress,
+                tag=f"L{z:02d}",
+            )
 
         # SVG 简化
         if layer_polys:
             _simplify_layer_polys(
-                layer_polys, mask_dir, z, slot_names_no_bg, background_slot,
-                board_mm, pixel_w, pixel_h, grid_size, use_cpp, progress,
-                svg_simplify_level, svg_simplify_max_diff_ratio, svg_simplify_min_diff_px,
-                svg_simplify_tol_px, svg_simplify_perimeter_weight, svg_simplify_max_attempts
+                layer_polys,
+                mask_dir,
+                z,
+                slot_names_no_bg,
+                background_slot,
+                board_mm,
+                pixel_w,
+                pixel_h,
+                grid_size,
+                use_cpp,
+                progress,
+                svg_simplify_level,
+                svg_simplify_max_diff_ratio,
+                svg_simplify_min_diff_px,
+                svg_simplify_tol_px,
+                svg_simplify_perimeter_weight,
+                svg_simplify_max_attempts,
             )
 
         # Reconcile
-        if layer_polys and bool(reconcile) and full_mask_bin_hi is not None and background_slot is not None and full_mask_poly is not None:
+        if (
+            layer_polys
+            and bool(reconcile)
+            and full_mask_bin_hi is not None
+            and background_slot is not None
+            and full_mask_poly is not None
+        ):
             try:
                 layer_polys = _reconcile_layer_polys_by_raster(
                     layer_polys=layer_polys,
@@ -525,14 +620,26 @@ def run(
                     cv2_min_area_px=int(cv2_min_area_px),
                 )
             except Exception as e:
-                logger.error(f"[警告] L{z:02d} reconcile 失败，已回退到原矢量结果。原因={e}")
+                logger.error(
+                    f"[警告] L{z:02d} reconcile 失败，已回退到原矢量结果。原因={e}"
+                )
                 traceback.print_exc()
 
         # 保存结果
         if layer_polys:
             _save_layer_results(
-                layer_polys, vtracer_dir, poly_dir, z, board_mm, pixel_w, pixel_h,
-                jobs_req, mask_dir, slot_names, slot_preview_rgb, preview_4x
+                layer_polys,
+                vtracer_dir,
+                poly_dir,
+                z,
+                board_mm,
+                pixel_w,
+                pixel_h,
+                jobs_req,
+                mask_dir,
+                slot_names,
+                slot_preview_rgb,
+                preview_4x,
             )
 
     # 质量检测
@@ -543,11 +650,16 @@ def run(
         output_dir=out_dir,
         version=VERSION,
         inputs=[manifest["image_name"]],
-        outputs=[str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file()],
+        outputs=[
+            str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file()
+        ],
         params={
             "vector_backend": str(vector_backend).strip().lower(),
             "vtracer_params": vtracer_params,
-            "cv2_params": {"simplify_mm": float(cv2_simplify_mm), "min_area_px": int(cv2_min_area_px)},
+            "cv2_params": {
+                "simplify_mm": float(cv2_simplify_mm),
+                "min_area_px": int(cv2_min_area_px),
+            },
             "svg_simplify_params": {
                 "level": int(svg_simplify_level),
                 "max_diff_ratio": float(svg_simplify_max_diff_ratio),
@@ -561,18 +673,31 @@ def run(
             "slot_names": slot_names,
             "layer_height_mm": layer_height_mm,
             "slot_preview_rgb": slot_preview_rgb,
-            "resample_enabled": resample
-        }
+            "resample_enabled": resample,
+        },
     )
     logger.info(f"完成。矢量化产物已就绪。")
     logger.info(f"输出目录: {out_dir}")
 
 
 def _simplify_layer_polys(
-    layer_polys, mask_dir, z, slot_names_no_bg, background_slot,
-    board_mm, pixel_w, pixel_h, grid_size, use_cpp, progress,
-    svg_simplify_level, svg_simplify_max_diff_ratio, svg_simplify_min_diff_px,
-    svg_simplify_tol_px, svg_simplify_perimeter_weight, svg_simplify_max_attempts
+    layer_polys,
+    mask_dir,
+    z,
+    slot_names_no_bg,
+    background_slot,
+    board_mm,
+    pixel_w,
+    pixel_h,
+    grid_size,
+    use_cpp,
+    progress,
+    svg_simplify_level,
+    svg_simplify_max_diff_ratio,
+    svg_simplify_min_diff_px,
+    svg_simplify_tol_px,
+    svg_simplify_perimeter_weight,
+    svg_simplify_max_attempts,
 ):
     """简化图层多边形"""
     t_simp0 = perf_counter()
@@ -607,7 +732,9 @@ def _simplify_layer_polys(
         min_target_pts = 1500
         post_step_mm = float(base_step_mm) * 2.0
 
-    print_ts(f"[信息] L{z:02d} 开始SVG简化: level={int(svg_simplify_level)} mm_per_px={mm_per_px:.6f}")
+    print_ts(
+        f"[信息] L{z:02d} 开始SVG简化: level={int(svg_simplify_level)} mm_per_px={mm_per_px:.6f}"
+    )
 
     simplified = {}
     total_before = 0
@@ -627,14 +754,22 @@ def _simplify_layer_polys(
                 return 0
             gt = getattr(g, "geom_type", "")
             if gt == "Polygon":
-                n = int(len(g.exterior.coords)) if getattr(g, "exterior", None) is not None else 0
+                n = (
+                    int(len(g.exterior.coords))
+                    if getattr(g, "exterior", None) is not None
+                    else 0
+                )
                 for ring in getattr(g, "interiors", []) or []:
                     n += int(len(ring.coords))
                 return n
             if gt == "MultiPolygon":
-                return sum(_count_geom_points(gg) for gg in getattr(g, "geoms", []) or [])
+                return sum(
+                    _count_geom_points(gg) for gg in getattr(g, "geoms", []) or []
+                )
             if gt == "GeometryCollection":
-                return sum(_count_geom_points(gg) for gg in getattr(g, "geoms", []) or [])
+                return sum(
+                    _count_geom_points(gg) for gg in getattr(g, "geoms", []) or []
+                )
             return 0
 
         before_pts = _count_geom_points(p0)
@@ -648,19 +783,29 @@ def _simplify_layer_polys(
         px_per_mm = float(pixel_w) / float(board_mm)
         base_tol_mm = float(base_step_mm) * float(tol_factor)
         per = float(getattr(p0, "length", 0.0))
-        base_tol_mm = float(base_tol_mm) + float(svg_simplify_perimeter_weight) * float(per / float(max(int(before_pts), 1)))
-        base_tol_mm = float(min(float(step_cap_mm), float(max(base_tol_mm, float(mm_per_px) * 0.25))))
+        base_tol_mm = float(base_tol_mm) + float(svg_simplify_perimeter_weight) * float(
+            per / float(max(int(before_pts), 1))
+        )
+        base_tol_mm = float(
+            min(float(step_cap_mm), float(max(base_tol_mm, float(mm_per_px) * 0.25)))
+        )
 
         try:
-            orig_r = rasterize_geometry_soft(p0, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1)
+            orig_r = rasterize_geometry_soft(
+                p0, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1
+            )
         except Exception as e:
-            logger.error(f"[错误] L{z:02d} SVG简化：原始多边形栅格化失败，slot={slot_name}，原因={e}")
+            logger.error(
+                f"[错误] L{z:02d} SVG简化：原始多边形栅格化失败，slot={slot_name}，原因={e}"
+            )
             simplified[slot_name] = p0
             total_after += int(before_pts)
             continue
 
         if orig_r is None:
-            logger.error(f"[错误] L{z:02d} SVG简化：原始多边形栅格化返回None，slot={slot_name}")
+            logger.error(
+                f"[错误] L{z:02d} SVG简化：原始多边形栅格化返回None，slot={slot_name}"
+            )
             simplified[slot_name] = p0
             total_after += int(before_pts)
             continue
@@ -672,7 +817,11 @@ def _simplify_layer_polys(
             total_after += int(before_pts)
             continue
 
-        slot_target_ratio = float(target_ratio_black) if str(slot_name).upper() == "BLACK" else float(target_ratio)
+        slot_target_ratio = (
+            float(target_ratio_black)
+            if str(slot_name).upper() == "BLACK"
+            else float(target_ratio)
+        )
         best = None
         best_pts = int(before_pts)
         best_tol = None
@@ -696,9 +845,13 @@ def _simplify_layer_polys(
                 continue
 
             try:
-                cand_r = rasterize_geometry_soft(cand, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1)
+                cand_r = rasterize_geometry_soft(
+                    cand, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1
+                )
             except Exception as e:
-                logger.error(f"[错误] L{z:02d} SVG简化：候选多边形栅格化失败，slot={slot_name} tol={tol_mm:.6f}mm，原因={e}")
+                logger.error(
+                    f"[错误] L{z:02d} SVG简化：候选多边形栅格化失败，slot={slot_name} tol={tol_mm:.6f}mm，原因={e}"
+                )
                 continue
 
             if cand_r is None:
@@ -708,7 +861,9 @@ def _simplify_layer_polys(
             diff_px = int(np.count_nonzero(orig_b ^ cand_b))
             diff_ratio = float(diff_px) / float(max(orig_fg, 1))
 
-            if (diff_px <= int(svg_simplify_min_diff_px)) or (diff_ratio <= float(svg_simplify_max_diff_ratio)):
+            if (diff_px <= int(svg_simplify_min_diff_px)) or (
+                diff_ratio <= float(svg_simplify_max_diff_ratio)
+            ):
                 best = cand
                 best_pts = int(after_pts)
                 best_tol = float(tol_mm)
@@ -743,8 +898,18 @@ def _simplify_layer_polys(
 
 
 def _save_layer_results(
-    layer_polys, vtracer_dir, poly_dir, z, board_mm, pixel_w, pixel_h,
-    jobs_req, mask_dir, slot_names, slot_preview_rgb, preview_4x
+    layer_polys,
+    vtracer_dir,
+    poly_dir,
+    z,
+    board_mm,
+    pixel_w,
+    pixel_h,
+    jobs_req,
+    mask_dir,
+    slot_names,
+    slot_preview_rgb,
+    preview_4x,
 ):
     """保存图层结果"""
     t_save0 = perf_counter()
@@ -755,10 +920,17 @@ def _save_layer_results(
         prefix = f"L{z:02d}_{slot_name}"
         tool_svg_path = vtracer_dir / f"{prefix}_vtracer_tool.svg"
         try:
-            svg_text = _mm_geom_to_vtracer_tool_svg_text(final_poly, board_mm=float(board_mm), pixel_w=int(pixel_w), pixel_h=int(pixel_h))
+            svg_text = _mm_geom_to_vtracer_tool_svg_text(
+                final_poly,
+                board_mm=float(board_mm),
+                pixel_w=int(pixel_w),
+                pixel_h=int(pixel_h),
+            )
             tool_svg_path.write_text(svg_text, encoding="utf-8")
         except Exception as e:
-            logger.error(f"[错误] 写回最终vtracer_tool.svg失败: layer=L{z:02d}, slot={slot_name}, 原因={e}")
+            logger.error(
+                f"[错误] 写回最终vtracer_tool.svg失败: layer=L{z:02d}, slot={slot_name}, 原因={e}"
+            )
             traceback.print_exc()
 
     # 栅格化
@@ -767,13 +939,21 @@ def _save_layer_results(
         save_svg(final_poly, poly_dir / f"{prefix}_poly_final.svg", board_mm, board_mm)
         px_per_mm = float(pixel_w) / board_mm
 
-        raster = rasterize_geometry_soft(final_poly, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1)
+        raster = rasterize_geometry_soft(
+            final_poly, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1
+        )
         if raster is not None:
-            Image.fromarray((raster * 255).astype(np.uint8)).save(poly_dir / f"{prefix}_poly_raster.png")
+            Image.fromarray((raster * 255).astype(np.uint8)).save(
+                poly_dir / f"{prefix}_poly_raster.png"
+            )
 
-        raster_4x = rasterize_geometry_soft(final_poly, pixel_w * 4, pixel_h * 4, board_mm, px_per_mm * 4, supersample=1)
+        raster_4x = rasterize_geometry_soft(
+            final_poly, pixel_w * 4, pixel_h * 4, board_mm, px_per_mm * 4, supersample=1
+        )
         if raster_4x is not None:
-            Image.fromarray((raster_4x * 255).astype(np.uint8)).save(poly_dir / f"{prefix}_poly_raster_4x.png")
+            Image.fromarray((raster_4x * 255).astype(np.uint8)).save(
+                poly_dir / f"{prefix}_poly_raster_4x.png"
+            )
 
     print_ts(f"[信息] L{z:02d} 栅格化落盘完成，用时 {perf_counter() - t_save0:.3f}s")
 
@@ -812,22 +992,81 @@ def _run_quality_checks(mask_dir, poly_dir, full_mask):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenColor vtracer 矢量化器")
-    parser.add_argument("--input", type=str, default=None, help="gen_masks 的输出目录 (默认自动寻找)")
-    parser.add_argument("--vector-backend", type=str, default="cv2", choices=["cv2", "vtracer"], help="矢量化后端")
-    parser.add_argument("--cv2-simplify-mm", type=float, default=0.1, help="cv2 轮廓简化阈值(mm)")
-    parser.add_argument("--cv2-min-area-px", type=int, default=4, help="cv2 轮廓最小面积阈值(px^2)")
-    parser.add_argument("--impl", type=str, default="cpp", choices=["cpp", "python"], help="选择几何计算实现")
-    parser.add_argument("--jobs", type=int, default=0, help="并行矢量化任务数，0 表示自动")
-    parser.add_argument("--union-jobs", type=int, default=0, help="C++并集分块并行任务数，0 表示自动")
-    parser.add_argument("--no-progress", action="store_true", help="关闭进度条与耗时预估输出")
-    parser.add_argument("--preview-4x", action="store_true", default=False, help="生成每层彩色预览图(4x)")
-    parser.add_argument("--reconcile", action="store_true", default=False, help="启用 reconcile(默认禁用，谨慎使用)")
-    parser.add_argument("--no-reconcile", action="store_false", dest="reconcile", help="禁用 reconcile")
-    parser.add_argument("--reconcile-scale", type=int, default=2, help="reconcile 栅格分辨率倍率")
-    parser.add_argument("--reconcile-cv2-simplify-mm", type=float, default=0.05, help="reconcile 后 cv2 轮廓简化阈值(mm)")
-    parser.add_argument("--resample", action="store_true", default=True, help="启用共享边界重采样 (默认)")
-    parser.add_argument("--no-resample", action="store_false", dest="resample", help="禁用共享边界重采样")
-    parser.add_argument("--svg-simplify-level", type=int, default=3, choices=[1, 2, 3], help="SVG简化强度等级")
+    parser.add_argument(
+        "--input", type=str, default=None, help="gen_masks 的输出目录 (默认自动寻找)"
+    )
+    parser.add_argument(
+        "--vector-backend",
+        type=str,
+        default="cv2",
+        choices=["cv2", "vtracer"],
+        help="矢量化后端",
+    )
+    parser.add_argument(
+        "--cv2-simplify-mm", type=float, default=0.1, help="cv2 轮廓简化阈值(mm)"
+    )
+    parser.add_argument(
+        "--cv2-min-area-px", type=int, default=4, help="cv2 轮廓最小面积阈值(px^2)"
+    )
+    parser.add_argument(
+        "--impl",
+        type=str,
+        default="cpp",
+        choices=["cpp", "python"],
+        help="选择几何计算实现",
+    )
+    parser.add_argument(
+        "--jobs", type=int, default=0, help="并行矢量化任务数，0 表示自动"
+    )
+    parser.add_argument(
+        "--union-jobs", type=int, default=0, help="C++并集分块并行任务数，0 表示自动"
+    )
+    parser.add_argument(
+        "--no-progress", action="store_true", help="关闭进度条与耗时预估输出"
+    )
+    parser.add_argument(
+        "--preview-4x",
+        action="store_true",
+        default=False,
+        help="生成每层彩色预览图(4x)",
+    )
+    parser.add_argument(
+        "--reconcile",
+        action="store_true",
+        default=False,
+        help="启用 reconcile(默认禁用，谨慎使用)",
+    )
+    parser.add_argument(
+        "--no-reconcile", action="store_false", dest="reconcile", help="禁用 reconcile"
+    )
+    parser.add_argument(
+        "--reconcile-scale", type=int, default=2, help="reconcile 栅格分辨率倍率"
+    )
+    parser.add_argument(
+        "--reconcile-cv2-simplify-mm",
+        type=float,
+        default=0.05,
+        help="reconcile 后 cv2 轮廓简化阈值(mm)",
+    )
+    parser.add_argument(
+        "--resample",
+        action="store_true",
+        default=True,
+        help="启用共享边界重采样 (默认)",
+    )
+    parser.add_argument(
+        "--no-resample",
+        action="store_false",
+        dest="resample",
+        help="禁用共享边界重采样",
+    )
+    parser.add_argument(
+        "--svg-simplify-level",
+        type=int,
+        default=3,
+        choices=[1, 2, 3],
+        help="SVG简化强度等级",
+    )
 
     args = parser.parse_args()
 

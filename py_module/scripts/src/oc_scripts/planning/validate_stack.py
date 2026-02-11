@@ -90,14 +90,15 @@ def parse_heights(s: str) -> List[float]:
 @dataclass(frozen=True)
 class CaseResult:
     """测试结果数据类"""
-    rgba: RGBA                    # 输入RGBA颜色
-    seq: List[str]                # 材料序列
-    heights: List[float]          # 层高度列表
-    fast_pred: Tuple[int, int, int]   # 快速模型预测颜色
-    phys_pred: Tuple[int, int, int]   # 物理模型预测颜色
-    loss_fast_to_target: float    # 快速模型到目标的损失
-    loss_phys_to_target: float    # 物理模型到目标的损失
-    loss_phys_to_fast: float      # 物理模型到快速模型的损失
+
+    rgba: RGBA  # 输入RGBA颜色
+    seq: List[str]  # 材料序列
+    heights: List[float]  # 层高度列表
+    fast_pred: Tuple[int, int, int]  # 快速模型预测颜色
+    phys_pred: Tuple[int, int, int]  # 物理模型预测颜色
+    loss_fast_to_target: float  # 快速模型到目标的损失
+    loss_phys_to_target: float  # 物理模型到目标的损失
+    loss_phys_to_fast: float  # 物理模型到快速模型的损失
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -105,8 +106,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="验证快速堆叠预测与物理前向模型的一致性")
     ap.add_argument("--mode", default="rgbw")
     ap.add_argument("--layers", type=int, default=5, help="micro-layer count")
-    ap.add_argument("--first-layer-height", type=float, default=0.12, help="mm for first layer (risk: can hide thin details)")
-    ap.add_argument("--layer-height", type=float, default=0.08, help="mm per layer (except first)")
+    ap.add_argument(
+        "--first-layer-height",
+        type=float,
+        default=0.12,
+        help="mm for first layer (risk: can hide thin details)",
+    )
+    ap.add_argument(
+        "--layer-height", type=float, default=0.08, help="mm per layer (except first)"
+    )
     ap.add_argument("--pattern", default="balanced", choices=["balanced", "grouped"])
     ap.add_argument("--alpha-background", default="white", choices=["white", "black"])
     ap.add_argument("--view", default="top", choices=["top", "bottom"])
@@ -126,13 +134,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--samples-preview", type=int, default=None)
     args = ap.parse_args(argv)
 
-    samples = int(args.samples_preview) if args.samples_preview is not None else int(args.samples)
+    samples = (
+        int(args.samples_preview)
+        if args.samples_preview is not None
+        else int(args.samples)
+    )
     inputs = _iter_inputs(args.rgba, args.hex)
 
     lib = planner.load_materials(args.materials_json)
     mode_key = str(args.mode).strip().lower()
     if mode_key not in lib.modes:
-        raise SystemExit(f"Unknown mode: {args.mode} (available: {sorted(lib.modes.keys())})")
+        raise SystemExit(
+            f"Unknown mode: {args.mode} (available: {sorted(lib.modes.keys())})"
+        )
 
     if args.seq is not None or args.heights is not None:
         if args.seq is None or args.heights is None:
@@ -143,7 +157,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if len(seq) != len(heights):
             raise SystemExit("len(seq) must match len(heights)")
 
-        fast_lin = planner.predict_rgb_fast_from_sequence(lib.fast, seq, heights, view=str(args.view), backing=str(args.backing))
+        fast_lin = planner.predict_rgb_fast_from_sequence(
+            lib.fast, seq, heights, view=str(args.view), backing=str(args.backing)
+        )
         fast_srgb = planner._rgb_lin_to_int_srgb(fast_lin)
         phys_lin, _res = planner.forward_rgb(
             seq=seq,
@@ -157,16 +173,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         phys_srgb = planner._rgb_lin_to_int_srgb(phys_lin)
         loss_phys_to_fast = planner.loss_rgb(phys_lin, fast_lin)
 
-        logger.info(f"samples={samples} mode={mode_key} view={args.view} backing={args.backing}")
+        logger.info(
+            f"samples={samples} mode={mode_key} view={args.view} backing={args.backing}"
+        )
         logger.info(f"seq={'-'.join(seq)}")
-        logger.info(f"fast_pred={fast_srgb} phys_pred={phys_srgb} loss_phys_to_fast={loss_phys_to_fast:.6f}")
+        logger.info(
+            f"fast_pred={fast_srgb} phys_pred={phys_srgb} loss_phys_to_fast={loss_phys_to_fast:.6f}"
+        )
 
         if inputs:
             if len(inputs) != 1:
-                raise SystemExit("Provide exactly one --rgba/--hex when validating a fixed seq")
-            target = planner.rgba_to_linear_target(inputs[0], alpha_background=str(args.alpha_background))
-            logger.info("loss_fast_to_target=%.6f loss_phys_to_target=%.6f"
-                % (planner.loss_rgb(fast_lin, target), planner.loss_rgb(phys_lin, target))
+                raise SystemExit(
+                    "Provide exactly one --rgba/--hex when validating a fixed seq"
+                )
+            target = planner.rgba_to_linear_target(
+                inputs[0], alpha_background=str(args.alpha_background)
+            )
+            logger.info(
+                "loss_fast_to_target=%.6f loss_phys_to_target=%.6f"
+                % (
+                    planner.loss_rgb(fast_lin, target),
+                    planner.loss_rgb(phys_lin, target),
+                )
             )
         return 0
 
@@ -199,7 +227,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             seed=int(args.seed) + 10007 * i,
             materials_json=args.materials_json,
         )
-        target = planner.rgba_to_linear_target(rgba, alpha_background=str(args.alpha_background))
+        target = planner.rgba_to_linear_target(
+            rgba, alpha_background=str(args.alpha_background)
+        )
         loss_fast_to_target = planner.loss_rgb(p.pred_rgb_lin, target)
         loss_phys_to_target = planner.loss_rgb(pred_lin_phys, target)
         loss_phys_to_fast = planner.loss_rgb(pred_lin_phys, p.pred_rgb_lin)
@@ -221,9 +251,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     avg_df = sum(r.loss_phys_to_fast for r in results) / max(1, len(results))
     avg_dt = sum(r.loss_phys_to_target for r in results) / max(1, len(results))
 
-    logger.info(f"cases={len(results)} samples={samples} mode={mode_key} view={args.view} backing={args.backing}")
-    logger.info(f"avg_loss_phys_to_fast={avg_df:.6f} avg_loss_phys_to_target={avg_dt:.6f}")
-    logger.info("worst: rgba=%s seq=%s fast=%s phys=%s loss_phys_to_fast=%.6f loss_phys_to_target=%.6f"
+    logger.info(
+        f"cases={len(results)} samples={samples} mode={mode_key} view={args.view} backing={args.backing}"
+    )
+    logger.info(
+        f"avg_loss_phys_to_fast={avg_df:.6f} avg_loss_phys_to_target={avg_dt:.6f}"
+    )
+    logger.info(
+        "worst: rgba=%s seq=%s fast=%s phys=%s loss_phys_to_fast=%.6f loss_phys_to_target=%.6f"
         % (
             worst.rgba,
             "-".join(worst.seq),
@@ -238,4 +273,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

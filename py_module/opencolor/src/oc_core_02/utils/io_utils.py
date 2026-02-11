@@ -12,10 +12,11 @@ import time
 from pathlib import Path
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _ts_now_str() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -46,6 +47,7 @@ def start_heartbeat(name: str, interval_sec: float = 30.0, extra_info_fn=None):
                 except Exception as e:
                     print_ts(f"[警告] 心跳附加信息获取失败: {e}")
                     import traceback
+
                     traceback.print_exc()
                     extra = ""
             print_ts(f"[报时] {name} 已运行 {dt:.1f}s{extra}")
@@ -54,25 +56,28 @@ def start_heartbeat(name: str, interval_sec: float = 30.0, extra_info_fn=None):
     t.start()
     return stop_event
 
+
 def get_file_hash(filepath):
     """计算文件 SHA256"""
     hasher = hashlib.sha256()
-    with open(filepath, 'rb') as f:
+    with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hasher.update(chunk)
     return hasher.hexdigest()
+
 
 def setup_simple_logging(log_path):
     """设置简单的日志记录"""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
+        format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
-            logging.FileHandler(log_path, encoding='utf-8'),
-            logging.StreamHandler()
-        ]
+            logging.FileHandler(log_path, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
     )
     return logging.getLogger()
+
 
 def copy_file(src, dst):
     """安全复制文件并返回目标路径"""

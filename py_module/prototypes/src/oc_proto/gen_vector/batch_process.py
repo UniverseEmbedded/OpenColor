@@ -9,6 +9,7 @@ import traceback
 from pathlib import Path
 
 from loguru import logger as _logger
+
 _logger.remove()
 _logger.add(sys.stderr, format="<level>{message}</level>", level="INFO", colorize=True)
 
@@ -20,7 +21,9 @@ logger = get_logger(__name__)
 
 def main():
     # gen_masks 输出目录
-    gen_masks_out_dir = Path("D:/pama1234/pfp/p-2026-01/OpenColor-05/py_module/prototypes/src/oc_proto/gen_masks/out")
+    gen_masks_out_dir = Path(
+        "D:/pama1234/pfp/p-2026-01/OpenColor-05/py_module/prototypes/src/oc_proto/gen_masks/out"
+    )
 
     if not gen_masks_out_dir.exists():
         logger.error(f"gen_masks 输出目录不存在: {gen_masks_out_dir}")
@@ -33,7 +36,11 @@ def main():
         masks_dir = d / "02_masks"
         return manifest_path.exists() and masks_dir.exists() and masks_dir.is_dir()
 
-    run_dirs = [d for d in gen_masks_out_dir.iterdir() if d.is_dir() and _is_valid_mask_run_dir(d)]
+    run_dirs = [
+        d
+        for d in gen_masks_out_dir.iterdir()
+        if d.is_dir() and _is_valid_mask_run_dir(d)
+    ]
 
     if not run_dirs:
         logger.error(f"在 {gen_masks_out_dir} 中未找到有效的掩码运行目录")
@@ -49,9 +56,9 @@ def main():
 
     for run_dir in sorted(run_dirs):
         run_id = run_dir.name
-        logger.info(f"\n{'='*70}")
+        logger.info(f"\n{'=' * 70}")
         logger.info(f"开始处理: {run_id}")
-        logger.info(f"{'='*70}")
+        logger.info(f"{'=' * 70}")
 
         try:
             run_vector(
@@ -78,11 +85,11 @@ def main():
             fail_count += 1
 
     # 汇总报告
-    logger.info(f"\n{'='*70}")
+    logger.info(f"\n{'=' * 70}")
     logger.info(f"批量处理完成!")
-    logger.info(f"{'='*70}")
+    logger.info(f"{'=' * 70}")
     logger.info(f"成功={success_count}, 失败={fail_count}")
-    logger.info(f"{'='*70}")
+    logger.info(f"{'=' * 70}")
 
 
 if __name__ == "__main__":

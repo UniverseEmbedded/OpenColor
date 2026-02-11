@@ -6,7 +6,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict
 
-from .protocol import make_event_done, make_event_error, make_event_progress, write_json_line
+from .protocol import (
+    make_event_done,
+    make_event_error,
+    make_event_progress,
+    write_json_line,
+)
 
 
 def _now_ms() -> int:
@@ -17,19 +22,20 @@ def _now_ms() -> int:
 @dataclass
 class Job:
     """任务类，表示一个异步任务"""
-    job_id: str      # 任务唯一标识
-    out_dir: str     # 输出目录
+
+    job_id: str  # 任务唯一标识
+    out_dir: str  # 输出目录
     cancelled: bool = field(default=False, init=False)  # 是否已取消
 
 
 class JobManager:
     """任务管理器，用于创建、管理和执行异步任务"""
-    
+
     def __init__(self) -> None:
         """初始化任务管理器"""
-        self._lock = threading.Lock()   # 线程锁，用于保护共享数据
-        self._seq = 0                   # 任务序号计数器
-        self._jobs: Dict[str, Job] = {} # 任务字典，存储所有任务
+        self._lock = threading.Lock()  # 线程锁，用于保护共享数据
+        self._seq = 0  # 任务序号计数器
+        self._jobs: Dict[str, Job] = {}  # 任务字典，存储所有任务
 
     def create_job(self, out_dir: str) -> Job:
         """创建一个新任务"""
@@ -54,8 +60,13 @@ class JobManager:
         with self._lock:
             self._jobs.pop(job_id, None)
 
-    def run_async(self, job: Job, handler: Callable[[Job, Callable[[float, str, str], None]], Dict[str, Any]]) -> None:
+    def run_async(
+        self,
+        job: Job,
+        handler: Callable[[Job, Callable[[float, str, str], None]], Dict[str, Any]],
+    ) -> None:
         """异步执行任务"""
+
         def _task() -> None:
             try:
                 # 定义进度回调函数
@@ -66,10 +77,12 @@ class JobManager:
 
                 # 执行实际的任务处理函数
                 result = handler(job, _progress)
-                
+
                 # 根据任务状态发送完成或取消事件
                 if job.cancelled:
-                    write_json_line(make_event_error(job.job_id, "E_CANCELLED", "任务已被取消"))
+                    write_json_line(
+                        make_event_error(job.job_id, "E_CANCELLED", "任务已被取消")
+                    )
                 else:
                     write_json_line(make_event_done(job.job_id, result))
             except InterruptedError:

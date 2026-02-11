@@ -30,7 +30,9 @@ def load_config():
 
     target_path = os.getenv("SYNC_TARGET_REPO_PATH")
     if not target_path:
-        raise ValueError("未配置 SYNC_TARGET_REPO_PATH，请在 .env 文件中设置目标仓库路径")
+        raise ValueError(
+            "未配置 SYNC_TARGET_REPO_PATH，请在 .env 文件中设置目标仓库路径"
+        )
 
     return {
         "target_repo": Path(target_path),
@@ -50,7 +52,15 @@ def get_submodule_paths(source_root: Path) -> Set[Path]:
     """
     try:
         result = subprocess.run(
-            ["git", "-c", "core.quotepath=false", "submodule", "foreach", "-q", "echo $name"],
+            [
+                "git",
+                "-c",
+                "core.quotepath=false",
+                "submodule",
+                "foreach",
+                "-q",
+                "echo $name",
+            ],
             cwd=source_root,
             capture_output=True,
             text=True,
@@ -112,9 +122,7 @@ def get_source_files(source_root: Path) -> Set[Path]:
                 continue
 
             # 检查是否在子模块内部
-            is_inside_submodule = any(
-                path.is_relative_to(sm) for sm in submodule_paths
-            )
+            is_inside_submodule = any(path.is_relative_to(sm) for sm in submodule_paths)
             if is_inside_submodule:
                 logger.debug(f"跳过子模块内文件: {filepath}")
                 continue
@@ -132,7 +140,9 @@ def get_source_files(source_root: Path) -> Set[Path]:
         raise
 
 
-def sync_files(source_root: Path, target_root: Path, source_files: Set[Path]) -> tuple[int, int]:
+def sync_files(
+    source_root: Path, target_root: Path, source_files: Set[Path]
+) -> tuple[int, int]:
     """同步文件到目标仓库
 
     将源文件复制到目标仓库对应位置，确保目录结构一致。
@@ -264,7 +274,9 @@ def cleanup_target(target_root: Path, source_files: Set[Path]) -> int:
     return deleted
 
 
-def git_commit_and_push(target_root: Path, commit_message: str, auto_push: bool) -> bool:
+def git_commit_and_push(
+    target_root: Path, commit_message: str, auto_push: bool
+) -> bool:
     """在目标仓库执行 Git 提交和推送
 
     Args:

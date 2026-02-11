@@ -26,18 +26,19 @@ import numpy as np
 import trimesh
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def build_thickness_gradient_plate(
-        W: float,
-        H: float,
-        t_min: float,
-        t_max: float,
-        ny: int = 220,
-        thickness_profile: str = "linear",
-        reverse: bool = False,
+    W: float,
+    H: float,
+    t_min: float,
+    t_max: float,
+    ny: int = 220,
+    thickness_profile: str = "linear",
+    reverse: bool = False,
 ) -> trimesh.Trimesh:
     """
     构建沿Y方向（垂直）厚度变化的面板
@@ -77,12 +78,14 @@ def build_thickness_gradient_plate(
 
     verts = []
     for yi, ti in zip(y, t):
-        verts.extend([
-            [xL, yi, ti],  # 0 左上
-            [xR, yi, ti],  # 1 右上
-            [xR, yi, 0.0], # 2 右下
-            [xL, yi, 0.0], # 3 左下
-        ])
+        verts.extend(
+            [
+                [xL, yi, ti],  # 0 左上
+                [xR, yi, ti],  # 1 右上
+                [xR, yi, 0.0],  # 2 右下
+                [xL, yi, 0.0],  # 3 左下
+            ]
+        )
     verts = np.array(verts, dtype=np.float64)
 
     faces = []
@@ -95,44 +98,58 @@ def build_thickness_gradient_plate(
     for i in range(ny - 1):
         # 顶面（左上/右上之间）
         # 四边形: (i,0)->(i,1)->(i+1,1)->(i+1,0)
-        faces.extend([
-            [vid(i, 0), vid(i, 1), vid(i + 1, 1)],
-            [vid(i, 0), vid(i + 1, 1), vid(i + 1, 0)],
-        ])
+        faces.extend(
+            [
+                [vid(i, 0), vid(i, 1), vid(i + 1, 1)],
+                [vid(i, 0), vid(i + 1, 1), vid(i + 1, 0)],
+            ]
+        )
 
         # 底面（z=0），注意绕向应相反
-        faces.extend([
-            [vid(i, 3), vid(i + 1, 3), vid(i + 1, 2)],
-            [vid(i, 3), vid(i + 1, 2), vid(i, 2)],
-        ])
+        faces.extend(
+            [
+                [vid(i, 3), vid(i + 1, 3), vid(i + 1, 2)],
+                [vid(i, 3), vid(i + 1, 2), vid(i, 2)],
+            ]
+        )
 
         # 右壁（x=+W/2）：右上到右下
-        faces.extend([
-            [vid(i, 1), vid(i, 2), vid(i + 1, 2)],
-            [vid(i, 1), vid(i + 1, 2), vid(i + 1, 1)],
-        ])
+        faces.extend(
+            [
+                [vid(i, 1), vid(i, 2), vid(i + 1, 2)],
+                [vid(i, 1), vid(i + 1, 2), vid(i + 1, 1)],
+            ]
+        )
 
         # 左壁（x=-W/2）：左下到左上
-        faces.extend([
-            [vid(i, 3), vid(i, 0), vid(i + 1, 0)],
-            [vid(i, 3), vid(i + 1, 0), vid(i + 1, 3)],
-        ])
+        faces.extend(
+            [
+                [vid(i, 3), vid(i, 0), vid(i + 1, 0)],
+                [vid(i, 3), vid(i + 1, 0), vid(i + 1, 3)],
+            ]
+        )
 
     # 封闭底边（y=-H/2）和顶边（y=+H/2）
     # 底帽使用切片 i=0
     i0 = 0
-    faces.extend([
-        [vid(i0, 0), vid(i0, 3), vid(i0, 2)],
-        [vid(i0, 0), vid(i0, 2), vid(i0, 1)],
-    ])
+    faces.extend(
+        [
+            [vid(i0, 0), vid(i0, 3), vid(i0, 2)],
+            [vid(i0, 0), vid(i0, 2), vid(i0, 1)],
+        ]
+    )
     # 顶帽使用切片 i=ny-1
     i1 = ny - 1
-    faces.extend([
-        [vid(i1, 0), vid(i1, 1), vid(i1, 2)],
-        [vid(i1, 0), vid(i1, 2), vid(i1, 3)],
-    ])
+    faces.extend(
+        [
+            [vid(i1, 0), vid(i1, 1), vid(i1, 2)],
+            [vid(i1, 0), vid(i1, 2), vid(i1, 3)],
+        ]
+    )
 
-    mesh = trimesh.Trimesh(vertices=verts, faces=np.array(faces, dtype=np.int64), process=False)
+    mesh = trimesh.Trimesh(
+        vertices=verts, faces=np.array(faces, dtype=np.int64), process=False
+    )
     # 清理（新trimesh API）
     mesh.merge_vertices()
     mesh.update_faces(mesh.unique_faces())
@@ -142,13 +159,13 @@ def build_thickness_gradient_plate(
 
 
 def add_bezel_feet(
-        base: trimesh.Trimesh,
-        W: float,
-        H: float,
-        foot_depth: float,
-        foot_thickness: float,
-        foot_height: float,
-        z_attach: float,
+    base: trimesh.Trimesh,
+    W: float,
+    H: float,
+    foot_depth: float,
+    foot_thickness: float,
+    foot_height: float,
+    z_attach: float,
 ) -> trimesh.Trimesh:
     """
     在顶部角落添加两个小"支脚/耳朵"接触边框，使面板远离屏幕玻璃
@@ -166,19 +183,23 @@ def add_bezel_feet(
 
     # 左支脚
     left = trimesh.creation.box(extents=(foot_thickness, foot_height, foot_depth))
-    left.apply_translation((
-        -W / 2.0 + x_margin + foot_thickness / 2.0,
-        y_center,
-        z_attach + foot_depth / 2.0,
-    ))
+    left.apply_translation(
+        (
+            -W / 2.0 + x_margin + foot_thickness / 2.0,
+            y_center,
+            z_attach + foot_depth / 2.0,
+        )
+    )
 
     # 右支脚
     right = trimesh.creation.box(extents=(foot_thickness, foot_height, foot_depth))
-    right.apply_translation((
-        W / 2.0 - x_margin - foot_thickness / 2.0,
-        y_center,
-        z_attach + foot_depth / 2.0,
-    ))
+    right.apply_translation(
+        (
+            W / 2.0 - x_margin - foot_thickness / 2.0,
+            y_center,
+            z_attach + foot_depth / 2.0,
+        )
+    )
 
     combo = trimesh.util.concatenate([base, left, right])
     combo.merge_vertices()
@@ -189,23 +210,23 @@ def add_bezel_feet(
 
 
 def add_back_ribs(
-        base: trimesh.Trimesh,
-        W: float,
-        H: float,
-        rib_count: int,
-        rib_w: float,
-        rib_d: float,
-        rib_h: float,
-        z0: float,
-        y_start: float,
-        y_end: float,
+    base: trimesh.Trimesh,
+    W: float,
+    H: float,
+    rib_count: int,
+    rib_w: float,
+    rib_d: float,
+    rib_h: float,
+    z0: float,
+    y_start: float,
+    y_end: float,
 ) -> trimesh.Trimesh:
     """
     在背面添加垂直加强筋以加固薄端
     这些加强筋位于+Z方向，因此不会接触屏幕玻璃（用户将卡片靠在边框上）
     """
     ribs = []
-    xs = np.linspace(-W/2 + 8, W/2 - 8, rib_count)
+    xs = np.linspace(-W / 2 + 8, W / 2 - 8, rib_count)
     y_center = (y_start + y_end) / 2.0
     for x in xs:
         rib = trimesh.creation.box(extents=(rib_w, (y_end - y_start), rib_d))
@@ -229,19 +250,33 @@ def main():
     ap.add_argument("--t_max", type=float, default=1.20, help="另一端最大厚度（毫米）")
     ap.add_argument("--ny", type=int, default=220, help="垂直分辨率（越多=越平滑）")
     ap.add_argument("--profile", choices=["linear", "ease", "exp"], default="ease")
-    ap.add_argument("--reverse", action="store_true", help="反转厚度方向（顶部薄而非底部薄）")
+    ap.add_argument(
+        "--reverse", action="store_true", help="反转厚度方向（顶部薄而非底部薄）"
+    )
     # 边框支脚
-    ap.add_argument("--feet", action="store_true", help="添加边框支脚以避免接触屏幕玻璃")
-    ap.add_argument("--foot_depth", type=float, default=2.5, help="支脚在+Z方向伸出距离（毫米）")
-    ap.add_argument("--foot_thickness", type=float, default=10.0, help="支脚沿X厚度（毫米）")
-    ap.add_argument("--foot_height", type=float, default=10.0, help="支脚沿Y高度（毫米）")
+    ap.add_argument(
+        "--feet", action="store_true", help="添加边框支脚以避免接触屏幕玻璃"
+    )
+    ap.add_argument(
+        "--foot_depth", type=float, default=2.5, help="支脚在+Z方向伸出距离（毫米）"
+    )
+    ap.add_argument(
+        "--foot_thickness", type=float, default=10.0, help="支脚沿X厚度（毫米）"
+    )
+    ap.add_argument(
+        "--foot_height", type=float, default=10.0, help="支脚沿Y高度（毫米）"
+    )
     # 加强筋
     ap.add_argument("--ribs", action="store_true", help="在背面添加加固加强筋")
     ap.add_argument("--rib_count", type=int, default=3)
     ap.add_argument("--rib_w", type=float, default=2.0)
     ap.add_argument("--rib_d", type=float, default=1.8)
-    ap.add_argument("--rib_y0", type=float, default=-40.0, help="加强筋起始Y（毫米，相对于中心）")
-    ap.add_argument("--rib_y1", type=float, default=10.0, help="加强筋结束Y（毫米，相对于中心）")
+    ap.add_argument(
+        "--rib_y0", type=float, default=-40.0, help="加强筋起始Y（毫米，相对于中心）"
+    )
+    ap.add_argument(
+        "--rib_y1", type=float, default=10.0, help="加强筋结束Y（毫米，相对于中心）"
+    )
     args = ap.parse_args()
 
     # 基础渐变面板

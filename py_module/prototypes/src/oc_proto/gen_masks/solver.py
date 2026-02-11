@@ -13,10 +13,11 @@ from oc_xgb.xgb_features import build_gpr_features
 from oc_xgb.xgb_fit import PhysGPRModel, predict_phys_gpr_lab, predict_ad_rgb01
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 class HillClimbingSolver:
     def __init__(self, model: PhysGPRModel):
         self.model = model
@@ -32,7 +33,9 @@ class HillClimbingSolver:
             return X
 
         if len(model_names) < X.shape[1] and names[: len(model_names)] == model_names:
-            logger.info(f"[Solver] 特征维度不一致，执行前缀裁剪: {X.shape[1]} -> {len(model_names)}")
+            logger.info(
+                f"[Solver] 特征维度不一致，执行前缀裁剪: {X.shape[1]} -> {len(model_names)}"
+            )
             return X[:, : len(model_names)]
 
         name_to_idx = {n: i for i, n in enumerate(names)}
@@ -57,7 +60,7 @@ class HillClimbingSolver:
 
     def _predict_batch(self, recipe_indices_list: np.ndarray) -> np.ndarray:
         """批量预测一组配方索引的 Lab 颜色
-        
+
         recipe_indices_list: (N, n_layers) int array
         """
         n = len(recipe_indices_list)
@@ -70,10 +73,12 @@ class HillClimbingSolver:
             indices = recipe_indices_list[i]
             indices = np.asarray(indices, dtype=np.int32).reshape(-1)
 
-            layer_names_bottom_first = [self.material_keys[int(idx)] for idx in indices.tolist()]
+            layer_names_bottom_first = [
+                self.material_keys[int(idx)] for idx in indices.tolist()
+            ]
             seq_top_first = list(reversed(layer_names_bottom_first))
             sequences_top_first.append(seq_top_first)
-            
+
             # 转换为配方字典
             recipe = {}
             for idx in indices:
@@ -81,35 +86,35 @@ class HillClimbingSolver:
                 recipe[m_key] = recipe.get(m_key, 0.0) + 1.0
             recipe["_layer_names"] = layer_names_bottom_first
             recipes.append(recipe)
-            
+
         # 基础物理模型预测
         base_rgb01 = predict_ad_rgb01(
-            sequences_top_first, 
-            self.material_keys, 
+            sequences_top_first,
+            self.material_keys,
             self.model.optical,
             k1=self.model.optical.k1,
             k2=self.model.optical.k2,
-            backing=self.model.optical.backing
+            backing=self.model.optical.backing,
         )
         base_lab = rgb01_to_lab(base_rgb01)
-        
+
         # GPR 残差修正
         X, feat_names = build_gpr_features(
-            recipes, 
-            self.material_keys, 
-            base_lab, 
+            recipes,
+            self.material_keys,
+            base_lab,
             n_layers=self.n_layers,
             layer_names_order="bottom_first",
             k1=self.model.optical.k1,
             k2=self.model.optical.k2,
-            backing=self.model.optical.backing
+            backing=self.model.optical.backing,
         )
         X = self._align_features(X, feat_names)
         return predict_phys_gpr_lab(self.model, sequences_top_first, X)
 
     def solve(self, target_rgb_list: np.ndarray, n_random_samples=1000) -> np.ndarray:
         """为一组 RGB 颜色实时求解最优配方
-        
+
         target_rgb_list: (N, 3) 0..1 float
         返回: (N, n_layers) int array，表示每层的材料索引
         """
@@ -121,19 +126,23 @@ class HillClimbingSolver:
 
         # 1. 随机采样候选空间 (实时计算，非预置库)
         # 我们采样一部分空间来获得一个好的初始值
-        random_indices = np.random.randint(0, self.m, size=(n_random_samples, self.n_layers))
+        random_indices = np.random.randint(
+            0, self.m, size=(n_random_samples, self.n_layers)
+        )
         # 补充一些纯色配方
         pure_recipes = []
         for i in range(self.m):
             pure_recipes.append([i] * self.n_layers)
-        random_indices = np.concatenate([random_indices, np.array(pure_recipes)], axis=0)
-        
+        random_indices = np.concatenate(
+            [random_indices, np.array(pure_recipes)], axis=0
+        )
+
         # 预测候选集颜色
         candidate_labs = self._predict_batch(random_indices)
-        
+
         # 2. 为每个目标颜色找到最近的初始候选
         best_indices = np.zeros((n_targets, self.n_layers), dtype=np.int32)
-        
+
         logger.info(f"[Solver] 正在为 {n_targets} 个唯一颜色寻找初始候选...")
         for i in tqdm(range(n_targets), desc="寻找初始候选", unit="color"):
             dists = np.linalg.norm(candidate_labs - target_labs[i], axis=1)
@@ -147,23 +156,23 @@ class HillClimbingSolver:
             curr_indices = best_indices[i].copy()
             curr_lab = self._predict_batch(curr_indices[None, :])[0]
             curr_dist = np.linalg.norm(curr_lab - target_labs[i])
-            
+
             # 尝试随机改变某一层
-            for _ in range(10): 
+            for _ in range(10):
                 layer_to_change = random.randint(0, self.n_layers - 1)
                 new_m = random.randint(0, self.m - 1)
                 if new_m == curr_indices[layer_to_change]:
                     continue
-                
+
                 next_indices = curr_indices.copy()
                 next_indices[layer_to_change] = new_m
                 next_lab = self._predict_batch(next_indices[None, :])[0]
                 next_dist = np.linalg.norm(next_lab - target_labs[i])
-                
+
                 if next_dist < curr_dist:
                     curr_dist = next_dist
                     curr_indices = next_indices
-            
+
             best_indices[i] = curr_indices
 
         return best_indices

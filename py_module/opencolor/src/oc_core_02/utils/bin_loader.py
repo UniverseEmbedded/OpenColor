@@ -8,6 +8,7 @@ from oc_core_02.utils import get_logger
 
 logger = get_logger(__name__)
 
+
 def _find_module_in_dir(directory: Path, name: str) -> Optional[Path]:
     """在指定目录中查找 C++ 扩展模块，支持多种命名格式"""
     if not directory.exists():
@@ -74,6 +75,7 @@ def get_binary_path(name: str) -> Optional[Path]:
             return p
 
     return None
+
 
 def import_cpp_extension(name: str):
     """

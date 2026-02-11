@@ -24,7 +24,10 @@ from oc_core_02.utils.io_utils import start_heartbeat, print_ts
 from oc_core_02.utils.manifest import write_manifest
 from oc_core_02.utils.paths import get_out_dir, select_latest_subdir
 from oc_proto.gen_3mf.geometry_bridge import check_cpp_available
-from oc_proto.gen_3mf.interrupt_handler import _install_interrupt_handlers, _hard_abort_if_interrupted
+from oc_proto.gen_3mf.interrupt_handler import (
+    _install_interrupt_handlers,
+    _hard_abort_if_interrupted,
+)
 from model_export.mesh_utils import _export_3mf
 
 
@@ -54,7 +57,13 @@ def _rmtree_retry(p: Path, *, tries: int = 8, wait_s: float = 0.2) -> None:
         except PermissionError as e:
             if i >= int(tries) - 1:
                 raise
-            logger.error("警告: 删除目录失败(可能被占用)，将重试 {}/{}: {}，原因={}", i + 1, tries, p, e)
+            logger.error(
+                "警告: 删除目录失败(可能被占用)，将重试 {}/{}: {}，原因={}",
+                i + 1,
+                tries,
+                p,
+                e,
+            )
             time.sleep(float(wait_s))
 
 
@@ -66,7 +75,13 @@ def _unlink_retry(p: Path, *, tries: int = 8, wait_s: float = 0.2) -> None:
         except PermissionError as e:
             if i >= int(tries) - 1:
                 raise
-            logger.error("警告: 删除文件失败(可能被占用)，将重试 {}/{}: {}，原因={}", i + 1, tries, p, e)
+            logger.error(
+                "警告: 删除文件失败(可能被占用)，将重试 {}/{}: {}，原因={}",
+                i + 1,
+                tries,
+                p,
+                e,
+            )
             time.sleep(float(wait_s))
 
 
@@ -147,11 +162,17 @@ def run(
         poly_run_dir = poly_input_path
     else:
         cand = select_latest_subdir(poly_input_path, required_relpaths=["04_polys"])
-        poly_run_dir = cand if (cand is not None and _pick_manifest_file(cand) is not None) else None
+        poly_run_dir = (
+            cand
+            if (cand is not None and _pick_manifest_file(cand) is not None)
+            else None
+        )
 
     if poly_run_dir is None:
         print_ts(f"[错误] 未在输入目录中找到可用的矢量运行子目录: {poly_input_path}")
-        print_ts("[提示] 期望目录结构: <out>/<文件名>_<hash6>/(manifest.json 或 vtracer_manifest.json) 与 04_polys/")
+        print_ts(
+            "[提示] 期望目录结构: <out>/<文件名>_<hash6>/(manifest.json 或 vtracer_manifest.json) 与 04_polys/"
+        )
         raise RuntimeError("未找到可用的矢量运行子目录")
 
     manifest_path = _pick_manifest_file(poly_run_dir)
@@ -182,12 +203,18 @@ def run(
         poly_dir, model_dir = _prepare_dirs(out_dir)
     except PermissionError as e:
         out_dir = _make_fallback_out_dir()
-        logger.warning("警告: 输出目录被占用，无法清理旧文件，将改为写入新目录: {}，原因={}", out_dir, e)
+        logger.warning(
+            "警告: 输出目录被占用，无法清理旧文件，将改为写入新目录: {}，原因={}",
+            out_dir,
+            e,
+        )
         poly_dir, model_dir = _prepare_dirs(out_dir)
 
     print_ts("[信息] 正在同步矢量文件...")
     poly_files = list((poly_run_dir / "04_polys").glob("*.svg"))
-    for p_file in _tqdm(poly_files, total=len(poly_files), desc="同步 04_polys", enabled=progress):
+    for p_file in _tqdm(
+        poly_files, total=len(poly_files), desc="同步 04_polys", enabled=progress
+    ):
         shutil.copy2(p_file, poly_dir / p_file.name)
 
     print_ts(f"[信息] 矢量文件同步完成: 数量={len(poly_files)}")
@@ -217,10 +244,14 @@ def run(
 
     if board_mm is None or n_layers is None or slot_names is None:
         print_ts(f"[错误] Manifest 缺少关键参数，无法继续: {manifest_path}")
-        print_ts("[提示] 请确保 gen_vector 输出目录包含 board_mm/n_layers/slot_names 信息")
+        print_ts(
+            "[提示] 请确保 gen_vector 输出目录包含 board_mm/n_layers/slot_names 信息"
+        )
         raise RuntimeError("Manifest 缺少关键参数")
 
-    print_ts(f"[信息] 参数: board_mm={float(board_mm):.3f}, layers={int(n_layers)}, slots={len(slot_names)}")
+    print_ts(
+        f"[信息] 参数: board_mm={float(board_mm):.3f}, layers={int(n_layers)}, slots={len(slot_names)}"
+    )
 
     # 检查 C++ 模块
     if use_cpp:
@@ -233,17 +264,17 @@ def run(
     jobs_req = int(jobs)
     if jobs_req <= 0:
         import os
+
         jobs_req = max(1, int((os.cpu_count() or 1) - 1))
 
     logger.info("并行参数: jobs={}", jobs_req)
-    logger.info("导出选项: STL={}, 3MF={}, C++并集={}", export_stl, export_3mf, use_cpp_union)
+    logger.info(
+        "导出选项: STL={}, 3MF={}, C++并集={}", export_stl, export_3mf, use_cpp_union
+    )
 
     # 创建颜色系统
     slot_preview_rgb = _get_param("slot_preview_rgb", {})
-    cs = ColorSystem.from_material_keys(
-        name="ExportSystem",
-        keys=slot_names
-    )
+    cs = ColorSystem.from_material_keys(name="ExportSystem", keys=slot_names)
     # 更新预览颜色（如果有）
     if slot_preview_rgb:
         cs.slot_preview_rgb.update({k: tuple(v) for k, v in slot_preview_rgb.items()})
@@ -253,7 +284,9 @@ def run(
     mesh_report: Dict[str, Any] = {}
 
     # 处理每个槽位
-    for slot_name in _tqdm(slot_names, total=len(slot_names), desc="处理槽位", enabled=progress):
+    for slot_name in _tqdm(
+        slot_names, total=len(slot_names), desc="处理槽位", enabled=progress
+    ):
         t_slot0 = perf_counter()
         _hard_abort_if_interrupted(f"槽位 {slot_name}")
 
@@ -307,7 +340,9 @@ def run(
         slot_polys.sort(key=lambda x: x[0])
 
         t_load1 = perf_counter()
-        print_ts(f"[进度] 槽位 {slot_name}: 几何体收集完成，共 {len(slot_polys)} 层，总用时 {t_load1 - t_load0:.3f}s (SVG加载={total_svg_time:.3f}s, 合并={total_union_time:.3f}s)")
+        print_ts(
+            f"[进度] 槽位 {slot_name}: 几何体收集完成，共 {len(slot_polys)} 层，总用时 {t_load1 - t_load0:.3f}s (SVG加载={total_svg_time:.3f}s, 合并={total_union_time:.3f}s)"
+        )
 
         if not slot_polys:
             logger.info("[提示] 槽位 {} 没有有效几何体，跳过", slot_name)
@@ -325,18 +360,24 @@ def run(
                     slot_name=slot_name,
                     poly=poly,
                     layer_height_mm=layer_height_mm,
-                    use_cpp=use_cpp  # 使用 C++ 加速挤出
+                    use_cpp=use_cpp,  # 使用 C++ 加速挤出
                 )
                 layer_meshes.extend(meshes)
                 t_layer1 = perf_counter()
-                print_ts(f"[进度] 槽位 {slot_name} 层 {z:02d}: 挤出完成，生成 {len(meshes)} 个网格，用时 {t_layer1 - t_layer0:.3f}s")
+                print_ts(
+                    f"[进度] 槽位 {slot_name} 层 {z:02d}: 挤出完成，生成 {len(meshes)} 个网格，用时 {t_layer1 - t_layer0:.3f}s"
+                )
             except Exception as e:
-                logger.error("[错误] 挤出层失败: slot={}, layer={}, 原因={}", slot_name, z, e)
+                logger.error(
+                    "[错误] 挤出层失败: slot={}, layer={}, 原因={}", slot_name, z, e
+                )
                 if use_cpp:
                     raise
                 continue
         t_extrude1 = perf_counter()
-        print_ts(f"[进度] 槽位 {slot_name}: 挤出完成，共 {len(layer_meshes)} 个网格，总用时 {t_extrude1 - t_extrude0:.3f}s")
+        print_ts(
+            f"[进度] 槽位 {slot_name}: 挤出完成，共 {len(layer_meshes)} 个网格，总用时 {t_extrude1 - t_extrude0:.3f}s"
+        )
 
         if not layer_meshes:
             logger.warning("[警告] 槽位 {} 没有生成任何网格，跳过", slot_name)
@@ -352,13 +393,17 @@ def run(
                 cs=cs,
                 out_dir=model_dir,
                 mesh_report=mesh_report,
-                use_cpp_union=use_cpp and use_cpp_union  # 使用 C++ 布尔运算
+                use_cpp_union=use_cpp and use_cpp_union,  # 使用 C++ 布尔运算
             )
             slot_meshes[slot_name] = cleaned_mesh
             t_finalize1 = perf_counter()
-            print_ts(f"[进度] 槽位 {slot_name}: 处理完成 -> {stl_path.name}，finalize用时 {t_finalize1 - t_finalize0:.3f}s")
+            print_ts(
+                f"[进度] 槽位 {slot_name}: 处理完成 -> {stl_path.name}，finalize用时 {t_finalize1 - t_finalize0:.3f}s"
+            )
         except Exception as e:
-            logger.error("[错误] finalize_slot_mesh 失败: slot={}, 原因={}", slot_name, e)
+            logger.error(
+                "[错误] finalize_slot_mesh 失败: slot={}, 原因={}", slot_name, e
+            )
             raise
 
         t_slot1 = perf_counter()
@@ -382,7 +427,9 @@ def run(
         output_dir=out_dir,
         version=VERSION,
         inputs=[image_name],
-        outputs=[str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file()],
+        outputs=[
+            str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file()
+        ],
         params={
             "board_mm": board_mm,
             "n_layers": n_layers,
@@ -395,7 +442,7 @@ def run(
             "voxel_repair_enabled": voxel_repair,
             "export_stl": export_stl,
             "export_3mf": export_3mf,
-        }
+        },
     )
 
     logger.info("完成。模型导出产物已就绪。")
@@ -404,13 +451,21 @@ def run(
 
 def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="OpenColor 模型导出器")
-    parser.add_argument("--input", type=str, default=None, help="gen_vector 的输出目录 (默认自动寻找)")
-    parser.add_argument("--no-cpp", action="store_true", help="禁用 C++ 加速（默认启用）")
-    parser.add_argument("--no-cpp-union", action="store_true", help="禁用 C++ 布尔运算合并层")
+    parser.add_argument(
+        "--input", type=str, default=None, help="gen_vector 的输出目录 (默认自动寻找)"
+    )
+    parser.add_argument(
+        "--no-cpp", action="store_true", help="禁用 C++ 加速（默认启用）"
+    )
+    parser.add_argument(
+        "--no-cpp-union", action="store_true", help="禁用 C++ 布尔运算合并层"
+    )
     parser.add_argument("--jobs", type=int, default=0, help="并行任务数，0 表示自动")
     parser.add_argument("--no-repair", action="store_true", help="禁用网格修复")
     parser.add_argument("--no-simplify", action="store_true", help="禁用网格简化")
-    parser.add_argument("--voxel-repair", action="store_true", help="启用体素修复（默认禁用）")
+    parser.add_argument(
+        "--voxel-repair", action="store_true", help="启用体素修复（默认禁用）"
+    )
     parser.add_argument("--no-stl", action="store_true", help="禁用 STL 导出")
     parser.add_argument("--no-3mf", action="store_true", help="禁用 3MF 导出")
     parser.add_argument("--no-progress", action="store_true", help="关闭进度条")

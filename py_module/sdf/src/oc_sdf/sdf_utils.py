@@ -20,9 +20,11 @@ logger = get_logger(__name__)
 
 
 import vtracer
+
 HAS_VTRACER = True
 
 import cv2
+
 HAS_CV2 = True
 
 
@@ -78,7 +80,9 @@ def upscale_mask(m: np.ndarray, grid_scale: int) -> np.ndarray:
 def pad_mask(m: np.ndarray, pad_px: int) -> np.ndarray:
     if pad_px <= 0:
         return m
-    return np.pad(m, ((pad_px, pad_px), (pad_px, pad_px)), mode="constant", constant_values=False)
+    return np.pad(
+        m, ((pad_px, pad_px), (pad_px, pad_px)), mode="constant", constant_values=False
+    )
 
 
 def blur_mask(m: np.ndarray, radius: float, return_float: bool = False) -> np.ndarray:
@@ -98,7 +102,7 @@ def prepare_polygon_mask(
     pad_px: int,
     blur_radius: float,
     already_scaled: bool = False,
-    keep_float: bool = False
+    keep_float: bool = False,
 ) -> Tuple[np.ndarray, int]:
     if already_scaled:
         hi = layer_mask
@@ -183,9 +187,9 @@ def _parse_path_d_simple(d: str) -> List[np.ndarray]:
     current: List[Tuple[float, float]] = []
     cmd = None
     i = 0
-    
+
     last_x, last_y = 0.0, 0.0
-    
+
     while i < len(tokens):
         t = tokens[i]
         if re.fullmatch(r"[MLZCQHVmlzcqhv]", t):
@@ -197,7 +201,7 @@ def _parse_path_d_simple(d: str) -> List[np.ndarray]:
                 current = []
                 # Z 不更新 last_x, last_y，通常回到起点，但这里简单处理
             continue
-        
+
         # 这是一个坐标数字
         if cmd is None:
             i += 1
@@ -261,7 +265,7 @@ def _parse_path_d_simple(d: str) -> List[np.ndarray]:
                 y2 += last_y
                 x += last_x
                 y += last_y
-            
+
             # 简单线性化：采样 4 个点
             p0 = (last_x, last_y)
             p1 = (x1, y1)
@@ -269,10 +273,20 @@ def _parse_path_d_simple(d: str) -> List[np.ndarray]:
             p3 = (x, y)
             for t_val in [0.33, 0.66, 1.0]:
                 inv_t = 1.0 - t_val
-                bx = inv_t**3 * p0[0] + 3*inv_t**2 * t_val * p1[0] + 3*inv_t * t_val**2 * p2[0] + t_val**3 * p3[0]
-                by = inv_t**3 * p0[1] + 3*inv_t**2 * t_val * p1[1] + 3*inv_t * t_val**2 * p2[1] + t_val**3 * p3[1]
+                bx = (
+                    inv_t**3 * p0[0]
+                    + 3 * inv_t**2 * t_val * p1[0]
+                    + 3 * inv_t * t_val**2 * p2[0]
+                    + t_val**3 * p3[0]
+                )
+                by = (
+                    inv_t**3 * p0[1]
+                    + 3 * inv_t**2 * t_val * p1[1]
+                    + 3 * inv_t * t_val**2 * p2[1]
+                    + t_val**3 * p3[1]
+                )
                 current.append((bx, by))
-            
+
             last_x, last_y = x, y
             i += 6
         elif upper_cmd == "Q":
@@ -286,17 +300,17 @@ def _parse_path_d_simple(d: str) -> List[np.ndarray]:
                 y1 += last_y
                 x += last_x
                 y += last_y
-            
+
             # 简单线性化：采样 3 个点
             p0 = (last_x, last_y)
             p1 = (x1, y1)
             p2 = (x, y)
             for t_val in [0.5, 1.0]:
                 inv_t = 1.0 - t_val
-                bx = inv_t**2 * p0[0] + 2*inv_t * t_val * p1[0] + t_val**2 * p2[0]
-                by = inv_t**2 * p0[1] + 2*inv_t * t_val * p1[1] + t_val**2 * p2[1]
+                bx = inv_t**2 * p0[0] + 2 * inv_t * t_val * p1[0] + t_val**2 * p2[0]
+                by = inv_t**2 * p0[1] + 2 * inv_t * t_val * p1[1] + t_val**2 * p2[1]
                 current.append((bx, by))
-                
+
             last_x, last_y = x, y
             i += 4
         else:
@@ -315,11 +329,11 @@ def _rings_from_svg_text(svg_text: str) -> List[np.ndarray]:
         logger.warning("SVG 解析失败: {}", e)
         return []
     rings: List[np.ndarray] = []
-    
+
     def parse_translate(transform_str: Optional[str]) -> Tuple[float, float]:
         if not transform_str:
             return 0.0, 0.0
-        match = re.search(r'translate\(([-\d.]+)[,\s]*([-\d.]*)\)', transform_str)
+        match = re.search(r"translate\(([-\d.]+)[,\s]*([-\d.]*)\)", transform_str)
         if match:
             tx = float(match.group(1))
             ty = float(match.group(2)) if match.group(2) else 0.0
@@ -330,10 +344,10 @@ def _rings_from_svg_text(svg_text: str) -> List[np.ndarray]:
         tag = elem.tag
         if not isinstance(tag, str):
             continue
-            
+
         elem_rings = []
         tx, ty = 0.0, 0.0
-        
+
         if tag.endswith("path"):
             d = elem.get("d")
             transform = elem.get("transform")
@@ -344,7 +358,7 @@ def _rings_from_svg_text(svg_text: str) -> List[np.ndarray]:
             transform = elem.get("transform")
             tx, ty = parse_translate(transform)
             elem_rings = _parse_svg_points(points or "")
-            
+
         for r in elem_rings:
             if r.size > 0:
                 r[:, 0] += tx
@@ -360,7 +374,7 @@ def _rings_from_vtracer(
     vtracer_segment_length: int,
     vtracer_corner_threshold: int,
     debug_dir: Optional[Path] = None,
-    slot_name: str = "default"
+    slot_name: str = "default",
 ) -> List[np.ndarray]:
     if not HAS_VTRACER:
         return []
@@ -388,6 +402,7 @@ def _rings_from_vtracer(
             Image.fromarray(mask_u8, mode="L").save(inp)
             if debug_dir:
                 import shutil
+
                 shutil.copy2(inp, debug_dir / f"{slot_name}_vtracer_input.png")
         except Exception as e:
             logger.warning("vtracer 输入写入失败: {}", e)
@@ -404,12 +419,18 @@ def _rings_from_vtracer(
             )
             if debug_dir:
                 import shutil
+
                 shutil.copy2(out, debug_dir / f"{slot_name}_vtracer_tool.svg")
 
                 # 获取像素域 bbox 报告 (为了对齐 18.md 的要求)
                 try:
                     import json
-                    from oc_core_02.utils.vtracer_bridge import parse_translate, bake_vtracer_svg, get_rings_bbox
+                    from oc_core_02.utils.vtracer_bridge import (
+                        parse_translate,
+                        bake_vtracer_svg,
+                        get_rings_bbox,
+                    )
+
                     svg_text_raw = Path(out).read_text(encoding="utf-8")
 
                     # 解析原始 rings (不含 transform)
@@ -418,12 +439,15 @@ def _rings_from_vtracer(
                     tx, ty = 0.0, 0.0
                     for elem in root_elem.iter():
                         tag = elem.tag
-                        if not isinstance(tag, str): continue
+                        if not isinstance(tag, str):
+                            continue
                         if tag.endswith("path"):
                             raw_rings.extend(_parse_path_d_simple(elem.get("d") or ""))
                             tx, ty = parse_translate(elem.get("transform"))
                         elif tag.endswith("polygon"):
-                            raw_rings.extend(_parse_svg_points(elem.get("points") or ""))
+                            raw_rings.extend(
+                                _parse_svg_points(elem.get("points") or "")
+                            )
                             tx, ty = parse_translate(elem.get("transform"))
 
                     d_bbox_px = get_rings_bbox(raw_rings)
@@ -431,15 +455,20 @@ def _rings_from_vtracer(
                     final_bbox_px = get_rings_bbox(baked_rings)
 
                     report = {
-                        "input": {"W": int(mask_u8.shape[1]), "H": int(mask_u8.shape[0])},
+                        "input": {
+                            "W": int(mask_u8.shape[1]),
+                            "H": int(mask_u8.shape[0]),
+                        },
                         "tool_svg": {
                             "d_bbox_px": d_bbox_px,
                             "transform_translate_px": [tx, ty],
-                            "final_bbox_px": final_bbox_px
+                            "final_bbox_px": final_bbox_px,
                         },
-                        "info": "generated by sdf_utils.mask_to_rings"
+                        "info": "generated by sdf_utils.mask_to_rings",
                     }
-                    (debug_dir / f"{slot_name}_bbox_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+                    (debug_dir / f"{slot_name}_bbox_report.json").write_text(
+                        json.dumps(report, indent=2), encoding="utf-8"
+                    )
                 except Exception as e:
                     logger.warning("BBox report 生成失败: {}", e)
 
@@ -502,7 +531,7 @@ def mask_to_rings(
                 vtracer_segment_length=vtracer_segment_length,
                 vtracer_corner_threshold=vtracer_corner_threshold,
                 debug_dir=debug_dir,
-                slot_name=slot_name
+                slot_name=slot_name,
             )
         else:
             rings = _rings_from_cv2(layer_mask_hi)
@@ -512,11 +541,11 @@ def mask_to_rings(
 
 
 def rings_to_polys(
-    rings: List[np.ndarray], 
-    h: int, 
-    grid_scale: int, 
+    rings: List[np.ndarray],
+    h: int,
+    grid_scale: int,
     nozzle_width_mm: float,
-    pad_hi: int
+    pad_hi: int,
 ) -> List[Polygon]:
     """将 bitmap2svg rings 转为物理坐标多边形（并自动处理方向/坐标系）。
 
@@ -534,7 +563,9 @@ def rings_to_polys(
         phys_r = [
             (
                 (float(rx) - float(pad_hi)) / grid_scale * nozzle_width_mm,
-                (float(H_hi) - (float(ry) - float(pad_hi))) / grid_scale * nozzle_width_mm,
+                (float(H_hi) - (float(ry) - float(pad_hi)))
+                / grid_scale
+                * nozzle_width_mm,
             )
             for rx, ry in r
         ]
@@ -547,18 +578,20 @@ def rings_to_polys(
 
 
 def build_clip_poly(
-    layer_mask: np.ndarray, 
-    grid_scale: int, 
-    h: int, 
+    layer_mask: np.ndarray,
+    grid_scale: int,
+    h: int,
     nozzle_width_mm: float,
     pad_px: int,
-    already_scaled: bool = False
+    already_scaled: bool = False,
 ) -> Optional[Polygon]:
     """构建该层该颜色的“精确裁剪边界”。
 
     我们用不平滑、不简化的轮廓来做 clip，确保 SDF 平滑不会越界到别的颜色区域。
     """
-    lm_hi, pad_hi = prepare_polygon_mask(layer_mask, grid_scale, pad_px, 0.0, already_scaled)
+    lm_hi, pad_hi = prepare_polygon_mask(
+        layer_mask, grid_scale, pad_px, 0.0, already_scaled
+    )
     base_rings, _ = mask_to_rings(
         lm_hi,
         backend="cv2",
@@ -583,17 +616,16 @@ def build_clip_poly(
 
 
 def fallback_extrude_from_pixels(
-    layer_mask: np.ndarray, 
-    z: int, 
-    nozzle_width_mm: float, 
-    layer_height_mm: float
+    layer_mask: np.ndarray, z: int, nozzle_width_mm: float, layer_height_mm: float
 ) -> Optional[trimesh.Trimesh]:
     """兜底：当 SDF 多边形化失败时，直接将该层像素 mask 挤出成薄片（可能丑，但绝不留洞）。"""
     if not np.any(layer_mask):
         return None
     # 将 2D mask 作为单层体素网格 (1, H, W)
     vol = layer_mask[None, :, :]
-    grid = VoxelGrid(volume=vol, voxel_size=(nozzle_width_mm, nozzle_width_mm, layer_height_mm))
+    grid = VoxelGrid(
+        volume=vol, voxel_size=(nozzle_width_mm, nozzle_width_mm, layer_height_mm)
+    )
     try:
         m = voxel_grid_to_mesh(grid)
     except Exception as e:

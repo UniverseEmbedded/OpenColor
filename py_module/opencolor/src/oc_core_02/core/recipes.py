@@ -19,7 +19,7 @@ class StackRecipe:
     def as_base4_int(self) -> int:
         """
         将层配方转换为四进制整数表示
-        
+
         @return: 四进制整数
         """
         v = 0
@@ -31,13 +31,13 @@ class StackRecipe:
 def int_to_recipe(idx: int, n_layers: int) -> StackRecipe:
     """
     将四进制整数转换为层配方
-    
+
     @param idx: 四进制整数索引
     @param n_layers: 层数
     @return: 堆叠配方对象
     @raises ValueError: 索引超出范围时抛出
     """
-    if idx < 0 or idx >= (4 ** n_layers):
+    if idx < 0 or idx >= (4**n_layers):
         raise ValueError(f"idx 超出 {n_layers} 层的范围：{idx}")
     digits = [0] * n_layers
     x = idx
@@ -51,7 +51,7 @@ def int_to_recipe(idx: int, n_layers: int) -> StackRecipe:
 def recipe_to_int(recipe: StackRecipe) -> int:
     """
     将层配方转换为四进制整数
-    
+
     @param recipe: 堆叠配方对象
     @return: 四进制整数
     """

@@ -5,9 +5,10 @@
 
 import { writable, get } from 'svelte/store';
 import { navigationStore } from './navigation.svelte';
+import type { Component } from 'svelte';
 
 // 路由配置 - 使用导航ID作为键
-const routes: Record<string, () => Promise<typeof import('*.svelte')>> = {
+const routes: Record<string, () => Promise<{ default: Component }>> = {
   'calibrate-board-gen': () => import('../../routes/calibrate/board-gen/+page.svelte'),
   'calibrate-photo-warp': () => import('../../routes/calibrate/photo-warp/+page.svelte'),
   'calibrate-model-train': () => import('../../routes/calibrate/model-train/+page.svelte'),

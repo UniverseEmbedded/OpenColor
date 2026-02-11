@@ -16,10 +16,11 @@ from oc_xgb.color_space import rgb01_to_lab, delta_e_cie76
 from oc_proto.calib_color_rts.dataset_io import Cell
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _to_uint8_rgb(rgb01: np.ndarray) -> np.ndarray:
     """将 0-1 范围的 RGB 转换为 uint8 格式"""
     rgb = np.clip(rgb01, 0.0, 1.0)
@@ -36,7 +37,7 @@ def compute_diagnostics(
     palette_id: str = "",
 ) -> tuple[list[dict], dict]:
     """构建每个单元格的诊断信息和全局摘要
-    
+
     Args:
         cells_all: 所有单元格数据列表
         material_keys: 材料键名列表
@@ -45,14 +46,14 @@ def compute_diagnostics(
         pred_rgb: 预测的 RGB 值
         out_dir: 输出目录
         palette_id: 色盘标识符
-        
+
     Returns:
         (诊断列表, 摘要字典)
     """
     out_dir.mkdir(parents=True, exist_ok=True)
 
     pred_u8 = pred_rgb.astype(np.uint8)
-    
+
     # 测量值处理：如果有备份的真实测量值（用于跨色盘对比），优先使用备份值
     meas_u8_list = []
     for c in cells_all:
@@ -61,7 +62,7 @@ def compute_diagnostics(
         else:
             meas_u8_list.append(c.measured_rgb.astype(np.uint8))
     meas_u8 = np.stack(meas_u8_list, axis=0)
-    
+
     # 目标 RGB（如果存在）
     target_u8 = []
     for c in cells_all:
@@ -94,15 +95,23 @@ def compute_diagnostics(
     for i, c in enumerate(cells_all):
         has_recipe = bool(c.recipe)
         enabled = bool(c.enabled)
-        
+
         # 真实误差
         e_rgb_real = float(err_rgb_real[i]) if (enabled and has_recipe) else 0.0
         e_de_real = float(err_de_real[i]) if (enabled and has_recipe) else 0.0
-        
+
         # 训练误差
-        e_rgb_train = float(err_rgb_train[i]) if (enabled and has_recipe and c.target_rgb is not None) else 0.0
-        e_de_train = float(err_de_train[i]) if (enabled and has_recipe and c.target_rgb is not None) else 0.0
-        
+        e_rgb_train = (
+            float(err_rgb_train[i])
+            if (enabled and has_recipe and c.target_rgb is not None)
+            else 0.0
+        )
+        e_de_train = (
+            float(err_de_train[i])
+            if (enabled and has_recipe and c.target_rgb is not None)
+            else 0.0
+        )
+
         diags.append(
             {
                 "row": int(c.row),
@@ -113,9 +122,11 @@ def compute_diagnostics(
                 "layer_names": c.layer_names,
                 "measured_rgb": meas_u8[i].tolist(),
                 "predicted_rgb": pred_u8[i].tolist(),
-                "target_rgb": (c.target_rgb.tolist() if c.target_rgb is not None else None),
-                "error_rgb": e_rgb_real,        # 保持向后兼容
-                "error_de": e_de_real,          # 保持向后兼容
+                "target_rgb": (
+                    c.target_rgb.tolist() if c.target_rgb is not None else None
+                ),
+                "error_rgb": e_rgb_real,  # 保持向后兼容
+                "error_de": e_de_real,  # 保持向后兼容
                 "error_rgb_real": e_rgb_real,
                 "error_de_real": e_de_real,
                 "error_rgb_train": e_rgb_train,
@@ -126,11 +137,14 @@ def compute_diagnostics(
 
     # 对启用且有配方的单元格进行汇总
     mask = np.array([c.enabled and bool(c.recipe) for c in cells_all], dtype=bool)
-    mask_target = np.array([c.enabled and bool(c.recipe) and c.target_rgb is not None for c in cells_all], dtype=bool)
-    
+    mask_target = np.array(
+        [c.enabled and bool(c.recipe) and c.target_rgb is not None for c in cells_all],
+        dtype=bool,
+    )
+
     err_rgb_real_m = err_rgb_real[mask] if mask.any() else err_rgb_real
     err_de_real_m = err_de_real[mask] if mask.any() else err_de_real
-    
+
     if mask_target.any():
         err_rgb_train_m = err_rgb_train[mask_target]
         err_de_train_m = err_de_train[mask_target]
@@ -148,25 +162,33 @@ def compute_diagnostics(
         "palette_id": palette_id,
         "n_cells_total": int(len(cells_all)),
         "n_cells_fit": int(mask.sum()),
-        
         # 真实值统计
-        "mean_error_rgb_real": float(np.mean(err_rgb_real_m)) if err_rgb_real_m.size else float("nan"),
+        "mean_error_rgb_real": float(np.mean(err_rgb_real_m))
+        if err_rgb_real_m.size
+        else float("nan"),
         "p95_error_rgb_real": pct(err_rgb_real_m, 95),
-        "mean_deltaE76_real": float(np.mean(err_de_real_m)) if err_de_real_m.size else float("nan"),
+        "mean_deltaE76_real": float(np.mean(err_de_real_m))
+        if err_de_real_m.size
+        else float("nan"),
         "p95_deltaE76_real": pct(err_de_real_m, 95),
-        
         # 训练值统计
-        "mean_error_rgb_train": float(np.mean(err_rgb_train_m)) if err_rgb_train_m.size else float("nan"),
+        "mean_error_rgb_train": float(np.mean(err_rgb_train_m))
+        if err_rgb_train_m.size
+        else float("nan"),
         "p95_error_rgb_train": pct(err_rgb_train_m, 95),
-        "mean_deltaE76_train": float(np.mean(err_de_train_m)) if err_de_train_m.size else float("nan"),
+        "mean_deltaE76_train": float(np.mean(err_de_train_m))
+        if err_de_train_m.size
+        else float("nan"),
         "p95_deltaE76_train": pct(err_de_train_m, 95),
-        
         # 向后兼容的遗留字段
-        "mean_error_rgb": float(np.mean(err_rgb_real_m)) if err_rgb_real_m.size else float("nan"),
+        "mean_error_rgb": float(np.mean(err_rgb_real_m))
+        if err_rgb_real_m.size
+        else float("nan"),
         "p95_error_rgb": pct(err_rgb_real_m, 95),
-        "mean_deltaE76": float(np.mean(err_de_real_m)) if err_de_real_m.size else float("nan"),
+        "mean_deltaE76": float(np.mean(err_de_real_m))
+        if err_de_real_m.size
+        else float("nan"),
         "p95_deltaE76": pct(err_de_real_m, 95),
-        
         "feature_names": feature_names,
         "material_keys": material_keys,
     }
@@ -206,18 +228,18 @@ def _render_single_board(
     cell_size: int = 64,
     flip_first_layer: bool = False,
     flip_all: bool = False,
-    error_key: str = "error_rgb"
+    error_key: str = "error_rgb",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
     """
     渲染单个板子的图像
-    
+
     Args:
         diags: 诊断数据列表
         cell_size: 单元格大小（像素）
         flip_first_layer: 是否翻转首层
         flip_all: 是否翻转全部
         error_key: 误差键名
-        
+
     Returns:
         (测量图, 预测图, 目标图, 首层图, 热力图, 最大误差)
     """
@@ -244,6 +266,7 @@ def _render_single_board(
             return MATERIAL_COLORS[name]
         # 为未知材料生成稳定的随机颜色
         import hashlib
+
         h = int(hashlib.md5(name.encode()).hexdigest(), 16)
         return (h & 0xFF, (h >> 8) & 0xFF, (h >> 16) & 0xFF)
 
@@ -267,7 +290,11 @@ def _render_single_board(
     err = np.zeros((H, W), dtype=np.float32)
 
     # 计算最大误差用于归一化
-    errs = [float(d.get(error_key, 0.0)) for d in diags if d.get("enabled") and d.get("has_recipe")]
+    errs = [
+        float(d.get(error_key, 0.0))
+        for d in diags
+        if d.get("enabled") and d.get("has_recipe")
+    ]
     max_err = max(errs) if errs else 1.0
     if max_err < 1e-6:
         max_err = 1.0
@@ -276,7 +303,7 @@ def _render_single_board(
         r, c = int(d["row"]), int(d["col"])
         if not (min_r <= r <= max_r and min_c <= c <= max_c):
             continue
-            
+
         rr, cc = r - min_r, c - min_c
         y1, y2 = rr * cell_size, (rr + 1) * cell_size
         x1, x2 = cc * cell_size, (cc + 1) * cell_size
@@ -326,7 +353,9 @@ def _render_single_board(
     bar = np.zeros((H, bar_w, 3), dtype=np.uint8)
     for y in range(H):
         v = 1.0 - (y / max(1, H - 1))
-        c = cv2.applyColorMap(np.array([[int(v * 255)]], dtype=np.uint8), cv2.COLORMAP_JET)[0, 0]
+        c = cv2.applyColorMap(
+            np.array([[int(v * 255)]], dtype=np.uint8), cv2.COLORMAP_JET
+        )[0, 0]
         bar[y, :, :] = c
     heat_bgr = np.concatenate([heat_bgr, bar], axis=1)
     cv2.putText(
@@ -362,7 +391,13 @@ def _render_single_board(
     return meas, pred, tgt, first_layer, heat_bgr, max_err
 
 
-def render_boards(diags: list[dict], out_dir: Path, cell_size: int = 64, flip_first_layer: bool = False, flip_all: bool = False) -> None:
+def render_boards(
+    diags: list[dict],
+    out_dir: Path,
+    cell_size: int = 64,
+    flip_first_layer: bool = False,
+    flip_all: bool = False,
+) -> None:
     """渲染测量/预测板和误差热力图"""
     # 使用真实误差（相对于测量值）渲染
     meas, pred, tgt, first_layer, heat_real, _ = _render_single_board(
@@ -394,7 +429,7 @@ def render_boards_for_palette(
     palette_id: str,
     cell_size: int = 64,
     flip_first_layer: bool = False,
-    flip_all: bool = False
+    flip_all: bool = False,
 ) -> None:
     """
     为指定色盘渲染测量板、预测板、误差热力图等可视化结果
@@ -423,4 +458,6 @@ def render_boards_for_palette(
     # 向后兼容
     cv2.imwrite(str(out_dir / f"error_heatmap_{palette_id}.png"), heat_real)
 
-    logger.info(f"[诊断] 色盘 {palette_id} 的可视化结果已保存（包括 Real 和 Train 两种误差图）")
+    logger.info(
+        f"[诊断] 色盘 {palette_id} 的可视化结果已保存（包括 Real 和 Train 两种误差图）"
+    )

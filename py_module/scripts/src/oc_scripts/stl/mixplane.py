@@ -33,11 +33,17 @@ import numpy as np
 import trimesh
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
-def add_mesh_accum(verts_acc: List[np.ndarray], faces_acc: List[np.ndarray], v: np.ndarray, f: np.ndarray) -> None:
+
+
+def add_mesh_accum(
+    verts_acc: List[np.ndarray],
+    faces_acc: List[np.ndarray],
+    v: np.ndarray,
+    f: np.ndarray,
+) -> None:
     if len(v) == 0 or len(f) == 0:
         return
     offset = 0
@@ -47,7 +53,9 @@ def add_mesh_accum(verts_acc: List[np.ndarray], faces_acc: List[np.ndarray], v: 
     faces_acc.append(f + offset)
 
 
-def prism(x0: float, x1: float, y0: float, y1: float, z0: float, z1: float) -> Tuple[np.ndarray, np.ndarray]:
+def prism(
+    x0: float, x1: float, y0: float, y1: float, z0: float, z1: float
+) -> Tuple[np.ndarray, np.ndarray]:
     v = np.array(
         [
             [x0, y0, z0],
@@ -63,12 +71,18 @@ def prism(x0: float, x1: float, y0: float, y1: float, z0: float, z1: float) -> T
     )
     f = np.array(
         [
-            [0, 1, 2], [0, 2, 3],  # 底面
-            [4, 6, 5], [4, 7, 6],  # 顶面
-            [0, 4, 5], [0, 5, 1],  # y0
-            [1, 5, 6], [1, 6, 2],  # x1
-            [2, 6, 7], [2, 7, 3],  # y1
-            [3, 7, 4], [3, 4, 0],  # x0
+            [0, 1, 2],
+            [0, 2, 3],  # 底面
+            [4, 6, 5],
+            [4, 7, 6],  # 顶面
+            [0, 4, 5],
+            [0, 5, 1],  # y0
+            [1, 5, 6],
+            [1, 6, 2],  # x1
+            [2, 6, 7],
+            [2, 7, 3],  # y1
+            [3, 7, 4],
+            [3, 4, 0],  # x0
         ],
         dtype=np.int64,
     )
@@ -106,17 +120,38 @@ def main() -> None:
     ap.add_argument("--outdir", default="out_stl", help="输出目录")
     ap.add_argument("--name", default="mixplane", help="STL文件基础名称")
 
-    ap.add_argument("--mode", choices=["composition", "sequence"], default="composition", help="混合枚举模式")
+    ap.add_argument(
+        "--mode",
+        choices=["composition", "sequence"],
+        default="composition",
+        help="混合枚举模式",
+    )
     ap.add_argument("--layers", type=int, default=5, help="每瓦片总离散层数（如5）")
-    ap.add_argument("--layer-height", type=float, default=0.08, help="每离散层高度（毫米）（第一层除外）")
-    ap.add_argument("--first-layer-height", type=float, default=0.12, help="第一层高度（毫米）（风险：可能隐藏薄细节）")
+    ap.add_argument(
+        "--layer-height",
+        type=float,
+        default=0.08,
+        help="每离散层高度（毫米）（第一层除外）",
+    )
+    ap.add_argument(
+        "--first-layer-height",
+        type=float,
+        default=0.12,
+        help="第一层高度（毫米）（风险：可能隐藏薄细节）",
+    )
     ap.add_argument("--view", default="top", choices=["top", "bottom"])
     ap.add_argument("--backing", default="white", choices=["white", "black"])
 
-    ap.add_argument("--tile", type=float, default=10.0, help="瓦片尺寸（毫米）。瓦片连续无间隙")
-    ap.add_argument("--nx", type=int, default=0, help="每行瓦片数。0 = 自动（近似方形）")
+    ap.add_argument(
+        "--tile", type=float, default=10.0, help="瓦片尺寸（毫米）。瓦片连续无间隙"
+    )
+    ap.add_argument(
+        "--nx", type=int, default=0, help="每行瓦片数。0 = 自动（近似方形）"
+    )
 
-    ap.add_argument("--material-names", default="A,B,C,D", help="逗号分隔的4个STL后缀名称")
+    ap.add_argument(
+        "--material-names", default="A,B,C,D", help="逗号分隔的4个STL后缀名称"
+    )
     ap.add_argument("--validate", action="store_true", help="运行trimesh清理（较慢）")
     ap.add_argument("--export-metadata", action="store_true")
     args = ap.parse_args()
@@ -143,7 +178,7 @@ def main() -> None:
         combos = compositions_4(L)
         total = len(combos)  # C(L+3,3)
     else:
-        total = 4 ** L
+        total = 4**L
 
     # nx 自动：目标接近方形网格
     if int(args.nx) <= 0:
@@ -221,7 +256,9 @@ def main() -> None:
             y0 = y0_card + iy * tile
             y1 = y0 + tile
 
-            seq_digits = sequence_index_to_digits(base=4, length=L, idx=idx)  # 每个在 0..3
+            seq_digits = sequence_index_to_digits(
+                base=4, length=L, idx=idx
+            )  # 每个在 0..3
             z = 0.0
             last_mi = None
             z0 = 0.0
@@ -263,7 +300,9 @@ def main() -> None:
             mesh.fix_normals()
         outpath = os.path.join(args.outdir, f"{args.name}_{mat_names[mi]}.stl")
         mesh.export(outpath)
-        logger.info(f"[OK] 已写入: {outpath} (顶点={len(mesh.vertices)}, 面={len(mesh.faces)})")
+        logger.info(
+            f"[OK] 已写入: {outpath} (顶点={len(mesh.vertices)}, 面={len(mesh.faces)})"
+        )
 
     if args.export_metadata:
         meta = {
@@ -290,7 +329,9 @@ def main() -> None:
 
     logger.info("\n摘要:")
     logger.info(f"  模式={args.mode}")
-    logger.info(f"  层数={L}, 第一层高度={h0} 毫米, 层高度={h} 毫米, 瓦片厚度={total_thickness} 毫米")
+    logger.info(
+        f"  层数={L}, 第一层高度={h0} 毫米, 层高度={h} 毫米, 瓦片厚度={total_thickness} 毫米"
+    )
     if args.mode == "composition":
         logger.info(f"  瓦片数 = C(层数+3,3) = {total}")
         logger.info("  每瓦片堆叠顺序: A(底部)->B->C->D(顶部)")

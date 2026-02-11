@@ -20,7 +20,8 @@ def srgb_to_linear(rgb: np.ndarray) -> np.ndarray:
     """
     rgb = np.asarray(rgb, dtype=np.float32) / 255.0
     a = 0.055
-    return np.where(rgb <= 0.04045, rgb/12.92, ((rgb + a) / (1 + a)) ** 2.4)
+    return np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + a) / (1 + a)) ** 2.4)
+
 
 def linear_to_srgb(lin: np.ndarray) -> np.ndarray:
     """将线性RGB转换为sRGB
@@ -35,8 +36,9 @@ def linear_to_srgb(lin: np.ndarray) -> np.ndarray:
     """
     lin = np.asarray(lin, dtype=np.float32)
     a = 0.055
-    srgb = np.where(lin <= 0.0031308, lin * 12.92, (1 + a) * np.power(lin, 1/2.4) - a)
+    srgb = np.where(lin <= 0.0031308, lin * 12.92, (1 + a) * np.power(lin, 1 / 2.4) - a)
     return np.clip(srgb * 255.0, 0, 255)
+
 
 def rgb_to_lab(rgb: np.ndarray) -> np.ndarray:
     """将RGB转换为CIE Lab颜色空间
@@ -55,8 +57,13 @@ def rgb_to_lab(rgb: np.ndarray) -> np.ndarray:
         arr = arr * 255.0
     arr = np.clip(arr, 0, 255).astype(np.uint8)
     bgr = arr[..., ::-1]
-    lab = cv2.cvtColor(bgr.reshape(-1,1,3), cv2.COLOR_BGR2LAB).reshape(-1,3).astype(np.float32)
+    lab = (
+        cv2.cvtColor(bgr.reshape(-1, 1, 3), cv2.COLOR_BGR2LAB)
+        .reshape(-1, 3)
+        .astype(np.float32)
+    )
     return lab
+
 
 def lab_to_rgb(lab: np.ndarray) -> np.ndarray:
     """将CIE Lab转换为RGB颜色空间
@@ -69,7 +76,7 @@ def lab_to_rgb(lab: np.ndarray) -> np.ndarray:
     Returns:
         RGB数组，形状(...,3)，范围0-255
     """
-    lab = np.asarray(lab, dtype=np.float32).reshape(-1,1,3)
-    bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR).reshape(-1,3)
+    lab = np.asarray(lab, dtype=np.float32).reshape(-1, 1, 3)
+    bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR).reshape(-1, 3)
     rgb = bgr[..., ::-1]
     return np.clip(rgb, 0, 255)

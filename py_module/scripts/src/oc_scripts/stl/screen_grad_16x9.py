@@ -21,10 +21,11 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def main():
     """主函数：生成屏幕校准图像"""
     ap = argparse.ArgumentParser()
@@ -42,9 +43,9 @@ def main():
     # 区域布局（比例）
     # ------------------------
     pad = int(0.04 * W)
-    top_band_h = int(0.20 * H)   # 离散块区域
+    top_band_h = int(0.20 * H)  # 离散块区域
     grad_band_h = int(0.22 * H)  # 连续渐变区域
-    roi_band_h = int(0.46 * H)   # ROI 区域
+    roi_band_h = int(0.46 * H)  # ROI 区域
 
     y0 = pad
     y1 = y0 + top_band_h
@@ -105,15 +106,23 @@ def main():
         val = int(round(j * 255 / (bar_n - 1)))
         # 左侧 ROI 条
         bx1 = pad + bar_margin + j * bar_w
-        bx2 = pad + bar_margin + (j + 1) * bar_w if j < bar_n - 1 else pad + bar_margin + bar_area_w
+        bx2 = (
+            pad + bar_margin + (j + 1) * bar_w
+            if j < bar_n - 1
+            else pad + bar_margin + bar_area_w
+        )
         draw.rectangle([bx1, bar_top, bx2, bar_bottom], fill=(val, val, val))
         # 右侧 ROI 条
         cx1 = cover_box[0] + bar_margin + j * bar_w
-        cx2 = cover_box[0] + bar_margin + (j + 1) * bar_w if j < bar_n - 1 else cover_box[0] + bar_margin + bar_area_w
+        cx2 = (
+            cover_box[0] + bar_margin + (j + 1) * bar_w
+            if j < bar_n - 1
+            else cover_box[0] + bar_margin + bar_area_w
+        )
         draw.rectangle([cx1, bar_top, cx2, bar_bottom], fill=(val, val, val))
 
     # ROI 边框
-    draw.rectangle(bare_box, outline=(255, 0, 0), width=6)   # BARE 红色边框
+    draw.rectangle(bare_box, outline=(255, 0, 0), width=6)  # BARE 红色边框
     draw.rectangle(cover_box, outline=(0, 255, 0), width=6)  # COVER 绿色边框
 
     # 可选标签
@@ -124,8 +133,18 @@ def main():
         except Exception:
             font = ImageFont.load_default()
 
-        draw.text((bare_box[0] + 20, bare_box[1] + 20), "BARE (no material)", fill=(0, 0, 0), font=font)
-        draw.text((cover_box[0] + 20, cover_box[1] + 20), "COVER (place material here)", fill=(0, 0, 0), font=font)
+        draw.text(
+            (bare_box[0] + 20, bare_box[1] + 20),
+            "BARE (no material)",
+            fill=(0, 0, 0),
+            font=font,
+        )
+        draw.text(
+            (cover_box[0] + 20, cover_box[1] + 20),
+            "COVER (place material here)",
+            fill=(0, 0, 0),
+            font=font,
+        )
 
     img.save(args.out)
     logger.info("Wrote:", args.out)

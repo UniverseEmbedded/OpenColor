@@ -8,12 +8,12 @@ calib_color_model_fit - 颜色校准模型拟合与预测
     - ColorPredictionModel: 模型基类
     - create_model_from_checkpoint: 从检查点加载模型
     - train_phys_gpr: 训练物理+GPR模型
-    
+
 示例:
     # 加载模型
     from oc_proto.calib_color_model_fit import create_model_from_checkpoint
     model = create_model_from_checkpoint(Path("path/to/model"))
-    
+
     # 预测
     sequences = [["White", "Red", "Red", "Red", "Red"]]
     result = model.predict_from_sequences(sequences)
@@ -33,6 +33,7 @@ from oc_xgb.model_base import (
     create_model_from_checkpoint,
 )
 from oc_xgb.model_io import save_model, load_model
+
 # 保留旧版接口以兼容现有代码
 from oc_xgb.xgb_fit import (
     PhysGPRModel,

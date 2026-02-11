@@ -14,6 +14,7 @@ _INTERRUPTED = threading.Event()
 
 def _install_interrupt_handlers() -> None:
     """安装中断信号处理器"""
+
     def _on_sigint(sig, frame):
         try:
             _INTERRUPTED.set()

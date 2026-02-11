@@ -53,10 +53,11 @@ from PIL import Image
 import analyze_filament_photos as afp
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _clamp(x: float, lo: float, hi: float) -> float:
     """将数值限制在指定范围内"""
     return max(lo, min(hi, x))
@@ -114,7 +115,9 @@ def _estimate_mu_s(haze: float) -> float:
     return _clamp(mu, 0.4, 8.0)
 
 
-def _estimate_mu_a_from_k(k_rgb: np.ndarray, low: float = 0.35, high: float = 2.6) -> Tuple[float, float, float]:
+def _estimate_mu_a_from_k(
+    k_rgb: np.ndarray, low: float = 0.35, high: float = 2.6
+) -> Tuple[float, float, float]:
     """将k_rgb代理转换为相对mu_a RGB（1/mm）初始化器"""
     k = np.maximum(k_rgb.astype(float), 0.0)
     k0 = float(np.min(k))
@@ -134,9 +137,15 @@ def main() -> None:
     ap.add_argument("--green", required=True, help="绿色耗材照片")
     ap.add_argument("--blue", required=True, help="蓝色耗材照片")
     ap.add_argument("--t0", type=float, default=0.2, help="k估计的有效厚度（mm）")
-    ap.add_argument("--base-materials", default="materials.json", help="基础materials.json路径")
-    ap.add_argument("--out-materials", default="materials_calibrated.json", help="输出材料json路径")
-    ap.add_argument("--out-profiles", default="filament_profiles.json", help="输出配置文件json路径")
+    ap.add_argument(
+        "--base-materials", default="materials.json", help="基础materials.json路径"
+    )
+    ap.add_argument(
+        "--out-materials", default="materials_calibrated.json", help="输出材料json路径"
+    )
+    ap.add_argument(
+        "--out-profiles", default="filament_profiles.json", help="输出配置文件json路径"
+    )
     args = ap.parse_args()
 
     # 加载基础材料
@@ -245,8 +254,12 @@ def main() -> None:
     out["materials"] = out_mats
 
     # 写入输出
-    Path(args.out_profiles).write_text(json.dumps(profiles_out, ensure_ascii=False, indent=2), encoding="utf-8")
-    Path(args.out_materials).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    Path(args.out_profiles).write_text(
+        json.dumps(profiles_out, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    Path(args.out_materials).write_text(
+        json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     logger.info("完成")
     logger.info("  已写入：", args.out_profiles)

@@ -27,11 +27,11 @@ def get_git_tracked_files(project_root: Path = PROJECT_ROOT) -> List[Path]:
             ["git", "-c", "core.quotepath=false", "ls-files", "-z"],
             cwd=project_root,
             capture_output=True,
-            check=True
+            check=True,
         )
         # 解码并按 NUL 分隔，过滤掉空字符串
-        output = result.stdout.decode('utf-8')
-        files = [project_root / f for f in output.split('\0') if f]
+        output = result.stdout.decode("utf-8")
+        files = [project_root / f for f in output.split("\0") if f]
         return files
     except subprocess.CalledProcessError as e:
         print(f"错误：调用 git 命令失败 - {e}")
@@ -44,20 +44,24 @@ def get_git_tracked_files(project_root: Path = PROJECT_ROOT) -> List[Path]:
 def get_git_tracked_python_files(project_root: Path = PROJECT_ROOT) -> List[Path]:
     """获取被 git 追踪的 Python 文件列表"""
     all_files = get_git_tracked_files(project_root)
-    return [f for f in all_files if f.suffix == '.py' and not f.name.startswith('replace_print')]
+    return [
+        f
+        for f in all_files
+        if f.suffix == ".py" and not f.name.startswith("replace_print")
+    ]
 
 
 def has_logger_setup(content: str) -> bool:
     """检查文件是否已经设置了 logger"""
     return (
-        "from oc_core_02.utils.logger import get_logger" in content and
-        "logger = get_logger(__name__)" in content
+        "from oc_core_02.utils.logger import get_logger" in content
+        and "logger = get_logger(__name__)" in content
     )
 
 
 def add_logger_import(content: str) -> str:
     """在文件开头的 import 块中添加 logger 导入"""
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # 策略：
     # 1. 跳过 shebang (#!/usr/bin/env python3)
@@ -82,12 +86,12 @@ def add_logger_import(content: str) -> str:
                 continue
 
         # 跳过 shebang
-        if stripped.startswith('#!'):
+        if stripped.startswith("#!"):
             insert_idx = i + 1
             continue
 
         # 跳过编码声明
-        if 'coding' in stripped and stripped.startswith('#'):
+        if "coding" in stripped and stripped.startswith("#"):
             insert_idx = i + 1
             continue
 
@@ -113,24 +117,24 @@ def add_logger_import(content: str) -> str:
         if in_multiline_import:
             # 计算括号深度变化
             for char in stripped:
-                if char == '(':
+                if char == "(":
                     paren_depth += 1
-                elif char == ')':
+                elif char == ")":
                     paren_depth -= 1
-            
+
             last_import_idx = i
-            
+
             # 括号平衡，多行 import 结束
             if paren_depth == 0:
                 in_multiline_import = False
             continue
 
         # 检查是否是新的 import 语句
-        if stripped.startswith(('import ', 'from ')):
+        if stripped.startswith(("import ", "from ")):
             last_import_idx = i
-            
+
             # 检查是否以 ( 结尾（多行 import 开始）
-            if stripped.endswith('('):
+            if stripped.endswith("("):
                 in_multiline_import = True
                 paren_depth = 1
             continue
@@ -143,7 +147,7 @@ def add_logger_import(content: str) -> str:
         # 有 import 语句，在最后一个 import 后插入
         insert_idx = last_import_idx + 1
         # 跳过空行
-        while insert_idx < len(lines) and lines[insert_idx].strip() == '':
+        while insert_idx < len(lines) and lines[insert_idx].strip() == "":
             insert_idx += 1
     # 否则使用 docstring/shebang 后的位置
 
@@ -152,25 +156,28 @@ def add_logger_import(content: str) -> str:
         "",
         "from oc_core_02.utils.logger import get_logger",
         "",
-        "logger = get_logger(__name__)"
+        "logger = get_logger(__name__)",
     ]
 
     lines = lines[:insert_idx] + logger_import + lines[insert_idx:]
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def detect_log_level(text: str) -> str:
     """根据文本内容检测日志级别"""
     text_lower = text.lower()
-    if any(k in text_lower for k in ['[错误]', '错误', '失败', '严重错误', 'exception', 'error', 'fatal']):
-        return 'error'
-    elif any(k in text_lower for k in ['[警告]', '警告', 'warning', 'warn']):
-        return 'warning'
-    elif any(k in text_lower for k in ['[信息]', '信息', 'info', '完成', '成功']):
-        return 'info'
+    if any(
+        k in text_lower
+        for k in ["[错误]", "错误", "失败", "严重错误", "exception", "error", "fatal"]
+    ):
+        return "error"
+    elif any(k in text_lower for k in ["[警告]", "警告", "warning", "warn"]):
+        return "warning"
+    elif any(k in text_lower for k in ["[信息]", "信息", "info", "完成", "成功"]):
+        return "info"
     else:
-        return 'info'
+        return "info"
 
 
 def count_parens_outside_fstring(line: str) -> int:
@@ -187,15 +194,15 @@ def count_parens_outside_fstring(line: str) -> int:
             if char in ('"', "'"):
                 in_string = True
                 string_char = char
-            elif char == '(':
+            elif char == "(":
                 count += 1
-            elif char == ')':
+            elif char == ")":
                 count -= 1
         else:
             # 在字符串内
             if char == string_char:
                 # 检查是否是转义的
-                if i > 0 and line[i-1] != '\\':
+                if i > 0 and line[i - 1] != "\\":
                     in_string = False
                     string_char = None
             # 在 f-string 内，{ 和 } 不是代码括号
@@ -211,7 +218,7 @@ def find_print_statements(content: str) -> list[tuple[int, int, str]]:
     查找所有 print 语句的位置和内容
     返回: [(start_line, end_line, replacement), ...]
     """
-    lines = content.split('\n')
+    lines = content.split("\n")
     replacements = []
     i = 0
 
@@ -220,8 +227,8 @@ def find_print_statements(content: str) -> list[tuple[int, int, str]]:
         stripped = line.lstrip()
 
         # 匹配 print(
-        if stripped.startswith('print('):
-            indent = line[:len(line) - len(stripped)]
+        if stripped.startswith("print("):
+            indent = line[: len(line) - len(stripped)]
             start_line = i
 
             # 计算第一行的括号深度
@@ -242,16 +249,16 @@ def find_print_statements(content: str) -> list[tuple[int, int, str]]:
             for k in range(i + 1, j + 1):
                 args_lines.append(lines[k])
 
-            args = '\n'.join(args_lines).strip()
+            args = "\n".join(args_lines).strip()
             # 去掉最后的外层右括号
-            if args.endswith(')'):
+            if args.endswith(")"):
                 args = args[:-1]
 
             # 检测日志级别
             level = detect_log_level(args)
 
             # 构建替换语句
-            replacement = f'{indent}logger.{level}({args})'
+            replacement = f"{indent}logger.{level}({args})"
 
             replacements.append((start_line, end_line, replacement))
             i = j + 1
@@ -263,22 +270,22 @@ def find_print_statements(content: str) -> list[tuple[int, int, str]]:
 
 def apply_replacements(content: str, replacements: list[tuple[int, int, str]]) -> str:
     """应用替换"""
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # 从后往前替换，避免行号变化
     for start_line, end_line, replacement in reversed(replacements):
-        lines = lines[:start_line] + [replacement] + lines[end_line + 1:]
+        lines = lines[:start_line] + [replacement] + lines[end_line + 1 :]
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def process_file(py_file: Path) -> int:
     """处理单个文件，返回替换的数量"""
     try:
-        content = py_file.read_text(encoding='utf-8')
+        content = py_file.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         try:
-            content = py_file.read_text(encoding='gbk')
+            content = py_file.read_text(encoding="gbk")
         except Exception as e:
             print(f"读取文件失败: {py_file}, 错误: {e}")
             return 0
@@ -305,7 +312,7 @@ def process_file(py_file: Path) -> int:
     new_content = apply_replacements(content, replacements)
 
     try:
-        py_file.write_text(new_content, encoding='utf-8')
+        py_file.write_text(new_content, encoding="utf-8")
         print(f"已处理: {py_file} (替换 {len(replacements)} 处)")
         return len(replacements)
     except Exception as e:
@@ -321,7 +328,7 @@ def main():
         if not file_path.exists():
             print(f"错误: 文件不存在: {file_path}")
             sys.exit(1)
-        if not file_path.suffix == '.py':
+        if not file_path.suffix == ".py":
             print(f"错误: 不是 Python 文件: {file_path}")
             sys.exit(1)
 

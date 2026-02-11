@@ -14,6 +14,7 @@ from oc_sdf.geometry_utils import _to_polygonal
 
 logger = get_logger(__name__)
 
+
 def _reconcile_layer_polys_by_raster(
     *,
     layer_polys: dict,
@@ -33,10 +34,10 @@ def _reconcile_layer_polys_by_raster(
     cv2_min_area_px: int,
 ) -> dict:
     """通过栅格化对齐图层多边形
-    
+
     将多边形栅格化到高分辨率图像，基于覆盖竞争确定每个像素的归属，
     然后重新矢量化，确保多边形之间无重叠、无间隙。
-    
+
     参数:
         layer_polys: 层多边形字典 {槽位名: 多边形}
         full_mask_poly: 完整掩码多边形
@@ -53,7 +54,7 @@ def _reconcile_layer_polys_by_raster(
         tag: 标签名称
         cv2_simplify_mm: OpenCV简化容差（毫米）
         cv2_min_area_px: OpenCV最小面积阈值（像素）
-        
+
     返回:
         对齐后的层多边形字典
     """
@@ -75,7 +76,9 @@ def _reconcile_layer_polys_by_raster(
     h_hi = int(pixel_h) * s
     w_hi = int(pixel_w) * s
     if int(full_mask_bin_hi.shape[0]) != h_hi or int(full_mask_bin_hi.shape[1]) != w_hi:
-        logger.warning(f"[警告] reconcile 参考 full_mask 尺寸不一致，已跳过: got={full_mask_bin_hi.shape}, expect=({h_hi},{w_hi})")
+        logger.warning(
+            f"[警告] reconcile 参考 full_mask 尺寸不一致，已跳过: got={full_mask_bin_hi.shape}, expect=({h_hi},{w_hi})"
+        )
         return layer_polys
 
     px_per_mm_hi = float(w_hi) / float(board_mm)
@@ -88,7 +91,10 @@ def _reconcile_layer_polys_by_raster(
             coverages.append(np.zeros((h_hi, w_hi), dtype=np.float32))
             continue
         from oc_sdf.sdf_io import rasterize_geometry_soft
-        m = rasterize_geometry_soft(poly, w_hi, h_hi, float(board_mm), float(px_per_mm_hi), supersample=1)
+
+        m = rasterize_geometry_soft(
+            poly, w_hi, h_hi, float(board_mm), float(px_per_mm_hi), supersample=1
+        )
         if m is None:
             coverages.append(np.zeros((h_hi, w_hi), dtype=np.float32))
         else:
@@ -143,7 +149,9 @@ def _reconcile_layer_polys_by_raster(
             if not getattr(occ, "is_valid", True):
                 occ = occ.buffer(0)
             bg = _to_polygonal(full_mask_poly.difference(occ))
-            if (not getattr(bg, "is_empty", True)) and (not getattr(bg, "is_valid", True)):
+            if (not getattr(bg, "is_empty", True)) and (
+                not getattr(bg, "is_valid", True)
+            ):
                 bg = bg.buffer(0)
             if not getattr(bg, "is_empty", True):
                 out[background_slot] = bg
@@ -156,6 +164,14 @@ def _reconcile_layer_polys_by_raster(
 
     # 确保多边形之间互斥（无重叠）
     from .exclusive_clipper import _make_layer_exclusive
+
     ordered = list(slot_names_no_bg) + [background_slot]
-    out = _make_layer_exclusive(out, ordered, float(grid_size), use_cpp=use_cpp, progress=progress, tag=f"{tag}_reconcile")
+    out = _make_layer_exclusive(
+        out,
+        ordered,
+        float(grid_size),
+        use_cpp=use_cpp,
+        progress=progress,
+        tag=f"{tag}_reconcile",
+    )
     return out

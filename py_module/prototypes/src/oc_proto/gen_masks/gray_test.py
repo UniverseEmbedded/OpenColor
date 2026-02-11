@@ -22,15 +22,16 @@ from oc_core_02.core.color_systems import ColorSystem
 from oc_proto.gen_masks.solver_cpp_wrapper import CPP_AVAILABLE, create_solver
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _rmtree_retry(p: Path, *, tries: int = 8, wait_s: float = 0.2) -> None:
     """带重试的目录删除
-    
+
     在删除目录时处理可能的权限错误，支持多次重试。
-    
+
     参数:
         p: 要删除的目录路径
         tries: 重试次数
@@ -43,15 +44,17 @@ def _rmtree_retry(p: Path, *, tries: int = 8, wait_s: float = 0.2) -> None:
         except PermissionError as e:
             if i >= int(tries) - 1:
                 raise
-            logger.error(f"警告: 删除目录失败(可能被占用)，将重试 {i + 1}/{tries}: {p}，原因={e}")
+            logger.error(
+                f"警告: 删除目录失败(可能被占用)，将重试 {i + 1}/{tries}: {p}，原因={e}"
+            )
             time.sleep(float(wait_s))
 
 
 def _clear_dir_keep_root(d: Path) -> None:
     """清空目录但保留根目录
-    
+
     删除目录中的所有内容，如果目录不存在则创建它。
-    
+
     参数:
         d: 目标目录路径
     """
@@ -71,15 +74,15 @@ def _clear_dir_keep_root(d: Path) -> None:
 
 def _find_model_dir(calib_root: Path) -> Path:
     """查找模型目录
-    
+
     在校准根目录中查找最新的颜色模型目录，优先选择包含"four_flux"的模型。
-    
+
     参数:
         calib_root: 校准根目录
-        
+
     返回:
         模型目录路径
-        
+
     异常:
         FileNotFoundError: 未找到可用模型
     """
@@ -107,13 +110,13 @@ def _find_model_dir(calib_root: Path) -> Path:
 
 def _make_gray_ramp_rgba(h: int, w: int) -> np.ndarray:
     """生成灰阶渐变RGBA图像
-    
+
     创建水平方向的灰阶渐变图，从左到右从黑到白。
-    
+
     参数:
         h: 图像高度
         w: 图像宽度
-        
+
     返回:
         RGBA图像数组 (H, W, 4)
     """
@@ -126,9 +129,9 @@ def _make_gray_ramp_rgba(h: int, w: int) -> np.ndarray:
 
 def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> None:
     """运行灰阶测试
-    
+
     生成灰阶渐变图，使用颜色模型求解最优配方，输出每层每色的掩码和报告。
-    
+
     参数:
         out_dir: 输出目录，默认为原型目录下的out_gray_test
         ramp_w: 灰阶图宽度（决定灰阶数量）
@@ -145,7 +148,9 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
 
     # 检查C++求解器可用性
     if not CPP_AVAILABLE:
-        raise RuntimeError("当前环境无法导入 opencolor_solver.pyd，无法按要求使用C++求解器")
+        raise RuntimeError(
+            "当前环境无法导入 opencolor_solver.pyd，无法按要求使用C++求解器"
+        )
 
     # 加载模型和创建求解器
     model = load_model(model_dir)
@@ -193,7 +198,9 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
     pix = rgb01.reshape(-1, 3)
     # 去重以加速求解
     unique_pix, inverse = np.unique(pix, axis=0, return_inverse=True)
-    logger.info(f"待求解像素总数={int(pix.shape[0])}，唯一颜色数={int(unique_pix.shape[0])}")
+    logger.info(
+        f"待求解像素总数={int(pix.shape[0])}，唯一颜色数={int(unique_pix.shape[0])}"
+    )
 
     # 求解最优配方
     logger.info("开始求解 0~255 灰阶对应的最优配方...")
@@ -223,10 +230,16 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
     Image.fromarray(back_u8).save(preview_dir / "01_preview_predicted_back.png")
 
     # 生成每层调色板预览图
-    rgb_lut = np.asarray([cs.slot_preview_rgb[n] for n in cs.slot_names], dtype=np.uint8)
+    rgb_lut = np.asarray(
+        [cs.slot_preview_rgb[n] for n in cs.slot_names], dtype=np.uint8
+    )
     logger.info("生成每层 8 色分配预览图...")
     for z in range(n_layers):
-        digits_z = recipe_digits[idxs, int(z)].reshape(int(ramp_h), int(ramp_w)).astype(np.int32, copy=False)
+        digits_z = (
+            recipe_digits[idxs, int(z)]
+            .reshape(int(ramp_h), int(ramp_w))
+            .astype(np.int32, copy=False)
+        )
         img = rgb_lut[digits_z]
         Image.fromarray(img).save(layer_viz_dir / f"L{z:02d}_solved_palette.png")
 
@@ -234,7 +247,9 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
     ys, xs = np.indices((int(ramp_h), int(ramp_w)))
     ys = ys.reshape(-1)
     xs = xs.reshape(-1)
-    volumes = _generate_layer_volumes(params, cs, ys, xs, idxs, int(ramp_h), int(ramp_w), recipe_digits=recipe_digits)
+    volumes = _generate_layer_volumes(
+        params, cs, ys, xs, idxs, int(ramp_h), int(ramp_w), recipe_digits=recipe_digits
+    )
     full_mask = np.ones((int(ramp_h), int(ramp_w)), dtype=bool)
 
     # 导出每层每色掩码
@@ -245,7 +260,9 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
             if int(np.count_nonzero(mask)) == 0:
                 continue
             prefix = f"L{z:02d}_{slot_name}"
-            Image.fromarray((mask.astype(np.uint8) * 255)).save(mask_dir / f"{prefix}_mask.png")
+            Image.fromarray((mask.astype(np.uint8) * 255)).save(
+                mask_dir / f"{prefix}_mask.png"
+            )
 
     Image.fromarray((full_mask.astype(np.uint8) * 255)).save(mask_dir / "full_mask.png")
 
@@ -273,8 +290,12 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
     for i in range(int(intensity_sorted.shape[0])):
         g = int(intensity_sorted[i])
         digits = recipe_sorted[i].astype(int).tolist()
-        front_rgb = np.clip(np.rint(pred_front_sorted[i] * 255.0), 0, 255).astype(int).tolist()
-        back_rgb = np.clip(np.rint(pred_back_sorted[i] * 255.0), 0, 255).astype(int).tolist()
+        front_rgb = (
+            np.clip(np.rint(pred_front_sorted[i] * 255.0), 0, 255).astype(int).tolist()
+        )
+        back_rgb = (
+            np.clip(np.rint(pred_back_sorted[i] * 255.0), 0, 255).astype(int).tolist()
+        )
         report["灰阶映射"].append(
             {
                 "gray": g,
@@ -286,7 +307,9 @@ def run(out_dir: str | None = None, *, ramp_w: int = 256, ramp_h: int = 64) -> N
         )
 
     # 保存报告
-    (out_path / "gray_test_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_path / "gray_test_report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     logger.info(f"已写出报告: {out_path / 'gray_test_report.json'}")
     logger.info(f"完成。输出目录: {out_path}")
 

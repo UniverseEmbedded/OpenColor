@@ -53,14 +53,16 @@ class ColorSystem:
     @classmethod
     def from_material_keys(cls, name: str, keys: List[str]) -> ColorSystem:
         """从耗材名称列表动态构建 ColorSystem，自动匹配标准预览色"""
-        preview = {k: STANDARD_FILAMENT_RGB.get(k.upper(), (128, 128, 128)) for k in keys}
+        preview = {
+            k: STANDARD_FILAMENT_RGB.get(k.upper(), (128, 128, 128)) for k in keys
+        }
         # 默认角标指向第一个耗材，确保通过验证
         corners = {c: keys[0] for c in ["TL", "TR", "BR", "BL"]} if keys else {}
         return cls(
             name=name,
             slot_names=keys,
             slot_preview_rgb=preview,
-            corner_marker_by_corner=corners
+            corner_marker_by_corner=corners,
         )
 
 

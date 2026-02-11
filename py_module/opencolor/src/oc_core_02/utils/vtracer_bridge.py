@@ -30,6 +30,7 @@ logger = get_logger(__name__)
 
 try:
     import vtracer
+
     HAS_VTRACER = True
 except ImportError:
     HAS_VTRACER = False
@@ -68,7 +69,9 @@ def _loops_to_evenodd_polygon(loops):
         if p.geom_type == "Polygon":
             rings.append(p)
         else:
-            rings.extend([g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9])
+            rings.extend(
+                [g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9]
+            )
 
     if not rings:
         return Polygon()
@@ -116,11 +119,15 @@ def _try_cpp_union_all(loops, scale: float, union_jobs: int = 1):
             if jobs >= 2 and n >= 1500:
                 jobs = min(jobs, n)
                 chunk_size = (n + jobs - 1) // jobs
-                chunks = [loops[i:i + chunk_size] for i in range(0, n, chunk_size)]
+                chunks = [loops[i : i + chunk_size] for i in range(0, n, chunk_size)]
                 partial_loops = []
                 try:
                     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as ex:
-                        futs = [ex.submit(_cpp_union_all_loops, c, scale) for c in chunks if c]
+                        futs = [
+                            ex.submit(_cpp_union_all_loops, c, scale)
+                            for c in chunks
+                            if c
+                        ]
                         for f in concurrent.futures.as_completed(futs):
                             partial_loops.extend(f.result() or [])
                     out_polys = _cpp_union_all_polygons(partial_loops, scale)
@@ -135,7 +142,11 @@ def _try_cpp_union_all(loops, scale: float, union_jobs: int = 1):
             polys = []
             for shell, holes in out_polys or []:
                 shell_arr = np.asarray(shell, dtype=np.float64)
-                if shell_arr.ndim != 2 or shell_arr.shape[0] < 3 or shell_arr.shape[1] != 2:
+                if (
+                    shell_arr.ndim != 2
+                    or shell_arr.shape[0] < 3
+                    or shell_arr.shape[1] != 2
+                ):
                     continue
                 holes_arr = []
                 for h in holes or []:
@@ -151,7 +162,13 @@ def _try_cpp_union_all(loops, scale: float, union_jobs: int = 1):
                 if p.geom_type == "Polygon":
                     polys.append(p)
                 else:
-                    polys.extend([g for g in p.geoms if g.geom_type == "Polygon" and g.area > 1e-9])
+                    polys.extend(
+                        [
+                            g
+                            for g in p.geoms
+                            if g.geom_type == "Polygon" and g.area > 1e-9
+                        ]
+                    )
 
             if not polys:
                 return Polygon()
@@ -167,11 +184,13 @@ def _try_cpp_union_all(loops, scale: float, union_jobs: int = 1):
         if jobs >= 2 and n >= 1500:
             jobs = min(jobs, n)
             chunk_size = (n + jobs - 1) // jobs
-            chunks = [loops[i:i + chunk_size] for i in range(0, n, chunk_size)]
+            chunks = [loops[i : i + chunk_size] for i in range(0, n, chunk_size)]
             partial_loops = []
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as ex:
-                    futs = [ex.submit(_cpp_union_all_loops, c, scale) for c in chunks if c]
+                    futs = [
+                        ex.submit(_cpp_union_all_loops, c, scale) for c in chunks if c
+                    ]
                     for f in concurrent.futures.as_completed(futs):
                         partial_loops.extend(f.result() or [])
 
@@ -193,16 +212,18 @@ def _try_cpp_union_all(loops, scale: float, union_jobs: int = 1):
         traceback.print_exc()
         raise
 
+
 def parse_translate(transform_str: Optional[str]) -> Tuple[float, float]:
     """解析 SVG 中的 transform="translate(tx, ty)" 或 "translate(tx ty)"。"""
     if not transform_str:
         return 0.0, 0.0
-    match = re.search(r'translate\(([-\d.]+)[,\s]*([-\d.]*)\)', transform_str)
+    match = re.search(r"translate\(([-\d.]+)[,\s]*([-\d.]*)\)", transform_str)
     if match:
         tx = float(match.group(1))
         ty = float(match.group(2)) if match.group(2) else 0.0
         return tx, ty
     return 0.0, 0.0
+
 
 def bake_vtracer_svg(svg_text: str) -> List[np.ndarray]:
     try:
@@ -246,6 +267,7 @@ def bake_vtracer_svg(svg_text: str) -> List[np.ndarray]:
 
     return rings
 
+
 def get_rings_bbox(rings: List[np.ndarray]) -> List[float]:
     """获取像素域 rings 的 bbox [xmin, ymin, xmax, ymax]"""
     if not rings:
@@ -256,7 +278,16 @@ def get_rings_bbox(rings: List[np.ndarray]) -> List[float]:
     return [float(xmin), float(ymin), float(xmax), float(ymax)]
 
 
-def vtracer_tool_svg_to_mm_polys(svg_path: Path, *, board_mm: float, pixel_w: int, pixel_h: int, use_cpp: bool = True, progress: bool = True, union_jobs: int = 1) -> List[Polygon]:
+def vtracer_tool_svg_to_mm_polys(
+    svg_path: Path,
+    *,
+    board_mm: float,
+    pixel_w: int,
+    pixel_h: int,
+    use_cpp: bool = True,
+    progress: bool = True,
+    union_jobs: int = 1,
+) -> List[Polygon]:
     if not svg_path.exists():
         raise FileNotFoundError(f"未找到 vtracer_tool.svg: {svg_path}")
 
@@ -270,7 +301,9 @@ def vtracer_tool_svg_to_mm_polys(svg_path: Path, *, board_mm: float, pixel_w: in
 
     polys: List[Polygon] = []
     loops_mm: List[np.ndarray] = []
-    for r in _tqdm(rings, total=len(rings), desc=f"解析 {svg_path.name}", enabled=progress):
+    for r in _tqdm(
+        rings, total=len(rings), desc=f"解析 {svg_path.name}", enabled=progress
+    ):
         if len(r) < 3:
             continue
 
@@ -310,7 +343,11 @@ def vtracer_tool_svg_to_mm_polys(svg_path: Path, *, board_mm: float, pixel_w: in
         dt = perf_counter() - t0
         if n > 0:
             per = dt / float(n)
-            _CPP_UNION_AVG_SEC_PER_RING = per if _CPP_UNION_AVG_SEC_PER_RING is None else (0.8 * _CPP_UNION_AVG_SEC_PER_RING + 0.2 * per)
+            _CPP_UNION_AVG_SEC_PER_RING = (
+                per
+                if _CPP_UNION_AVG_SEC_PER_RING is None
+                else (0.8 * _CPP_UNION_AVG_SEC_PER_RING + 0.2 * per)
+            )
         logger.info("vtracer并集(C++)完成，用时 {:.3f}s", dt)
 
     if final_geom is None:
@@ -321,8 +358,15 @@ def vtracer_tool_svg_to_mm_polys(svg_path: Path, *, board_mm: float, pixel_w: in
 
     EPS = 1e-6
     minx, miny, maxx, maxy = final_geom.bounds
-    if minx < -EPS or miny < -EPS or maxx > float(board_mm) + EPS or maxy > float(board_mm) + EPS:
-        logger.warning(f"警告: vtracer_tool.svg 解析结果越界，已自动裁剪回板子范围内。file={svg_path.name}")
+    if (
+        minx < -EPS
+        or miny < -EPS
+        or maxx > float(board_mm) + EPS
+        or maxy > float(board_mm) + EPS
+    ):
+        logger.warning(
+            f"警告: vtracer_tool.svg 解析结果越界，已自动裁剪回板子范围内。file={svg_path.name}"
+        )
         board_rect = box(0.0, 0.0, float(board_mm), float(board_mm))
         clipped = final_geom.intersection(board_rect)
         if clipped.is_empty:
@@ -348,7 +392,9 @@ def _cv2_contours_to_mm_polys(
 
     src_h, src_w = int(mask_u8.shape[0]), int(mask_u8.shape[1])
     if int(pixel_w) != src_w or int(pixel_h) != src_h:
-        logger.warning(f"警告: cv2 输入尺寸与参数不一致，已按 mask 实际尺寸覆盖: {pixel_w}x{pixel_h} -> {src_w}x{src_h}")
+        logger.warning(
+            f"警告: cv2 输入尺寸与参数不一致，已按 mask 实际尺寸覆盖: {pixel_w}x{pixel_h} -> {src_w}x{src_h}"
+        )
         pixel_w = src_w
         pixel_h = src_h
 
@@ -374,10 +420,12 @@ def _cv2_contours_to_mm_polys(
                 x0 = 0
                 x1 = int(bin_u8.shape[1])
 
-            num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(roi, connectivity=8)
+            num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(
+                roi, connectivity=8
+            )
             if int(num_labels) > 1:
                 areas = stats[:, cv2.CC_STAT_AREA]
-                small = (areas <= int(min_area_px))
+                small = areas <= int(min_area_px)
                 small[0] = False
                 n_removed_cc = int(np.count_nonzero(small))
                 if n_removed_cc > 0:
@@ -387,20 +435,28 @@ def _cv2_contours_to_mm_polys(
                     sub[removed_mask] = 0
                     bin_u8[y0:y1, x0:x1] = sub
                     dt_cc = perf_counter() - t0_cc
-                    print_ts(f"[信息] cv2 剔除极小孤立前景块完成: 阈值<={int(min_area_px)}px, 连通域移除={n_removed_cc}, 像素移除={removed_pixels}, 用时 {dt_cc:.3f}s")
+                    print_ts(
+                        f"[信息] cv2 剔除极小孤立前景块完成: 阈值<={int(min_area_px)}px, 连通域移除={n_removed_cc}, 像素移除={removed_pixels}, 用时 {dt_cc:.3f}s"
+                    )
         except Exception as e:
             logger.warning("cv2 连通域去噪失败，将继续尝试轮廓提取。原因: {}", e)
             traceback.print_exc()
 
     if debug_dir is not None:
         try:
-            Image.fromarray(bin_u8, mode="L").save(debug_dir / f"{slot_name}_cv2_input.png")
+            Image.fromarray(bin_u8, mode="L").save(
+                debug_dir / f"{slot_name}_cv2_input.png"
+            )
         except Exception as e:
             logger.warning("保存 cv2_input.png 失败: {}", e)
 
     try:
-        bin2 = cv2.resize(bin_u8, (int(pixel_w) * 2, int(pixel_h) * 2), interpolation=cv2.INTER_LINEAR)
-        bin2 = cv2.copyMakeBorder(bin2, 1, 1, 1, 1, borderType=cv2.BORDER_CONSTANT, value=0)
+        bin2 = cv2.resize(
+            bin_u8, (int(pixel_w) * 2, int(pixel_h) * 2), interpolation=cv2.INTER_LINEAR
+        )
+        bin2 = cv2.copyMakeBorder(
+            bin2, 1, 1, 1, 1, borderType=cv2.BORDER_CONSTANT, value=0
+        )
         res = cv2.findContours(bin2, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         if len(res) == 3:
             _img, contours, hierarchy = res
@@ -501,7 +557,9 @@ def _cv2_contours_to_mm_polys(
     try:
         g = unary_union(polys) if len(polys) >= 2 else polys[0]
     except Exception as e:
-        logger.error(f"警告: cv2 轮廓 union 失败，将尝试 buffer(0) 修复后重试。原因: {e}")
+        logger.error(
+            f"警告: cv2 轮廓 union 失败，将尝试 buffer(0) 修复后重试。原因: {e}"
+        )
         traceback.print_exc()
         fixed = []
         for p in polys:
@@ -519,7 +577,12 @@ def _cv2_contours_to_mm_polys(
 
     EPS = 1e-6
     minx, miny, maxx, maxy = g.bounds
-    if minx < -EPS or miny < -EPS or maxx > float(board_mm) + EPS or maxy > float(board_mm) + EPS:
+    if (
+        minx < -EPS
+        or miny < -EPS
+        or maxx > float(board_mm) + EPS
+        or maxy > float(board_mm) + EPS
+    ):
         board_rect = box(0.0, 0.0, float(board_mm), float(board_mm))
         clipped = g.intersection(board_rect)
         if clipped.is_empty:
@@ -576,6 +639,7 @@ def vectorize_mask_to_mm_polys(
         min_area_px=int(cv2_min_area_px),
     )
 
+
 def vtracer_to_mm_polys(
     mask_u8: np.ndarray,
     vtracer_params: dict,
@@ -590,7 +654,7 @@ def vtracer_to_mm_polys(
 ) -> List[Polygon]:
     """
     统一的 vtracer 调用 + 解析 + 烘焙 + 缩放逻辑。
-    
+
     Args:
         mask_u8: 输入的 mask (0 或 255)
         vtracer_params: vtracer 参数 (mode, filter_speckle, corner_threshold, length_threshold)
@@ -607,7 +671,13 @@ def vtracer_to_mm_polys(
 
     src_h, src_w = int(mask_u8.shape[0]), int(mask_u8.shape[1])
     if int(pixel_w) != src_w or int(pixel_h) != src_h:
-        logger.warning("vtracer 输入尺寸与参数不一致，已按 mask 实际尺寸覆盖: {}x{} -> {}x{}", pixel_w, pixel_h, src_w, src_h)
+        logger.warning(
+            "vtracer 输入尺寸与参数不一致，已按 mask 实际尺寸覆盖: {}x{} -> {}x{}",
+            pixel_w,
+            pixel_h,
+            src_w,
+            src_h,
+        )
         pixel_w = src_w
         pixel_h = src_h
 
@@ -619,11 +689,13 @@ def vtracer_to_mm_polys(
         t0_up = perf_counter()
         m_bin = mask_u8 > 128
         m_up = np.kron(m_bin, np.ones((input_scale, input_scale), dtype=bool))
-        mask_u8 = (m_up.astype(np.uint8) * 255)
+        mask_u8 = m_up.astype(np.uint8) * 255
         pixel_w = int(pixel_w) * input_scale
         pixel_h = int(pixel_h) * input_scale
         dt_up = perf_counter() - t0_up
-        print_ts(f"[信息] vtracer输入上采样完成: scale={input_scale}, 用时 {dt_up:.3f}s")
+        print_ts(
+            f"[信息] vtracer输入上采样完成: scale={input_scale}, 用时 {dt_up:.3f}s"
+        )
 
     bin_u8 = (mask_u8 > 128).astype(np.uint8)
     if int(np.count_nonzero(bin_u8)) > 0:
@@ -643,10 +715,12 @@ def vtracer_to_mm_polys(
             x0 = 0
             x1 = int(bin_u8.shape[1])
 
-        num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(roi, connectivity=8)
+        num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(
+            roi, connectivity=8
+        )
         if num_labels > 1:
             areas = stats[:, cv2.CC_STAT_AREA]
-            small = (areas <= 4)
+            small = areas <= 4
             small[0] = False
             n_removed_cc = int(np.count_nonzero(small))
             if n_removed_cc > 0:
@@ -664,14 +738,16 @@ def vtracer_to_mm_polys(
                 dt_cc = perf_counter() - t0_cc
                 roi_area = int((y1 - y0) * (x1 - x0))
                 full_area = int(bin_u8.shape[0] * bin_u8.shape[1])
-                print_ts(f"[信息] 连通域扫描完成: 未发现<=4px前景块, 用时 {dt_cc:.3f}s, ROI像素={roi_area}/{full_area}")
+                print_ts(
+                    f"[信息] 连通域扫描完成: 未发现<=4px前景块, 用时 {dt_cc:.3f}s, ROI像素={roi_area}/{full_area}"
+                )
         else:
             dt_cc = perf_counter() - t0_cc
             print_ts(f"[信息] 连通域扫描完成: 前景仅1个连通域, 用时 {dt_cc:.3f}s")
 
     # 1. 保存 vtracer_input.png
     input_mask = np.where(mask_u8 > 128, 0, 255).astype(np.uint8)
-    
+
     # 如果 debug_dir 为 None，则使用临时目录保存输入图片
     temp_input_dir = None
     if debug_dir is None:
@@ -679,19 +755,19 @@ def vtracer_to_mm_polys(
         input_png = Path(temp_input_dir.name) / f"{slot_name}_vtracer_input.png"
     else:
         input_png = debug_dir / f"{slot_name}_vtracer_input.png"
-        
+
     Image.fromarray(input_mask).save(input_png)
 
     # 2. 调用 vtracer
     with tempfile.TemporaryDirectory() as tmpdir:
         out_svg_path = os.path.join(tmpdir, "out.svg")
-        
+
         convert_func = None
         if hasattr(vtracer, "convert_image_to_svg_py"):
             convert_func = vtracer.convert_image_to_svg_py
         elif hasattr(vtracer, "convert_image_to_svg"):
             convert_func = vtracer.convert_image_to_svg
-            
+
         if not convert_func:
             raise AttributeError("vtracer 接口不可用")
 
@@ -719,7 +795,7 @@ def vtracer_to_mm_polys(
             length_threshold=length_threshold,
             max_iterations=max_iterations,
             splice_threshold=splice_threshold,
-            path_precision=path_precision
+            path_precision=path_precision,
         )
         dt_vtr = perf_counter() - t0_vtr
         print_ts(f"[信息] vtracer调用完成: slot={slot_name}, 用时 {dt_vtr:.3f}s")
@@ -731,7 +807,7 @@ def vtracer_to_mm_polys(
         if debug_dir is not None:
             tool_svg_path = debug_dir / f"{slot_name}_vtracer_tool.svg"
             shutil.copy2(out_svg_path, tool_svg_path)
-        
+
         svg_text = Path(out_svg_path).read_text(encoding="utf-8")
 
     # 清理临时输入目录
@@ -741,6 +817,7 @@ def vtracer_to_mm_polys(
     # 4. 解析并烘焙 transform
     # 获取原始 bbox (不含 transform)
     from oc_sdf.sdf_utils import _parse_path_d_simple, _parse_svg_points
+
     root = ET.fromstring(svg_text)
     raw_rings = []
     tx, ty = 0.0, 0.0
@@ -758,34 +835,37 @@ def vtracer_to_mm_polys(
         elif tag.endswith("polygon"):
             raw_rings.extend(_parse_svg_points(elem.get("points") or ""))
             tx, ty = parse_translate(elem.get("transform"))
-    
+
     d_bbox_px = get_rings_bbox(raw_rings)
-    
+
     # 烘焙 transform
     rings = bake_vtracer_svg(svg_text)
     final_bbox_px = get_rings_bbox(rings)
-    
+
     # 5. px -> mm 缩放并转换为 Polygon
     # 使用 board_mm / pixel_w 确保边界对齐
     mm_per_px_x = board_mm / pixel_w
     mm_per_px_y = board_mm / pixel_h
-    
+
     polys = []
     loops_mm = []
-    for r in _tqdm(rings, total=len(rings), desc=f"{slot_name} rings", enabled=progress):
-        if len(r) < 3: continue
-        
+    for r in _tqdm(
+        rings, total=len(rings), desc=f"{slot_name} rings", enabled=progress
+    ):
+        if len(r) < 3:
+            continue
+
         phys_r = []
         for rx, ry in r:
             px_x = float(rx)
             px_y = float(ry)
-            
+
             # px -> mm 转换
             mx = px_x * mm_per_px_x
             # 注意：vtracer 坐标系 y 向下，物理坐标系 y 向上
             my = (float(pixel_h) - px_y) * mm_per_px_y
             phys_r.append((mx, my))
-            
+
         arr = np.asarray(phys_r, dtype=np.float64)
         loops_mm.append(arr)
 
@@ -794,21 +874,21 @@ def vtracer_to_mm_polys(
             p = p.buffer(0)
         if not p.is_empty:
             polys.append(p)
-            
+
     # 6. 最终 BBox 检查与报告
     report = {
         "input": {"W": int(pixel_w), "H": int(pixel_h)},
         "tool_svg": {
             "d_bbox_px": d_bbox_px,
             "transform_translate_px": [tx, ty],
-            "final_bbox_px": final_bbox_px
+            "final_bbox_px": final_bbox_px,
         },
         "wrapped": {
             "mm_per_px": [mm_per_px_x, mm_per_px_y],
             "board_mm": board_mm,
             "bbox_mm": [0.0, 0.0, 0.0, 0.0],
-            "viewBox": [0.0, 0.0, board_mm, board_mm]
-        }
+            "viewBox": [0.0, 0.0, board_mm, board_mm],
+        },
     }
 
     if polys:
@@ -818,17 +898,27 @@ def vtracer_to_mm_polys(
         if use_cpp:
             if _CPP_UNION_AVG_SEC_PER_RING is not None:
                 est = _CPP_UNION_AVG_SEC_PER_RING * float(max(n, 1))
-                logger.info(f"[信息] {slot_name} 并集(C++)：开始，ring数={n}，预计 {est:.3f}s")
+                logger.info(
+                    f"[信息] {slot_name} 并集(C++)：开始，ring数={n}，预计 {est:.3f}s"
+                )
             else:
-                logger.info(f"[信息] {slot_name} 并集(C++)：开始，ring数={n}，暂无历史数据无法预估")
+                logger.info(
+                    f"[信息] {slot_name} 并集(C++)：开始，ring数={n}，暂无历史数据无法预估"
+                )
 
             t0 = perf_counter()
-            final_geom = _try_cpp_union_all(loops_mm, scale=10000.0, union_jobs=union_jobs)
+            final_geom = _try_cpp_union_all(
+                loops_mm, scale=10000.0, union_jobs=union_jobs
+            )
             if final_geom is not None:
                 dt = perf_counter() - t0
                 if n > 0:
                     per = dt / float(n)
-                    _CPP_UNION_AVG_SEC_PER_RING = per if _CPP_UNION_AVG_SEC_PER_RING is None else (0.8 * _CPP_UNION_AVG_SEC_PER_RING + 0.2 * per)
+                    _CPP_UNION_AVG_SEC_PER_RING = (
+                        per
+                        if _CPP_UNION_AVG_SEC_PER_RING is None
+                        else (0.8 * _CPP_UNION_AVG_SEC_PER_RING + 0.2 * per)
+                    )
                 logger.info(f"[信息] {slot_name} 并集(C++)完成，用时 {dt:.3f}s")
 
         if final_geom is None:
@@ -841,7 +931,9 @@ def vtracer_to_mm_polys(
 
         EPS = 1e-6
         if minx < -EPS or miny < -EPS or maxx > board_mm + EPS or maxy > board_mm + EPS:
-            logger.warning(f"警告: 最终几何轻微越界，已自动裁剪回板子范围内。slot={slot_name}")
+            logger.warning(
+                f"警告: 最终几何轻微越界，已自动裁剪回板子范围内。slot={slot_name}"
+            )
             logger.info(f"  裁剪前 BBox: ({minx}, {miny}, {maxx}, {maxy})")
             logger.info(f"  Board Limit: 0 ~ {board_mm}")
 
@@ -851,23 +943,40 @@ def vtracer_to_mm_polys(
                 logger.error(f"严重错误: 裁剪后几何为空，无法继续。slot={slot_name}")
                 if debug_dir is not None:
                     report_path = debug_dir / f"{slot_name}_bbox_report.json"
-                    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-                    raise ValueError(f"Slot {slot_name} geometry out of bounds and clip-to-board became empty. Report saved to {report_path}")
-                raise ValueError(f"Slot {slot_name} geometry out of bounds and clip-to-board became empty.")
+                    report_path.write_text(
+                        json.dumps(report, indent=2), encoding="utf-8"
+                    )
+                    raise ValueError(
+                        f"Slot {slot_name} geometry out of bounds and clip-to-board became empty. Report saved to {report_path}"
+                    )
+                raise ValueError(
+                    f"Slot {slot_name} geometry out of bounds and clip-to-board became empty."
+                )
 
             final_geom = clipped
             polys = [final_geom]
             minx, miny, maxx, maxy = final_geom.bounds
             report["wrapped"]["bbox_mm"] = [minx, miny, maxx, maxy]
 
-            if minx < -EPS or miny < -EPS or maxx > board_mm + EPS or maxy > board_mm + EPS:
+            if (
+                minx < -EPS
+                or miny < -EPS
+                or maxx > board_mm + EPS
+                or maxy > board_mm + EPS
+            ):
                 logger.error(f"严重错误: 裁剪后仍越界! slot={slot_name}")
                 logger.info(f"  裁剪后 BBox: ({minx}, {miny}, {maxx}, {maxy})")
                 if debug_dir is not None:
                     report_path = debug_dir / f"{slot_name}_bbox_report.json"
-                    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-                    raise ValueError(f"Slot {slot_name} geometry out of bounds after clipping: {final_geom.bounds}. Report saved to {report_path}")
-                raise ValueError(f"Slot {slot_name} geometry out of bounds after clipping: {final_geom.bounds}.")
+                    report_path.write_text(
+                        json.dumps(report, indent=2), encoding="utf-8"
+                    )
+                    raise ValueError(
+                        f"Slot {slot_name} geometry out of bounds after clipping: {final_geom.bounds}. Report saved to {report_path}"
+                    )
+                raise ValueError(
+                    f"Slot {slot_name} geometry out of bounds after clipping: {final_geom.bounds}."
+                )
 
     # 7. 保存产物
     # 写入 bbox_report.json

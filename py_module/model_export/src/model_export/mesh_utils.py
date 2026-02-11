@@ -7,10 +7,11 @@ import numpy as np
 import trimesh
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _mesh_repair_manifold(m: trimesh.Trimesh) -> trimesh.Trimesh:
     mm = m.copy()
     try:
@@ -75,7 +76,9 @@ def _geom_to_polygons(geom) -> list:
     return out
 
 
-def _mesh_extrude_2d_to_3d(geom, z_bottom: float, z_top: float) -> trimesh.Trimesh | None:
+def _mesh_extrude_2d_to_3d(
+    geom, z_bottom: float, z_top: float
+) -> trimesh.Trimesh | None:
     height = float(z_top) - float(z_bottom)
     if height <= 0:
         return None
@@ -106,7 +109,9 @@ def _mesh_extrude_2d_to_3d(geom, z_bottom: float, z_top: float) -> trimesh.Trime
     return merged
 
 
-def _mesh_voxel_fill_holes(m: trimesh.Trimesh, *, voxel_size: float) -> trimesh.Trimesh | None:
+def _mesh_voxel_fill_holes(
+    m: trimesh.Trimesh, *, voxel_size: float
+) -> trimesh.Trimesh | None:
     try:
         vox = m.voxelized(pitch=float(voxel_size))
         filled = vox.fill()
@@ -121,12 +126,16 @@ def _mesh_voxel_fill_holes(m: trimesh.Trimesh, *, voxel_size: float) -> trimesh.
         return None
 
 
-def _repair_mesh_by_voxel(m: trimesh.Trimesh, slot_name: str, *, voxel_size: float = 0.1) -> trimesh.Trimesh:
+def _repair_mesh_by_voxel(
+    m: trimesh.Trimesh, slot_name: str, *, voxel_size: float = 0.1
+) -> trimesh.Trimesh:
     """使用体素化修复网格"""
     try:
         m2 = _mesh_voxel_fill_holes(m, voxel_size=float(voxel_size))
         if m2 is not None and len(m2.vertices) > 0:
-            logger.info(f"  [体素修复] {slot_name}: 体素化修复成功，顶点数 {len(m.vertices)} -> {len(m2.vertices)}")
+            logger.info(
+                f"  [体素修复] {slot_name}: 体素化修复成功，顶点数 {len(m.vertices)} -> {len(m2.vertices)}"
+            )
             return m2
     except Exception as e:
         logger.error(f"  [体素修复] {slot_name}: 体素化修复失败: {e}")
@@ -139,7 +148,9 @@ def _repair_mesh_by_fill(m: trimesh.Trimesh, slot_name: str) -> trimesh.Trimesh:
     try:
         m2 = _mesh_repair_manifold(m)
         if m2 is not None and len(m2.vertices) > 0:
-            logger.info(f"  [孔洞填充] {slot_name}: 孔洞填充修复成功，顶点数 {len(m.vertices)} -> {len(m2.vertices)}")
+            logger.info(
+                f"  [孔洞填充] {slot_name}: 孔洞填充修复成功，顶点数 {len(m.vertices)} -> {len(m2.vertices)}"
+            )
             return m2
     except Exception as e:
         logger.error(f"  [孔洞填充] {slot_name}: 孔洞填充修复失败: {e}")
@@ -153,7 +164,9 @@ def _repair_mesh(m: trimesh.Trimesh, slot_name: str) -> trimesh.Trimesh:
         return m
 
     is_watertight = m.is_watertight
-    logger.info(f"  [网格检查] {slot_name}: watertight={is_watertight}, 顶点={len(m.vertices)}, 面={len(m.faces)}")
+    logger.info(
+        f"  [网格检查] {slot_name}: watertight={is_watertight}, 顶点={len(m.vertices)}, 面={len(m.faces)}"
+    )
 
     if is_watertight:
         return m
@@ -167,7 +180,9 @@ def _repair_mesh(m: trimesh.Trimesh, slot_name: str) -> trimesh.Trimesh:
     return m2
 
 
-def _simplify_mesh(m: trimesh.Trimesh, slot_name: str, *, target_ratio: float = 0.5) -> trimesh.Trimesh:
+def _simplify_mesh(
+    m: trimesh.Trimesh, slot_name: str, *, target_ratio: float = 0.5
+) -> trimesh.Trimesh:
     """简化网格"""
     if m is None or len(m.vertices) == 0:
         return m
@@ -176,7 +191,9 @@ def _simplify_mesh(m: trimesh.Trimesh, slot_name: str, *, target_ratio: float = 
     try:
         m2 = _mesh_simplify(m, target_faces=int(target_faces))
         if m2 is not None and len(m2.vertices) > 0:
-            logger.info(f"  [网格简化] {slot_name}: {len(m.faces)} -> {len(m2.faces)} 面")
+            logger.info(
+                f"  [网格简化] {slot_name}: {len(m.faces)} -> {len(m2.faces)} 面"
+            )
             return m2
     except Exception as e:
         logger.error(f"  [网格简化] {slot_name}: 简化失败: {e}")
@@ -213,7 +230,9 @@ def _save_mesh(m: trimesh.Trimesh, path: Path, slot_name: str) -> bool:
 
     try:
         m.export(str(path))
-        logger.info(f"  [保存] {slot_name}: {path.name} ({len(m.vertices)} 顶点, {len(m.faces)} 面)")
+        logger.info(
+            f"  [保存] {slot_name}: {path.name} ({len(m.vertices)} 顶点, {len(m.faces)} 面)"
+        )
         return True
     except Exception as e:
         logger.error(f"  [保存失败] {slot_name}: {e}")
@@ -257,7 +276,7 @@ def _export_3mf(
     slot_preview_rgb: dict[str, tuple[int, int, int]],
 ) -> Path | None:
     """导出通用 3MF 格式（按对象颜色）
-    
+
     将所有同色网格合并为一个对象，并设置对象级颜色
     """
     try:
@@ -266,7 +285,7 @@ def _export_3mf(
     except ImportError:
         logger.warning("  [警告] lib3mf 未安装，无法导出 3MF 格式")
         return None
-    
+
     if not slot_meshes:
         logger.info("  [提示] 没有可用网格，跳过 3MF 导出")
         return None

@@ -10,7 +10,9 @@ import cv2
 import numpy as np
 
 
-def _choose_preview_output_size(src_w: int, src_h: int, max_dim: int = 1920) -> tuple[int, int]:
+def _choose_preview_output_size(
+    src_w: int, src_h: int, max_dim: int = 1920
+) -> tuple[int, int]:
     """选择预览输出尺寸"""
     if src_w <= 0 or src_h <= 0:
         return 1, 1
@@ -35,7 +37,9 @@ def _clear_dir_keep_root(d: Path) -> None:
             child.unlink()
 
 
-def _guided_filter_gray(guidance_gray01: np.ndarray, src01: np.ndarray, radius: int, eps: float) -> np.ndarray:
+def _guided_filter_gray(
+    guidance_gray01: np.ndarray, src01: np.ndarray, radius: int, eps: float
+) -> np.ndarray:
     """引导滤波实现"""
     if guidance_gray01.ndim != 2:
         raise ValueError("guidance_gray01 必须是单通道二维数组")

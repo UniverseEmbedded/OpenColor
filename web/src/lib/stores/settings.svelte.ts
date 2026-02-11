@@ -15,6 +15,8 @@ const defaultAppSettings: AppSettings = {
   enginePath: 'auto',
   gpuAcceleration: true,
   logLevel: 'info',
+  skipWindowSizeCheck: false,
+  showWindowSizeOverlay: true,
 };
 
 // 默认项目设置
@@ -124,7 +126,17 @@ function createSettingsStore() {
     updateProjectSettings(settings: Partial<ProjectSettings>) {
       projectSettings.update(current => ({ ...current, ...settings }));
     },
-    
+
+    setSkipWindowSizeCheck(skip: boolean) {
+      appSettings.update(current => ({ ...current, skipWindowSizeCheck: skip }));
+      saveSettings();
+    },
+
+    setShowWindowSizeOverlay(show: boolean) {
+      appSettings.update(current => ({ ...current, showWindowSizeOverlay: show }));
+      saveSettings();
+    },
+
     init() {
       loadSettings();
     },
@@ -133,3 +145,6 @@ function createSettingsStore() {
 
 // 导出单例
 export const settingsStore = createSettingsStore();
+
+// 直接导出 appSettings store 以便使用 $ 前缀订阅
+export { appSettings };

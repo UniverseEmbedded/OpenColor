@@ -58,12 +58,26 @@
     padding: 0 16px;
     gap: 8px;
     overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    /* 保留滚动条以便用户知道可以滚动 */
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-muted) transparent;
   }
   
   .subnav-items::-webkit-scrollbar {
-    display: none;
+    height: 4px;
+  }
+  
+  .subnav-items::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .subnav-items::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 2px;
+  }
+  
+  .subnav-items::-webkit-scrollbar-thumb:hover {
+    background: var(--text);
   }
   
   .subnav-item {

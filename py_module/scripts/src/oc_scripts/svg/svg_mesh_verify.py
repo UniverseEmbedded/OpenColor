@@ -26,7 +26,12 @@ import argparse
 import numpy as np
 from lxml import etree
 
-from svg_mesh_verify_geom import extract_shapes, rings_to_area_geom, stroke_to_polygons, triangulate_geom
+from svg_mesh_verify_geom import (
+    extract_shapes,
+    rings_to_area_geom,
+    stroke_to_polygons,
+    triangulate_geom,
+)
 from svg_mesh_verify_raster import (
     compare_images,
     copy_defs,
@@ -39,35 +44,67 @@ from svg_mesh_verify_raster import (
 )
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def main():
     """主函数 - SVG网格验证入口"""
     ap = argparse.ArgumentParser(description="SVG网格验证器")
-    ap.add_argument("--mode", choices=["triangulate", "compare"], default="triangulate",
-                    help="运行模式：triangulate=输出三角化SVG；compare=光栅化对比并输出loss图")
+    ap.add_argument(
+        "--mode",
+        choices=["triangulate", "compare"],
+        default="triangulate",
+        help="运行模式：triangulate=输出三角化SVG；compare=光栅化对比并输出loss图",
+    )
 
     ap.add_argument("--in", dest="inp", help="输入SVG路径（triangulate模式必填）")
     ap.add_argument("--out", dest="out", help="输出SVG路径（triangulate模式必填）")
-    ap.add_argument("--tol", type=float, default=0.75, help="曲线打平容差（越小三角形越多）")
+    ap.add_argument(
+        "--tol", type=float, default=0.75, help="曲线打平容差（越小三角形越多）"
+    )
     ap.add_argument("--no-stroke", action="store_true", help="忽略描边")
     ap.add_argument("--no-fill", action="store_true", help="忽略填充")
-    ap.add_argument("--color-mode", choices=["paint", "raster"], default="paint",
-                    help="颜色模式：paint=沿用原始paint；raster=渲染成PNG后采样输出纯色三角形")
-    ap.add_argument("--raster-scale", type=float, default=4.0, help="raster颜色模式的渲染缩放倍率")
-    ap.add_argument("--sample", choices=["centroid", "vertices"], default="centroid",
-                    help="raster颜色模式采样方式：centroid=重心；vertices=顶点平均")
+    ap.add_argument(
+        "--color-mode",
+        choices=["paint", "raster"],
+        default="paint",
+        help="颜色模式：paint=沿用原始paint；raster=渲染成PNG后采样输出纯色三角形",
+    )
+    ap.add_argument(
+        "--raster-scale", type=float, default=4.0, help="raster颜色模式的渲染缩放倍率"
+    )
+    ap.add_argument(
+        "--sample",
+        choices=["centroid", "vertices"],
+        default="centroid",
+        help="raster颜色模式采样方式：centroid=重心；vertices=顶点平均",
+    )
 
     ap.add_argument("--ref", dest="ref_inp", help="参考SVG路径（compare模式必填）")
     ap.add_argument("--test", dest="test_inp", help="待对比SVG路径（compare模式必填）")
-    ap.add_argument("--diff-out", dest="diff_out", help="loss分布图输出路径（PNG，compare模式必填）")
-    ap.add_argument("--compare-scale", type=float, default=4.0, help="compare模式的渲染缩放倍率")
-    ap.add_argument("--bg", choices=["white", "black", "transparent"], default="white",
-                    help="compare模式对比时的合成背景：white/black/transparent")
-    ap.add_argument("--diff-max", type=float, default=0.10, help="loss映射到全黑的阈值（越小越敏感）")
-    ap.add_argument("--diff-gamma", type=float, default=1.0, help="loss图gamma（>1更凸显小差异）")
+    ap.add_argument(
+        "--diff-out", dest="diff_out", help="loss分布图输出路径（PNG，compare模式必填）"
+    )
+    ap.add_argument(
+        "--compare-scale", type=float, default=4.0, help="compare模式的渲染缩放倍率"
+    )
+    ap.add_argument(
+        "--bg",
+        choices=["white", "black", "transparent"],
+        default="white",
+        help="compare模式对比时的合成背景：white/black/transparent",
+    )
+    ap.add_argument(
+        "--diff-max",
+        type=float,
+        default=0.10,
+        help="loss映射到全黑的阈值（越小越敏感）",
+    )
+    ap.add_argument(
+        "--diff-gamma", type=float, default=1.0, help="loss图gamma（>1更凸显小差异）"
+    )
     args = ap.parse_args()
 
     if args.mode == "compare":
@@ -98,12 +135,25 @@ def main():
 
         vb_ref = parse_viewbox(ref_root)
         vb_test = parse_viewbox(test_root)
-        if (vb_ref.x, vb_ref.y, vb_ref.w, vb_ref.h) != (vb_test.x, vb_test.y, vb_test.w, vb_test.h):
-            logger.warning(f"[警告] 两个SVG的viewBox不一致：ref={vb_ref}，test={vb_test}。将以ref为基准渲染尺寸。")
+        if (vb_ref.x, vb_ref.y, vb_ref.w, vb_ref.h) != (
+            vb_test.x,
+            vb_test.y,
+            vb_test.w,
+            vb_test.h,
+        ):
+            logger.warning(
+                f"[警告] 两个SVG的viewBox不一致：ref={vb_ref}，test={vb_test}。将以ref为基准渲染尺寸。"
+            )
 
         img_ref = render_svg_to_image(ref_bytes, vb_ref, scale=args.compare_scale)
         img_test = render_svg_to_image(test_bytes, vb_ref, scale=args.compare_scale)
-        diff_img, metrics = compare_images(img_ref, img_test, bg=args.bg, diff_max=args.diff_max, diff_gamma=args.diff_gamma)
+        diff_img, metrics = compare_images(
+            img_ref,
+            img_test,
+            bg=args.bg,
+            diff_max=args.diff_max,
+            diff_gamma=args.diff_gamma,
+        )
 
         try:
             diff_img.save(args.diff_out)
@@ -111,7 +161,8 @@ def main():
             logger.error(f"[错误] 写入loss分布图失败：{args.diff_out}：{e}")
             raise
 
-        logger.info("[完成] compare结果："
+        logger.info(
+            "[完成] compare结果："
             f"尺寸={int(metrics['width'])}x{int(metrics['height'])} "
             f"MSE={metrics['mse']:.8f} RMSE={metrics['rmse']:.6f} MAE={metrics['mae']:.6f} "
             f"PSNR={metrics['psnr']:.2f}dB P95={metrics['p95']:.6f} MAX={metrics['max']:.6f} "
@@ -233,7 +284,12 @@ def main():
                     else:
                         emit_triangle(g, a, b, c, sh.fill)
 
-        if not args.no_stroke and sh.stroke and sh.stroke.lower() != "none" and sh.stroke_lines:
+        if (
+            not args.no_stroke
+            and sh.stroke
+            and sh.stroke.lower() != "none"
+            and sh.stroke_lines
+        ):
             area = stroke_to_polygons(
                 sh.stroke_lines,
                 stroke_width=sh.stroke_width,
@@ -264,7 +320,9 @@ def main():
                 p.set("stroke", "none")
                 p.set("d", " ".join(stroke_d_parts))
 
-    svg_out_bytes = etree.tostring(out_root, pretty_print=True, xml_declaration=True, encoding="UTF-8")
+    svg_out_bytes = etree.tostring(
+        out_root, pretty_print=True, xml_declaration=True, encoding="UTF-8"
+    )
     try:
         with open(args.out, "wb") as f:
             f.write(svg_out_bytes)

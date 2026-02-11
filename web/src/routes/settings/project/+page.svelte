@@ -12,5 +12,5 @@
 <Placeholder 
   title={$_('settings.project.title')} 
   description="项目设置功能开发中"
-  icon="ti-config"
+  icon="ti-file-settings"
 />

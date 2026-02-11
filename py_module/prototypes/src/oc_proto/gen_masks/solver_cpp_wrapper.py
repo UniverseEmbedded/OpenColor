@@ -27,28 +27,28 @@ except Exception as e:
 
 class HillClimbingSolverCpp:
     """C++加速的HillClimbingSolver包装器"""
-    
+
     def __init__(self, model, *, use_vulkan: bool = True):
         """
         初始化求解器
-        
+
         Args:
             model: Python PhysGPRModel 对象
         """
         if not CPP_AVAILABLE:
             raise RuntimeError("C++求解器模块不可用")
-        
+
         self.model = model
         self.material_keys = model.optical.material_keys
         self.n_layers = model.optical.n_layers
         self.m = len(self.material_keys)
-        
+
         # 转换模型数据为C++格式
         optical_dict = self._convert_optical(model.optical)
         gpr_L_dict = self._convert_gpr(model.gpr_L)
         gpr_a_dict = self._convert_gpr(model.gpr_a)
         gpr_b_dict = self._convert_gpr(model.gpr_b)
-        
+
         self.use_vulkan = bool(use_vulkan)
 
         self._solver = opencolor_solver.HillClimbingSolver(
@@ -63,7 +63,7 @@ class HillClimbingSolverCpp:
             layer_names_order="bottom_first",
             use_vulkan=self.use_vulkan,
         )
-    
+
     def _convert_optical(self, optical):
         """转换光学参数"""
         out = {
@@ -74,7 +74,7 @@ class HillClimbingSolverCpp:
             "k1": float(optical.k1),
             "k2": float(optical.k2),
             "backing": float(optical.backing),
-            "material_keys": optical.material_keys
+            "material_keys": optical.material_keys,
         }
 
         alpha = getattr(optical, "alpha", None)
@@ -90,7 +90,7 @@ class HillClimbingSolverCpp:
                 out["gamma"] = gamma
 
         return out
-    
+
     def _convert_gpr(self, gpr):
         """转换GPR参数"""
         return {
@@ -102,47 +102,49 @@ class HillClimbingSolverCpp:
             "y_std": float(gpr.y_std),
             "lengthscale": float(gpr.lengthscale),
             "signal_var": float(gpr.signal_var),
-            "noise": float(gpr.noise)
+            "noise": float(gpr.noise),
         }
-    
+
     def _predict_batch(self, recipe_indices_list):
         """批量预测配方颜色（Lab）"""
         # C++求解器返回Lab颜色
         result = self._solver.predict_batch(recipe_indices_list.astype(np.int32))
         return result.astype(np.float32)
-    
+
     def solve(self, target_rgb_list, n_random_samples=1000):
         """
         为一组RGB颜色实时求解最优配方
-        
+
         Args:
             target_rgb_list: (N, 3) 0..1 float numpy数组
             n_random_samples: 随机采样数量（C++版本忽略此参数，使用构造时的值）
-        
+
         Returns:
             (N, n_layers) int32 numpy数组，表示每层的材料索引
         """
         n_targets = len(target_rgb_list)
         if n_targets == 0:
             return np.zeros((0, self.n_layers), dtype=np.int32)
-        
+
         # 确保输入是float32
         target_rgb = target_rgb_list.astype(np.float32)
-        
+
         # 调用C++求解器
         result = self._solver.solve(target_rgb)
-        
+
         return result.astype(np.int32)
 
 
-def create_solver(model, use_cpp=True, force_cpp: bool = False, *, prefer_vulkan: bool = True):
+def create_solver(
+    model, use_cpp=True, force_cpp: bool = False, *, prefer_vulkan: bool = True
+):
     """
     创建求解器工厂函数
-    
+
     Args:
         model: Python PhysGPRModel 对象
         use_cpp: 是否尝试使用C++加速
-    
+
     Returns:
         HillClimbingSolverCpp 或 Python HillClimbingSolver
     """
@@ -160,7 +162,9 @@ def create_solver(model, use_cpp=True, force_cpp: bool = False, *, prefer_vulkan
                 if has_rts:
                     logger.info("[信息] 尝试启用 Vulkan(GPU) 路径进行求解")
                 else:
-                    logger.info("[信息] 尝试启用 Vulkan(GPU) 路径进行求解（仅用于GPR加速，物理预测走CPU）")
+                    logger.info(
+                        "[信息] 尝试启用 Vulkan(GPU) 路径进行求解（仅用于GPR加速，物理预测走CPU）"
+                    )
                 cpp_solver = HillClimbingSolverCpp(model, use_vulkan=True)
                 # Vulkan失败直接报错，不回退到CPU
             else:
@@ -177,7 +181,7 @@ def test_cpp_solver():
     if not CPP_AVAILABLE:
         logger.info("C++求解器模块不可用")
         return False
-    
+
     try:
         result = opencolor_solver.ping()
         logger.info(f"C++求解器测试: {result}")

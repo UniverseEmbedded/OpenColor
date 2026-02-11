@@ -23,11 +23,14 @@ import sys
 from pathlib import Path
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
-def _run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
+
+
+def _run(
+    cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None
+) -> None:
     """运行命令并打印。"""
     logger.info(f"[cmd] {' '.join(cmd)}")
     subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True, env=env)
@@ -94,7 +97,9 @@ def build_python_engine(project_root: Path) -> None:
     produced_dir = dist_tmp / "opencolor_engine"
     produced_exe = produced_dir / "opencolor_engine.exe"
     if not produced_exe.exists():
-        raise RuntimeError(f"PyInstaller did not produce expected executable: {produced_exe}")
+        raise RuntimeError(
+            f"PyInstaller did not produce expected executable: {produced_exe}"
+        )
 
     # 将 onedir 输出的内容复制到 resources/engine，以便 Rust 可以解析 `engine/opencolor_engine.exe`。
     _reset_dir(engine_dst)
@@ -111,7 +116,7 @@ def build_python_engine(project_root: Path) -> None:
 
 def _analyze_size(path: Path) -> None:
     """Analyze and print the size of the bundled directory."""
-    logger.info(f"\n{'='*20} 打包大小分析 {'='*20}")
+    logger.info(f"\n{'=' * 20} 打包大小分析 {'=' * 20}")
     total_size = 0
     items = []
     for root, _, files in os.walk(path):
@@ -135,8 +140,10 @@ def _analyze_size(path: Path) -> None:
 
     logger.info(f"\n按类别大小:")
     for ext, size in sorted(categories.items(), key=lambda x: x[1], reverse=True):
-        logger.info(f"  {ext:10}: {size / 1024 / 1024:7.2f} MB ({size/total_size*100:5.1f}%)")
-    logger.info(f"{'='*62}\n")
+        logger.info(
+            f"  {ext:10}: {size / 1024 / 1024:7.2f} MB ({size / total_size * 100:5.1f}%)"
+        )
+    logger.info(f"{'=' * 62}\n")
 
 
 def bundle_cpp_modules(project_root: Path) -> None:
@@ -146,7 +153,7 @@ def bundle_cpp_modules(project_root: Path) -> None:
     if not cpp_release.exists():
         # 兼容不同生成器路径
         cpp_release = project_root / "cpp_module" / "build"
-        
+
     pyd_files = list(cpp_release.glob("*.pyd"))
     if not pyd_files:
         logger.warning("[warn] No .pyd modules found in C++ build directory")
@@ -154,7 +161,7 @@ def bundle_cpp_modules(project_root: Path) -> None:
 
     dst = project_root / "web" / "src-tauri" / "resources" / "engine"
     dst.mkdir(parents=True, exist_ok=True)
-    
+
     for pyd in pyd_files:
         shutil.copy2(pyd, dst / pyd.name)
         logger.info(f"[ok] C++ module bundled: {pyd.name} -> {dst}")

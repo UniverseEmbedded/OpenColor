@@ -36,7 +36,12 @@ from typing import Dict, List, Tuple, Optional
 import cv2
 import numpy as np
 
-from oc_scripts.calibration.color_board.calib_color import bgr_to_lab, deltaE76, linear01_to_srgb, srgb_to_linear01
+from oc_scripts.calibration.color_board.calib_color import (
+    bgr_to_lab,
+    deltaE76,
+    linear01_to_srgb,
+    srgb_to_linear01,
+)
 from oc_scripts.calibration.color_board.calib_geom import (
     detect_board_quad_by_chroma,
     expand_quad,
@@ -44,7 +49,10 @@ from oc_scripts.calibration.color_board.calib_geom import (
     parse_corners,
     warp_perspective,
 )
-from oc_scripts.calibration.calibrate_color_board_io import _read_image_unicode, _write_png
+from oc_scripts.calibration.calibrate_color_board_io import (
+    _read_image_unicode,
+    _write_png,
+)
 from oc_scripts.calibration.color_board.projection import (
     draw_projection_debug,
     estimate_pitch_fft,
@@ -53,11 +61,11 @@ from oc_scripts.calibration.color_board.projection import (
 )
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
 # ---------------- 数据 ----------------
+
 
 @dataclass
 class TileSample:
@@ -74,6 +82,7 @@ class TileSample:
 
 # ---------------- 主程序 ----------------
 
+
 def main() -> None:
     ap = argparse.ArgumentParser()
 
@@ -81,26 +90,78 @@ def main() -> None:
     ap.add_argument("--recipes", required=True, help="*_recipes.json路径")
     ap.add_argument("--outdir", required=True, help="输出目录")
 
-    ap.add_argument("--scale", type=float, default=10.0, help="扭曲目标的标称每毫米像素数（仅先验）。")
-    ap.add_argument("--sample-frac", type=float, default=0.55, help="每色块的中心裁剪比例")
-    ap.add_argument("--roi", default=None, help="输入上的可选裁剪ROI：'x,y,w,h'（UI框选）")
-    ap.add_argument("--analyze", action="store_true", help="仅转储分析产物；不计算材料/报告。")
+    ap.add_argument(
+        "--scale",
+        type=float,
+        default=10.0,
+        help="扭曲目标的标称每毫米像素数（仅先验）。",
+    )
+    ap.add_argument(
+        "--sample-frac", type=float, default=0.55, help="每色块的中心裁剪比例"
+    )
+    ap.add_argument(
+        "--roi", default=None, help="输入上的可选裁剪ROI：'x,y,w,h'（UI框选）"
+    )
+    ap.add_argument(
+        "--analyze", action="store_true", help="仅转储分析产物；不计算材料/报告。"
+    )
 
-    ap.add_argument("--corners", default=None, help="手动角点：'x1,y1 x2,y2 x3,y3 x4,y4'，ROI坐标")
-    ap.add_argument("--corners-are-ordered", action="store_true", help="将--corners视为TL TR BR BL。")
-    ap.add_argument("--use-image-corners", action="store_true", help="跳过检测，使用ROI/完整图像角点。")
-    ap.add_argument("--min-quad-area-frac", type=float, default=0.25, help="如果四边形太小则回退到完整角点。")
-    ap.add_argument("--quad-expand", type=float, default=0.08, help="将检测到的四边形向外扩展此比例（0.0禁用）。")
+    ap.add_argument(
+        "--corners", default=None, help="手动角点：'x1,y1 x2,y2 x3,y3 x4,y4'，ROI坐标"
+    )
+    ap.add_argument(
+        "--corners-are-ordered",
+        action="store_true",
+        help="将--corners视为TL TR BR BL。",
+    )
+    ap.add_argument(
+        "--use-image-corners",
+        action="store_true",
+        help="跳过检测，使用ROI/完整图像角点。",
+    )
+    ap.add_argument(
+        "--min-quad-area-frac",
+        type=float,
+        default=0.25,
+        help="如果四边形太小则回退到完整角点。",
+    )
+    ap.add_argument(
+        "--quad-expand",
+        type=float,
+        default=0.08,
+        help="将检测到的四边形向外扩展此比例（0.0禁用）。",
+    )
 
-    ap.add_argument("--rot90", type=int, default=0, choices=[0, 1, 2, 3], help="将扭曲图像顺时针旋转90° k次。")
+    ap.add_argument(
+        "--rot90",
+        type=int,
+        default=0,
+        choices=[0, 1, 2, 3],
+        help="将扭曲图像顺时针旋转90° k次。",
+    )
     ap.add_argument("--flip-x", action="store_true", help="左右翻转扭曲图像。")
     ap.add_argument("--flip-y", action="store_true", help="上下翻转扭曲图像。")
 
-    ap.add_argument("--no-border", action="store_true", help="将角点视为网格角点（忽略params.border_mm）。")
+    ap.add_argument(
+        "--no-border",
+        action="store_true",
+        help="将角点视为网格角点（忽略params.border_mm）。",
+    )
 
-    ap.add_argument("--refine-steps", type=int, default=61, help="dx/dy细化的搜索步数。")
-    ap.add_argument("--pitch-search-frac", type=float, default=0.35, help="FFT pitch搜索范围围绕预期（+/- 比例）。")
-    ap.add_argument("--base-materials", default="materials_calibrated.json", help="如果存在则更新的基础材料json。")
+    ap.add_argument(
+        "--refine-steps", type=int, default=61, help="dx/dy细化的搜索步数。"
+    )
+    ap.add_argument(
+        "--pitch-search-frac",
+        type=float,
+        default=0.35,
+        help="FFT pitch搜索范围围绕预期（+/- 比例）。",
+    )
+    ap.add_argument(
+        "--base-materials",
+        default="materials_calibrated.json",
+        help="如果存在则更新的基础材料json。",
+    )
 
     args = ap.parse_args()
 
@@ -154,17 +215,24 @@ def main() -> None:
         w = max(1, min(w, img_full.shape[1] - x))
         h = max(1, min(h, img_full.shape[0] - y))
         roi = (x, y, w, h)
-        img = img_full[y:y + h, x:x + w].copy()
+        img = img_full[y : y + h, x : x + w].copy()
 
     img_h, img_w = img.shape[:2]
 
     def full_image_quad() -> np.ndarray:
-        return np.array([[0, 0], [img_w - 1, 0], [img_w - 1, img_h - 1], [0, img_h - 1]], dtype=np.float32)
+        return np.array(
+            [[0, 0], [img_w - 1, 0], [img_w - 1, img_h - 1], [0, img_h - 1]],
+            dtype=np.float32,
+        )
 
     # 选择四边形
     if args.corners:
         quad_raw = parse_corners(args.corners)
-        quad = quad_raw.astype(np.float32) if args.corners_are_ordered else order_quad_points(quad_raw)
+        quad = (
+            quad_raw.astype(np.float32)
+            if args.corners_are_ordered
+            else order_quad_points(quad_raw)
+        )
         vis = img.copy()
         cv2.polylines(vis, [quad.astype(np.int32)], True, (0, 255, 0), 3)
         _write_png(debug_dir / "debug_quad_manual.png", vis)
@@ -175,7 +243,9 @@ def main() -> None:
         quad_area = float(cv2.contourArea(quad.reshape(-1, 1, 2)))
         img_area = float(img_w * img_h)
         if img_area > 0 and quad_area / img_area < float(args.min_quad_area_frac):
-            logger.warning(f"[警告] 检测到的四边形太小（面积比例={quad_area/img_area:.3f}），回退到ROI角点。")
+            logger.warning(
+                f"[警告] 检测到的四边形太小（面积比例={quad_area / img_area:.3f}），回退到ROI角点。"
+            )
             quad = full_image_quad()
 
     # 向外扩展四边形（修复仅向内收缩问题）
@@ -213,8 +283,12 @@ def main() -> None:
 
     expected_pitch_px = float(pitch_mm * args.scale)
 
-    pitch_x = estimate_pitch_fft(col_sum, expected_pitch_px, search_frac=float(args.pitch_search_frac))
-    pitch_y = estimate_pitch_fft(row_sum, expected_pitch_px, search_frac=float(args.pitch_search_frac))
+    pitch_x = estimate_pitch_fft(
+        col_sum, expected_pitch_px, search_frac=float(args.pitch_search_frac)
+    )
+    pitch_y = estimate_pitch_fft(
+        row_sum, expected_pitch_px, search_frac=float(args.pitch_search_frac)
+    )
 
     draw_projection_debug(col_sum, pitch_x, debug_dir / "debug_proj_x.png", "col_sum")
     draw_projection_debug(row_sum, pitch_y, debug_dir / "debug_proj_y.png", "row_sum")
@@ -223,7 +297,13 @@ def main() -> None:
     dx_ref, dy_ref, refine_score = 0.0, 0.0, 1.0
     if grid_nx > 0 and grid_ny > 0 and pitch_x > 5 and pitch_y > 5:
         dx_ref, dy_ref, refine_score = refine_dxdy(
-            col_sum, row_sum, nx=grid_nx, ny=grid_ny, pitch_x=pitch_x, pitch_y=pitch_y, search_steps=int(args.refine_steps)
+            col_sum,
+            row_sum,
+            nx=grid_nx,
+            ny=grid_ny,
+            pitch_x=pitch_x,
+            pitch_y=pitch_y,
+            search_steps=int(args.refine_steps),
         )
 
     # 每轴毫米到像素的比例校正（这修复了左边对、右边漂移）
@@ -231,7 +311,9 @@ def main() -> None:
     scale_y = float(pitch_y / pitch_mm) if pitch_mm > 0 else float(args.scale)
 
     if refine_score < 1.10:
-        logger.warning(f"[警告] refine_score较低（{refine_score:.2f}）。可能是部分裁剪/严重模糊/布局不匹配。")
+        logger.warning(
+            f"[警告] refine_score较低（{refine_score:.2f}）。可能是部分裁剪/严重模糊/布局不匹配。"
+        )
 
     # 叠加 + 采样
     out_h_px, out_w_px = warped.shape[:2]
@@ -302,8 +384,16 @@ def main() -> None:
                 view_sequence=list(t.get("view_sequence", [])),
                 print_sequence=list(t.get("print_sequence", [])),
                 heights_mm=list(t.get("heights_mm", [])),
-                measured_srgb=[int(med_srgb255[0]), int(med_srgb255[1]), int(med_srgb255[2])],
-                measured_linear_rgb01=[float(med_lin01[0]), float(med_lin01[1]), float(med_lin01[2])],
+                measured_srgb=[
+                    int(med_srgb255[0]),
+                    int(med_srgb255[1]),
+                    int(med_srgb255[2]),
+                ],
+                measured_linear_rgb01=[
+                    float(med_lin01[0]),
+                    float(med_lin01[1]),
+                    float(med_lin01[2]),
+                ],
             )
         )
 
@@ -311,7 +401,15 @@ def main() -> None:
         cv2.rectangle(overlay, (sx0, sy0), (sx1, sy1), (255, 255, 255), 1)
 
         if int(t.get("ix", -1)) == 0 and int(t.get("iy", -1)) == 0:
-            cv2.putText(overlay, "(0,0)", (x0c + 2, y0c + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            cv2.putText(
+                overlay,
+                "(0,0)",
+                (x0c + 2, y0c + 14),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 255),
+                1,
+            )
 
     _write_png(outdir / "overlay.png", overlay)
 
@@ -346,7 +444,9 @@ def main() -> None:
         },
         "tiles": [t.__dict__ for t in tiles],
     }
-    (outdir / "samples_tiles.json").write_text(json.dumps(samples_out, ensure_ascii=False, indent=2), encoding="utf-8")
+    (outdir / "samples_tiles.json").write_text(
+        json.dumps(samples_out, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     if args.analyze:
         logger.info("[成功] 分析完成。请查看：")
@@ -370,9 +470,17 @@ def main() -> None:
     mat_srgb_colors: Dict[str, List[int]] = {}
 
     for m in materials:
-        pure = [tt for tt in tiles if tt.view_sequence and all(x == m for x in tt.view_sequence)]
+        pure = [
+            tt
+            for tt in tiles
+            if tt.view_sequence and all(x == m for x in tt.view_sequence)
+        ]
         if not pure:
-            pure = [tt for tt in tiles if tt.print_sequence and all(x == m for x in tt.print_sequence)]
+            pure = [
+                tt
+                for tt in tiles
+                if tt.print_sequence and all(x == m for x in tt.print_sequence)
+            ]
         if not pure:
             continue
         arr = np.array([tt.measured_linear_rgb01 for tt in pure], dtype=np.float32)
@@ -421,7 +529,11 @@ def main() -> None:
                 "iy": tt.iy,
                 "deltaE76": de,
                 "measured_srgb": tt.measured_srgb,
-                "predicted_srgb": [int(pred_srgb255[0]), int(pred_srgb255[1]), int(pred_srgb255[2])],
+                "predicted_srgb": [
+                    int(pred_srgb255[0]),
+                    int(pred_srgb255[1]),
+                    int(pred_srgb255[2]),
+                ],
             }
         )
 
@@ -449,7 +561,9 @@ def main() -> None:
         "sampling_stats": samples_out["stats"],
         "refine": samples_out["params"],
     }
-    (outdir / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (outdir / "report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     base_path = Path(args.base_materials)
     updated_path = outdir / "materials_calibrated_from_board.json"
@@ -462,7 +576,9 @@ def main() -> None:
             else:
                 mats_obj[m] = {"name": m, "color_srgb": c}
         base["materials"] = mats_obj
-        updated_path.write_text(json.dumps(base, ensure_ascii=False, indent=2), encoding="utf-8")
+        updated_path.write_text(
+            json.dumps(base, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     logger.info("[成功] 已写入：")
     logger.info(" -", outdir / "debug")
@@ -479,7 +595,9 @@ def main() -> None:
                 logger.info(f"  {m}: {mat_srgb_colors[m]}")
     if de_vals:
         logger.info("\n基线误差（DeltaE76）：")
-        logger.info(f"  色块数={len(de_vals)} 均值={np.mean(de_vals):.2f} 中位数={np.median(de_vals):.2f} p90={np.percentile(de_vals,90):.2f}")
+        logger.info(
+            f"  色块数={len(de_vals)} 均值={np.mean(de_vals):.2f} 中位数={np.median(de_vals):.2f} p90={np.percentile(de_vals, 90):.2f}"
+        )
 
 
 if __name__ == "__main__":

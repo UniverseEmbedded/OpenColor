@@ -11,10 +11,13 @@ logger = get_logger(__name__)
 
 # 导入操作系统相关模块
 import os
+
 # 导入 ZIP 文件处理模块
 import zipfile
+
 # 导入路径处理模块
 from pathlib import Path
+
 # 导入类型提示模块
 from typing import Callable
 
@@ -22,11 +25,11 @@ from typing import Callable
 def atomic_write_bytes(path: Path, data: bytes) -> None:
     """
     使用临时文件将字节数据原子性地写入路径。
-    
+
     参数:
         path: 目标文件路径
         data: 要写入的字节数据
-    
+
     注意:
         使用临时文件和重命名来保证原子性，
         确保写入过程中不会出现部分写入的文件。
@@ -49,14 +52,17 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
         logger.error(f"原子性写入失败: {e}")
         raise
 
-def atomic_zip_create(path: Path, write_func: Callable[[zipfile.ZipFile], None]) -> None:
+
+def atomic_zip_create(
+    path: Path, write_func: Callable[[zipfile.ZipFile], None]
+) -> None:
     """
     原子性地创建 ZIP 文件。
-    
+
     参数:
         path: 目标 ZIP 文件路径
         write_func: 写入函数，接收 ZipFile 对象作为参数
-    
+
     注意:
         使用临时文件和重命名来保证原子性，
         确保写入过程中不会出现部分写入的文件。
@@ -68,7 +74,7 @@ def atomic_zip_create(path: Path, write_func: Callable[[zipfile.ZipFile], None])
         # 打开临时 ZIP 文件并调用写入函数
         with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             write_func(zf)
-        
+
         # 如果目标文件已存在，则删除
         if path.exists():
             os.remove(path)

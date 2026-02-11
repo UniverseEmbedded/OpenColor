@@ -4,7 +4,9 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 
 
-def _guided_filter_gray(guidance_gray01: np.ndarray, src01: np.ndarray, radius: int, eps: float) -> np.ndarray:
+def _guided_filter_gray(
+    guidance_gray01: np.ndarray, src01: np.ndarray, radius: int, eps: float
+) -> np.ndarray:
     """
     引导滤波实现
     """
@@ -38,18 +40,29 @@ def box_filter(img: np.ndarray, r: int) -> np.ndarray:
 
     imCum = np.cumsum(img, 0)
     imDst[0 : r + 1, :] = imCum[r : 2 * r + 1, :]
-    imDst[r + 1 : rows - r, :] = imCum[2 * r + 1 : rows, :] - imCum[0 : rows - 2 * r - 1, :]
-    imDst[rows - r : rows, :] = np.tile(imCum[rows - 1, :], [r, 1]) - imCum[rows - 2 * r - 1 : rows - r - 1, :]
+    imDst[r + 1 : rows - r, :] = (
+        imCum[2 * r + 1 : rows, :] - imCum[0 : rows - 2 * r - 1, :]
+    )
+    imDst[rows - r : rows, :] = (
+        np.tile(imCum[rows - 1, :], [r, 1]) - imCum[rows - 2 * r - 1 : rows - r - 1, :]
+    )
 
     imCum = np.cumsum(imDst, 1)
     imDst[:, 0 : r + 1] = imCum[:, r : 2 * r + 1]
-    imDst[:, r + 1 : cols - r] = imCum[:, 2 * r + 1 : cols] - imCum[:, 0 : cols - 2 * r - 1]
-    imDst[:, cols - r : cols] = np.tile(imCum[:, cols - 1], [r, 1]).T - imCum[:, cols - 2 * r - 1 : cols - r - 1]
+    imDst[:, r + 1 : cols - r] = (
+        imCum[:, 2 * r + 1 : cols] - imCum[:, 0 : cols - 2 * r - 1]
+    )
+    imDst[:, cols - r : cols] = (
+        np.tile(imCum[:, cols - 1], [r, 1]).T
+        - imCum[:, cols - 2 * r - 1 : cols - r - 1]
+    )
 
     return imDst
 
 
-def _gaussian_blur_masked_rgb_u8(image_u8: np.ndarray, mask_bool: np.ndarray, sigma: float) -> np.ndarray:
+def _gaussian_blur_masked_rgb_u8(
+    image_u8: np.ndarray, mask_bool: np.ndarray, sigma: float
+) -> np.ndarray:
     """
     带掩码的高斯模糊（仅对掩码内区域进行模糊，保持掩码外不变）
     """
@@ -70,12 +83,16 @@ def _gaussian_blur_masked_rgb_u8(image_u8: np.ndarray, mask_bool: np.ndarray, si
         blurred = gaussian_filter(channel, sigma=sigma, mode="nearest")
 
         # 将模糊结果应用到掩码区域
-        result[mask_coords[0], mask_coords[1], c] = blurred[mask_coords[0], mask_coords[1]].astype(np.uint8)
+        result[mask_coords[0], mask_coords[1], c] = blurred[
+            mask_coords[0], mask_coords[1]
+        ].astype(np.uint8)
 
     return result
 
 
-def apply_guided_filter_to_mask(mask_u8: np.ndarray, guidance_rgb: np.ndarray, radius: int = 4, eps: float = 0.01) -> np.ndarray:
+def apply_guided_filter_to_mask(
+    mask_u8: np.ndarray, guidance_rgb: np.ndarray, radius: int = 4, eps: float = 0.01
+) -> np.ndarray:
     """
     对掩码应用引导滤波
     """

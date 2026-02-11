@@ -16,34 +16,37 @@ from oc_core_02.utils.logger import get_logger
 logger = get_logger(__name__)
 # 新的模型基类
 from .model_base import ColorPredictionModel
+
 # 为了向后兼容，保留旧的导入
-from oc_xgb.xgb_fit import PhysGPRModel as LegacyPhysGPRModel, OpticalParams as LegacyOpticalParams, \
-    GPRModel as LegacyGPRModel
+from oc_xgb.xgb_fit import (
+    PhysGPRModel as LegacyPhysGPRModel,
+    OpticalParams as LegacyOpticalParams,
+    GPRModel as LegacyGPRModel,
+)
 
 
 def save_model(model, out_dir: Path, meta: dict) -> dict:
     """保存模型到目录
-    
+
     Args:
         model: 模型实例（可以是新的 ColorPredictionModel 或旧的 PhysGPRModel）
         out_dir: 输出目录
         meta: 元数据
-        
+
     Returns:
         dict: 模型元数据
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 如果是新的模型接口，使用其 save 方法
     if isinstance(model, ColorPredictionModel):
         model_meta = model.save(out_dir)
         model_meta.update(meta)
         (out_dir / "color_model.json").write_text(
-            json.dumps(model_meta, indent=2, ensure_ascii=False), 
-            encoding="utf-8"
+            json.dumps(model_meta, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         return model_meta
-    
+
     # 否则使用旧的保存逻辑（向后兼容）
     return _save_legacy_model(model, out_dir, meta)
 
@@ -73,7 +76,7 @@ def _save_legacy_model(model: LegacyPhysGPRModel, out_dir: Path, meta: dict) -> 
             pack["optical_alpha"] = alpha
             pack["optical_beta"] = beta
             pack["optical_gamma"] = gamma
-    
+
     # 保存GPR模型
     pack.update(_pack_gpr_legacy("L", model.gpr_L))
     pack.update(_pack_gpr_legacy("a", model.gpr_a))
@@ -93,8 +96,7 @@ def _save_legacy_model(model: LegacyPhysGPRModel, out_dir: Path, meta: dict) -> 
         }
     )
     (out_dir / "color_model.json").write_text(
-        json.dumps(meta_out, indent=2, ensure_ascii=False), 
-        encoding="utf-8"
+        json.dumps(meta_out, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     return meta_out
 
@@ -116,17 +118,17 @@ def _pack_gpr_legacy(prefix: str, gpr: LegacyGPRModel) -> dict:
 
 def load_model(model_dir: Path):
     """加载模型
-    
+
     Args:
         model_dir: 模型目录
-        
+
     Returns:
         模型实例（新的 ColorPredictionModel 或旧的 PhysGPRModel）
     """
     # 尝试查找模型元数据文件
     meta_path = model_dir / "color_model.json"
     rts_meta_path = model_dir / "rts_model.json"
-    
+
     if meta_path.exists():
         metadata = json.loads(meta_path.read_text(encoding="utf-8"))
     elif rts_meta_path.exists():
@@ -134,14 +136,14 @@ def load_model(model_dir: Path):
         return _load_rts_model_as_legacy(metadata)
     else:
         raise FileNotFoundError(f"找不到模型元数据: {meta_path} 或 {rts_meta_path}")
-    
+
     model_type = metadata.get("model_type", "phys_gpr")
-    
+
     # 尝试使用新的模型加载机制
     try:
         # 导入模型模块以触发注册
         from . import models  # noqa: F401
-        
+
         # 使用新的加载机制
         return ColorPredictionModel.load_from_dir(model_dir)
     except (ValueError, ImportError, KeyError) as e:
@@ -179,13 +181,21 @@ def _load_rts_model_as_legacy(metadata: dict) -> LegacyPhysGPRModel:
     gamma = np.asarray(params["gamma"], dtype=np.float32)
 
     n_mats_raw = int(len(material_keys))
-    if alpha.shape != (n_mats_raw, 3) or beta.shape != (n_mats_raw, 3) or gamma.shape != (3,):
+    if (
+        alpha.shape != (n_mats_raw, 3)
+        or beta.shape != (n_mats_raw, 3)
+        or gamma.shape != (3,)
+    ):
         raise ValueError(
             f"RTS 参数维度不匹配: alpha={tuple(alpha.shape)}, beta={tuple(beta.shape)}, gamma={tuple(gamma.shape)}, n_mats={n_mats_raw}"
         )
 
-    alpha = np.ascontiguousarray(alpha[np.asarray(keep_indices, dtype=np.int32), :], dtype=np.float32)
-    beta = np.ascontiguousarray(beta[np.asarray(keep_indices, dtype=np.int32), :], dtype=np.float32)
+    alpha = np.ascontiguousarray(
+        alpha[np.asarray(keep_indices, dtype=np.int32), :], dtype=np.float32
+    )
+    beta = np.ascontiguousarray(
+        beta[np.asarray(keep_indices, dtype=np.int32), :], dtype=np.float32
+    )
 
     n_mats = int(len(material_keys_filtered))
 
@@ -292,4 +302,5 @@ def _load_legacy_model(model_dir: Path, metadata: dict):
 def create_model_from_checkpoint(model_dir: Path) -> ColorPredictionModel:
     """从检查点创建模型（使用新接口）"""
     from . import models  # noqa: F401
+
     return ColorPredictionModel.load_from_dir(model_dir)

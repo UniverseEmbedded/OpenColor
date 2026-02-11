@@ -6,15 +6,17 @@ from __future__ import annotations
 from typing import Iterable, List, Sequence, Tuple
 
 
-def sequence_index_to_digits(base: int, length: int, idx: int, *, lsb_first: bool = True) -> List[int]:
+def sequence_index_to_digits(
+    base: int, length: int, idx: int, *, lsb_first: bool = True
+) -> List[int]:
     """将序列索引转换为数字列表（按指定进制）
-    
+
     Args:
         base: 进制基数
         length: 序列长度
         idx: 索引值
         lsb_first: 是否最低位在前
-    
+
     Returns:
         数字列表
     """
@@ -33,12 +35,12 @@ def sequence_index_to_digits(base: int, length: int, idx: int, *, lsb_first: boo
 
 def interleave_from_counts(counts: Sequence[int]) -> List[int]:
     """根据计数交错排列序列
-    
+
     将不同类别的元素按计数交错排列，避免相邻相同元素。
-    
+
     Args:
         counts: 各类别的计数列表
-    
+
     Returns:
         交错后的序列
     """
@@ -65,19 +67,19 @@ def interleave_from_counts(counts: Sequence[int]) -> List[int]:
 
 def prioritized_sequences(K: int, L: int, *, max_items: int) -> Iterable[List[int]]:
     """生成优先级的序列组合
-    
+
     按优先级顺序生成材料序列：
     1. 单一材料序列
     2. 单点变异序列
     3. 双材料平衡序列
     4. 多材料组合序列
     5. 剩余随机序列
-    
+
     Args:
         K: 材料种类数
         L: 序列长度
         max_items: 最大生成数量
-    
+
     Yields:
         材料索引序列
     """
@@ -133,7 +135,9 @@ def prioritized_sequences(K: int, L: int, *, max_items: int) -> Iterable[List[in
     for m_used in range(3, min(K, 6) + 1):
         idxs = list(range(K))
 
-        def combs(pool: List[int], r: int, start: int = 0, cur: List[int] | None = None):
+        def combs(
+            pool: List[int], r: int, start: int = 0, cur: List[int] | None = None
+        ):
             nonlocal produced
             if cur is None:
                 cur = []
@@ -175,14 +179,14 @@ def prioritized_sequences(K: int, L: int, *, max_items: int) -> Iterable[List[in
 
 def compositions_k(n: int, k: int, limit: int | None = None) -> List[Tuple[int, ...]]:
     """生成 n 的 k 部分组合
-    
+
     将整数 n 分解为 k 个非负整数之和的所有组合。
-    
+
     Args:
         n: 目标整数
         k: 部分数
         limit: 最大返回数量限制
-    
+
     Returns:
         组合列表
     """

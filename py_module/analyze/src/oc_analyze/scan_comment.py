@@ -44,7 +44,13 @@ def _find_built_exe(build_dir: Path, config: str) -> Path:
     candidates: list[Path] = []
     candidates.append(build_dir / config / "opencolor_comment_coverage_ts.exe")
     candidates.append(build_dir / "opencolor_comment_coverage_ts.exe")
-    candidates.append(build_dir / "tools" / "comment_coverage_ts" / config / "opencolor_comment_coverage_ts.exe")
+    candidates.append(
+        build_dir
+        / "tools"
+        / "comment_coverage_ts"
+        / config
+        / "opencolor_comment_coverage_ts.exe"
+    )
 
     for c in candidates:
         if c.exists():
@@ -103,7 +109,18 @@ def _build_cpp_tool(repo_root: Path) -> Path:
     # 配置并构建
     logger.info("[信息] 开始编译C++工具...")
     _run(cmake_args, cwd=cpp_dir)
-    _run(["cmake", "--build", str(build_dir), "--config", config, "--target", "opencolor_comment_coverage_ts"], cwd=cpp_dir)
+    _run(
+        [
+            "cmake",
+            "--build",
+            str(build_dir),
+            "--config",
+            config,
+            "--target",
+            "opencolor_comment_coverage_ts",
+        ],
+        cwd=cpp_dir,
+    )
 
     # 查找可执行文件
     exe = _find_built_exe(build_dir, config)
@@ -131,7 +148,7 @@ def main() -> None:
             need_build = True
         elif arg == "--":
             # 剩余参数全部转发
-            forward_args.extend(raw_args[i + 1:])
+            forward_args.extend(raw_args[i + 1 :])
             break
         else:
             forward_args.append(arg)

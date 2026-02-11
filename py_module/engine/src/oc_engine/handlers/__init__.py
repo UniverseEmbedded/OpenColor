@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -7,10 +6,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 def _get_library_index_path() -> Path:
     from oc_core_02.core.app_paths import get_user_documents_dir
 
@@ -35,7 +35,9 @@ def _load_library_index() -> Dict[str, Any]:
 def _write_library_index(index: Dict[str, Any]) -> None:
     path = _get_library_index_path()
     try:
-        path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+        path.write_text(
+            json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception as e:
         logger.error(f"[资源库] 写入索引失败: {e}")
         traceback.print_exc()
@@ -43,15 +45,15 @@ def _write_library_index(index: Dict[str, Any]) -> None:
 
 def _get_relative_path(file_path: Path) -> str:
     r"""将绝对路径转换为相对于 OpenColor 目录的路径。
-    
+
     例如: C:\Users\xxx\Documents\OpenColor\board_generate\file.stl
     转换为: board_generate\file.stl
     """
     from oc_core_02.core.app_paths import get_user_documents_dir
-    
+
     file_path = Path(file_path).resolve()
     base_dir = get_user_documents_dir().resolve()
-    
+
     try:
         # 尝试获取相对路径
         rel_path = file_path.relative_to(base_dir)
@@ -63,7 +65,7 @@ def _get_relative_path(file_path: Path) -> str:
 
 def _get_next_board_index(index: Dict[str, Any]) -> int:
     """获取下一个色盘递增编号。
-    
+
     扫描现有 items，找到最大的 board_index，返回 +1
     """
     items = index.get("items", [])
@@ -115,18 +117,16 @@ def upsert_library_item(
 
         # 判断是否是新的色盘规格文件（json + bd）
         is_new_board_spec = (
-            existing is None and 
-            kind == "json" and 
-            short is not None and 
-            short.get("kind") == "bd"
-        )
-
-        is_board_model = (
-            kind == "board_model"
+            existing is None
+            and kind == "json"
             and short is not None
             and short.get("kind") == "bd"
         )
-        
+
+        is_board_model = (
+            kind == "board_model" and short is not None and short.get("kind") == "bd"
+        )
+
         # 如果是新的色盘规格文件，分配递增编号
         board_index = None
         if is_new_board_spec:
@@ -152,7 +152,9 @@ def upsert_library_item(
                     found = it.get("board_index")
                     if isinstance(found, int) and found > 0:
                         board_index = found
-                        logger.info(f"[资源库] 复用色盘编号: {board_index} (src_hash={src_hash})")
+                        logger.info(
+                            f"[资源库] 复用色盘编号: {board_index} (src_hash={src_hash})"
+                        )
                         break
 
         if existing is None:
@@ -178,7 +180,7 @@ def upsert_library_item(
             existing["short"] = short
         if long is not None:
             existing["long"] = long
-            
+
         # 将 board_index 存入 short，供前端使用
         if board_index is not None:
             if existing.get("short") is None:
