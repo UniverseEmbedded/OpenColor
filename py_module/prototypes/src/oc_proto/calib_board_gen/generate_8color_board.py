@@ -4,7 +4,7 @@ from __future__ import annotations
 # 导入路径处理模块
 from pathlib import Path
 # 导入类型提示模块
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TYPE_CHECKING
 # 导入迭代工具模块
 import itertools
 # 导入数值计算模块
@@ -27,6 +27,9 @@ from oc_sdf.sdf_mesh import clean_mesh as _clean_mesh
 from oc_core_02.utils.bin_loader import import_cpp_extension
 
 from oc_core_02.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from .color_profiles import ColorProfile
 
 logger = get_logger(__name__)
 
@@ -223,19 +226,10 @@ BIG_TAG_MODULES = 8
 # 默认组ID
 DEFAULT_GROUP_ID = 0
 
-# 颜色定义 (RGBA) —— 8槽位
-COLOR_SYSTEM_8: Dict[str, Tuple[int, int, int, int]] = {
-    "White": (255, 255, 255, 255),      # 白色
-    "Red": (255, 0, 0, 255),            # 红色
-    "Yellow": (255, 255, 0, 255),      # 黄色
-    "Blue": (0, 0, 255, 255),           # 蓝色
-    "Green": (0, 255, 0, 255),          # 绿色
-    "Cyan": (0, 255, 255, 255),         # 青色
-    "Magenta": (255, 0, 255, 255),      # 洋红色
-    "Black": (0, 0, 0, 255),            # 黑色
-}
-# 槽位名称列表
-SLOT_NAMES_8 = list(COLOR_SYSTEM_8.keys())
+
+def get_marker_colors_for_profile(profile: "ColorProfile") -> Dict[str, str]:
+    """根据颜色配置获取标记颜色映射"""
+    return profile.marker_colors
 
 
 def _alt_sequence(a: int, b: int, count_a: int, count_b: int, layers: int) -> List[int]:
@@ -356,7 +350,7 @@ def build_recipe_pool(layers: int, n_colors: int, target_count: int) -> List[Lis
     return recipes[:target_count]
 
 
-def build_board_spec(board_name: str, recipes: List[List[int]], group_id: int, plate_index: int) -> BoardSpec:
+def build_board_spec(board_name: str, recipes: List[List[int]], group_id: int, plate_index: int, profile: "ColorProfile") -> BoardSpec:
     """
     构建校准板规格对象
 
@@ -365,10 +359,14 @@ def build_board_spec(board_name: str, recipes: List[List[int]], group_id: int, p
         recipes: 配方列表
         group_id: 组ID
         plate_index: 板子索引
+        profile: 颜色配置对象
 
     返回:
         BoardSpec对象
     """
+    slot_names = profile.color_names
+    marker_colors = profile.marker_colors
+    
     spec = BoardSpec(
         name=board_name,
         rows=CORE_SIZE,
@@ -395,7 +393,7 @@ def build_board_spec(board_name: str, recipes: List[List[int]], group_id: int, p
             spec.cell_map[f"{r},{c}"] = {
                 "recipe_index": idx,
                 "layers": layers,
-                "slot_names": [SLOT_NAMES_8[i] for i in layers],
+                "slot_names": [slot_names[i] for i in layers],
             }
             idx += 1
 
@@ -678,18 +676,22 @@ def _triangle_prism_mesh(p0: Tuple[float, float], p1: Tuple[float, float], p2: T
     return m
 
 
-def _build_core_volumes(spec: BoardSpec) -> Dict[str, np.ndarray]:
+def _build_core_volumes(spec: BoardSpec, profile: "ColorProfile") -> Dict[str, np.ndarray]:
     """
     构建核心区域的体素数据
 
     参数:
         spec: 校准板规格对象
+        profile: 颜色配置对象
 
     返回:
         按颜色分类的体素数据字典
     """
+    slot_names = profile.color_names
+    marker_colors = profile.marker_colors
+    
     volumes: Dict[str, np.ndarray] = {
-        name: np.zeros((DEFAULT_LAYERS, CORE_SIZE, CORE_SIZE), dtype=bool) for name in SLOT_NAMES_8
+        name: np.zeros((DEFAULT_LAYERS, CORE_SIZE, CORE_SIZE), dtype=bool) for name in slot_names
     }
     for r_cell in range(CORE_SIZE):
         for c_cell in range(CORE_SIZE):
@@ -698,15 +700,18 @@ def _build_core_volumes(spec: BoardSpec) -> Dict[str, np.ndarray]:
                 # 处理数据区域的格子
                 layers = cell_data["layers"]
                 for z, color_idx in enumerate(layers):
-                    color_name = SLOT_NAMES_8[int(color_idx)]
+                    color_name = slot_names[int(color_idx)]
                     volumes[color_name][z, r_cell, c_cell] = True
             else:
                 # 处理标记区域的格子
-                color_name = "White"
+                # 使用配置中的第一个颜色作为默认标记颜色
+                color_name = slot_names[0]
                 for m_name, (mc, mr) in spec.markers.items():
                     if r_cell == mr and c_cell == mc:
-                        marker_colors = {"TL": "Blue", "TR": "Red", "BR": "Blue", "BL": "Yellow"}
-                        color_name = marker_colors[m_name]
+                        # 从配置中获取标记颜色
+                        marker_color_name = marker_colors.get(m_name, slot_names[0])
+                        if marker_color_name in slot_names:
+                            color_name = marker_color_name
                         break
                 volumes[color_name][:, r_cell, c_cell] = True
     return volumes
@@ -752,6 +757,7 @@ def spec_to_meshes(
         *,
         include_apriltag: bool = False,
         include_side_triangles: bool = False,
+        profile: "ColorProfile",
 ) -> Dict[str, trimesh.Trimesh]:
     """
     将校准板规格转换为三角网格
@@ -759,19 +765,22 @@ def spec_to_meshes(
     参数:
         spec: 校准板规格对象
         shrink: 缩进量
+        profile: 颜色配置对象
 
     返回:
         按颜色分类的合并后的三角网格字典
     """
-    core_volumes = _build_core_volumes(spec)
+    slot_names = profile.color_names
+    num_colors = profile.num_colors
+    core_volumes = _build_core_volumes(spec, profile)
     voxel_size = (CELL_SIZE_MM, CELL_SIZE_MM, DEFAULT_LAYER_HEIGHT)
 
-    meshes_by_slot: Dict[str, List[trimesh.Trimesh]] = {name: [] for name in SLOT_NAMES_8}
-    for slot_name in SLOT_NAMES_8:
+    meshes_by_slot: Dict[str, List[trimesh.Trimesh]] = {name: [] for name in slot_names}
+    for slot_name in slot_names:
         vol = core_volumes[slot_name]
         if np.any(vol):
             m = _volume_to_core_mesh(vol, voxel_size, shrink, slot_name)
-            info = _analyze_mesh_basic(m, f"8色板/{slot_name}/体素网格(已并集)")
+            info = _analyze_mesh_basic(m, f"{num_colors}色板/{slot_name}/体素网格(已并集)")
             if int(info.get("non_manifold_edges", 0)) > 0 or int(info.get("boundary_edges", 0)) > 0:
                 raise RuntimeError(
                     f"体素网格质量异常(slot={slot_name}): 非流形边={info.get('non_manifold_edges')} 边界边={info.get('boundary_edges')}"
@@ -783,15 +792,15 @@ def spec_to_meshes(
 
     if bool(include_side_triangles):
         tri_meshes = _build_triangle_meshes()
-        for slot_name in SLOT_NAMES_8:
+        for slot_name in slot_names:
             meshes_by_slot[slot_name].extend(tri_meshes[slot_name])
 
     # 合并每个颜色的所有网格
     merged: Dict[str, trimesh.Trimesh] = {}
-    for slot_name in SLOT_NAMES_8:
+    for slot_name in slot_names:
         merged_mesh = _union_meshes(meshes_by_slot[slot_name], slot_name)
         if merged_mesh.faces is not None and len(merged_mesh.faces) > 0:
-            info = _analyze_mesh_basic(merged_mesh, f"8色板/{slot_name}/合并后")
+            info = _analyze_mesh_basic(merged_mesh, f"{num_colors}色板/{slot_name}/合并后")
             if int(info.get("non_manifold_edges", 0)) > 0 or int(info.get("boundary_edges", 0)) > 0:
                 raise RuntimeError(
                     f"合并后网格质量异常(slot={slot_name}): 非流形边={info.get('non_manifold_edges')} 边界边={info.get('boundary_edges')}"
@@ -804,6 +813,7 @@ def export_standard_3mf(
         out_dir: Path,
         spec: BoardSpec,
         meshes_by_slot: Dict[str, trimesh.Trimesh],
+        profile: "ColorProfile",
 ) -> Path:
     """
     导出为通用（标准）3MF格式文件
@@ -812,12 +822,17 @@ def export_standard_3mf(
         out_dir: 输出目录
         spec: 校准板规格对象
         meshes_by_slot: 按颜色分类的三角网格字典
+        profile: 颜色配置对象
     返回:
         输出的3MF文件路径
     """
+    slot_names = profile.color_names
+    num_colors = profile.num_colors
+    color_system = {name: tuple(rgba) for name, rgba in profile.colors.items()}  # type: ignore
+    
     out_3mf = out_dir / f"{spec.name.replace(' ', '_')}.3mf"
     slot_names_used: List[str] = []
-    for slot_name in SLOT_NAMES_8:
+    for slot_name in slot_names:
         tm_mesh = meshes_by_slot.get(slot_name)
         if tm_mesh is None:
             continue
@@ -829,51 +844,58 @@ def export_standard_3mf(
         tm_mesh = meshes_by_slot.get(slot_name)
         if tm_mesh is None:
             continue
-        _analyze_mesh_basic(tm_mesh, f"8色板/{slot_name}/导出前")
+        _analyze_mesh_basic(tm_mesh, f"{num_colors}色板/{slot_name}/导出前")
 
     export_standard_3mf_from_meshes(
         out_3mf=out_3mf,
         meshes=meshes_by_slot,
         slot_names=slot_names_used,
-        slot_colors=COLOR_SYSTEM_8,
+        slot_colors=color_system,
     )
     return out_3mf
 
 
-def generate_8color_boards(
+def generate_calibration_boards(
         num_boards: int = 8,
         shrink: float = DEFAULT_SHRINK,
         *,
         include_apriltag: bool = False,
         include_side_triangles: bool = False,
-) -> None:
+        profile: "ColorProfile",
+) -> Path:
     """
-    生成8色校准板
+    生成校准板（支持任意颜色数量）
 
     参数:
         num_boards: 生成的板子数量
         shrink: 格子缩进量
+        profile: 颜色配置对象
+    
+    返回:
+        输出目录路径
     """
-    out_dir = ROOT_DIR / "out_calibration_board_8"
+    num_colors = profile.num_colors
+    color_label = f"{num_colors}color"
+    out_dir = ROOT_DIR / f"out_calibration_board_{color_label}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     num_cells = DATA_ROWS * DATA_COLS
     total_cells_needed = num_cells * num_boards
 
     # 构建全球统一的配方池
-    recipes = build_recipe_pool(layers=DEFAULT_LAYERS, n_colors=8, target_count=total_cells_needed)
+    recipes = build_recipe_pool(layers=DEFAULT_LAYERS, n_colors=num_colors, target_count=total_cells_needed)
 
     for b_idx in range(num_boards):
         # 生成板子名称（A, B, C, ...）
         board_char = chr(65 + b_idx) if b_idx < 26 else str(b_idx)
-        name = f"8-Color Board {board_char}"
+        name = f"{num_colors}-Color Board {board_char}"
 
         # 获取当前板子使用的配方
         start_idx = b_idx * num_cells
         recs = recipes[start_idx : start_idx + num_cells]
 
         # 构建校准板规格
-        spec = build_board_spec(name, recs, DEFAULT_GROUP_ID, b_idx)
+        spec = build_board_spec(name, recs, DEFAULT_GROUP_ID, b_idx, profile=profile)
         spec_path = out_dir / f"{name.replace(' ', '_')}_board_spec.json"
         spec.save(spec_path)
 
@@ -883,18 +905,46 @@ def generate_8color_boards(
             shrink=shrink,
             include_apriltag=include_apriltag,
             include_side_triangles=include_side_triangles,
+            profile=profile,
         )
-        out_3mf = export_standard_3mf(out_dir, spec, meshes_by_slot)
+        out_3mf = export_standard_3mf(out_dir, spec, meshes_by_slot, profile=profile)
         logger.info(f"[OK] {name}: recipes[{start_idx}:{start_idx+len(recs)}], 3mf={out_3mf.name}")
 
-    logger.info(f"完成：已生成 {num_boards} 个 8 色校准盘，共计 {len(recipes)} 个唯一/结构化配方。")
+    logger.info(f"完成：已生成 {num_boards} 个 {num_colors} 色校准盘，共计 {len(recipes)} 个唯一/结构化配方。")
+    logger.info(f"输出目录: {out_dir.absolute()}")
+    return out_dir
+
+
+# 保持向后兼容的别名
+generate_8color_boards = generate_calibration_boards
 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="生成 8 色校准板")
+    from .color_profiles import get_profile_manager, create_profile_from_args
+    
+    parser = argparse.ArgumentParser(description="生成校准板（支持任意颜色数量）")
     parser.add_argument("--num_boards", type=int, default=8, help="生成的板子数量")
     parser.add_argument("--shrink", type=float, default=DEFAULT_SHRINK, help="格子缩进量 (shrink)")
+    parser.add_argument("--profile", type=str, default="full_8", help="颜色配置名称（如 rgb, rybw, rgbw, rgbwk, full_8）")
+    parser.add_argument("--config", type=str, help="自定义配置文件路径")
+    parser.add_argument("--colors", nargs="+", help="自定义颜色列表（格式: 名称:R,G,B,A）")
     args = parser.parse_args()
-
-    generate_8color_boards(num_boards=args.num_boards, shrink=args.shrink)
+    
+    manager = get_profile_manager()
+    
+    # 加载配置文件（如果提供）
+    if args.config:
+        manager.load_from_file(Path(args.config))
+    
+    # 从命令行创建配置（如果提供）
+    if args.colors:
+        profile = create_profile_from_args(args.colors)
+    else:
+        profile = manager.get_profile(args.profile)
+    
+    generate_calibration_boards(
+        num_boards=args.num_boards,
+        shrink=args.shrink,
+        profile=profile,
+    )

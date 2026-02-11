@@ -450,9 +450,8 @@
             // 缩放上下文，使坐标系与 CSS 像素对齐
             ctx.scale(dpr, dpr);
             
-            // 启用高质量图像缩放
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
+            // 禁用图像平滑，显示原始像素
+            ctx.imageSmoothingEnabled = false;
         }
 
         // 初始化
@@ -752,8 +751,14 @@
                 });
 
                 if (nearestIndex !== -1) {
+                    // 点击到角点，开始拖拽角点
                     state.draggingPoint = nearestIndex;
                     canvas.classList.add('dragging');
+                } else {
+                    // 点击空白处，开始平移视角
+                    state.isPanning = true;
+                    state.panStart = { x: e.clientX, y: e.clientY };
+                    canvas.classList.add('panning');
                 }
             } else if (state.activeTool === 'pan') {
                 state.isPanning = true;

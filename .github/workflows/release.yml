@@ -1,0 +1,434 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号 (如: 0.1.0)"
+        required: true
+        type: string
+      prerelease:
+        description: "是否为预发布版本"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+
+jobs:
+  preflight:
+    name: 预检阶段
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 提取版本信息
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+            # 检查是否为预发布版本 (包含 alpha/beta/rc)
+            if echo "$TAG" | grep -Eq "-(alpha|beta|rc)"; then
+              IS_PRERELEASE="true"
+            else
+              IS_PRERELEASE="false"
+            fi
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "发布版本: $VERSION"
+          echo "预发布: $IS_PRERELEASE"
+
+      - name: 验证 pixi.lock 同步
+        run: |
+          if [ ! -f "pixi.lock" ]; then
+            echo "错误: pixi.lock 文件不存在"
+            exit 1
+          fi
+          # 检查 pixi.toml 和 pixi.lock 的哈希是否匹配
+          # 这里只做基本检查，实际可以使用 pixi 命令验证
+          echo "pixi.lock 存在"
+
+  test-python:
+    name: Python 测试
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 运行 Python 测试
+        run: pixi run pytest --cov=oc_core_02 --cov-report=xml --cov-report=term
+
+      - name: 上传覆盖率报告
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  test-web:
+    name: Web 前端测试
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
+      - name: 运行类型检查
+        run: pixi run pnpm -C web run check
+
+      - name: 运行单元测试
+        run: pixi run web-test-unit
+
+  test-rust:
+    name: Rust 测试
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
+      - name: 运行 Rust 测试
+        run: pixi run web-test-rust
+
+      - name: Rust 代码检查
+        run: |
+          cd web/src-tauri
+          cargo clippy --all-targets --all-features -- -D warnings
+
+  build-tauri:
+    name: 构建 Tauri 应用
+    needs: [preflight, test-python, test-web, test-rust]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch: amd64
+            ext: AppImage
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            ext: msi
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            arch: aarch64
+            ext: dmg
+          - platform: macos-13
+            target: x86_64-apple-darwin
+            arch: x64
+            ext: dmg
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 安装系统依赖 (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: 安装 Visual Studio Build Tools (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 恢复 Rust 缓存
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "web/src-tauri"
+          key: ${{ matrix.target }}
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
+      - name: 构建 C++ 模块
+        run: pixi run python cpp_module/scripts/build_demo.py
+
+      - name: 构建 Tauri 应用
+        run: pixi run pnpm -C web tauri build --target ${{ matrix.target }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: 查找构建产物 (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Path "web/src-tauri/target/${{ matrix.target }}/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1
+          $exe = Get-ChildItem -Path "web/src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          if ($msi) {
+            echo "INSTALLER_MSI=$($msi.FullName)" >> $env:GITHUB_ENV
+            echo "INSTALLER_MSI_NAME=$($msi.Name)" >> $env:GITHUB_ENV
+          }
+          if ($exe) {
+            echo "INSTALLER_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+            echo "INSTALLER_EXE_NAME=$($exe.Name)" >> $env:GITHUB_ENV
+          }
+
+      - name: 查找构建产物 (macOS/Linux)
+        if: matrix.platform != 'windows-latest'
+        run: |
+          if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
+            INSTALLER=$(find web/src-tauri/target/${{ matrix.target }}/release/bundle -name "*.AppImage" -o -name "*.deb" | head -1)
+          else
+            INSTALLER=$(find web/src-tauri/target/${{ matrix.target }}/release/bundle -name "*.dmg" | head -1)
+          fi
+          if [ -n "$INSTALLER" ]; then
+            echo "INSTALLER_PATH=$INSTALLER" >> $GITHUB_ENV
+            echo "INSTALLER_NAME=$(basename $INSTALLER)" >> $GITHUB_ENV
+            echo "找到安装包: $INSTALLER"
+          else
+            echo "错误: 未找到安装包"
+            exit 1
+          fi
+
+      - name: 上传构建产物 (Windows MSI)
+        if: matrix.platform == 'windows-latest' && env.INSTALLER_MSI != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenColor-${{ needs.preflight.outputs.version }}-${{ matrix.arch }}-msi
+          path: ${{ env.INSTALLER_MSI }}
+          retention-days: 30
+
+      - name: 上传构建产物 (Windows EXE)
+        if: matrix.platform == 'windows-latest' && env.INSTALLER_EXE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenColor-${{ needs.preflight.outputs.version }}-${{ matrix.arch }}-exe
+          path: ${{ env.INSTALLER_EXE }}
+          retention-days: 30
+
+      - name: 上传构建产物 (macOS/Linux)
+        if: matrix.platform != 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenColor-${{ needs.preflight.outputs.version }}-${{ matrix.arch }}
+          path: ${{ env.INSTALLER_PATH }}
+          retention-days: 30
+
+  sign-windows:
+    name: Windows 代码签名
+    needs: [preflight, build-tauri]
+    runs-on: windows-latest
+    if: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          pattern: OpenColor-*-windows-*
+          path: ./artifacts
+
+      - name: 导入证书
+        shell: pwsh
+        run: |
+          $certBytes = [Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
+          [IO.File]::WriteAllBytes("certificate.pfx", $certBytes)
+
+      - name: 签名安装包
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path "./artifacts" -Recurse -Include "*.msi", "*.exe"
+          foreach ($file in $files) {
+            signtool sign /f certificate.pfx /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "$file"
+            Write-Host "已签名: $($file.FullName)"
+          }
+
+      - name: 上传签名后的产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-windows-artifacts
+          path: ./artifacts/**/*
+          retention-days: 30
+
+  sign-macos:
+    name: macOS 代码签名
+    needs: [preflight, build-tauri]
+    runs-on: macos-latest
+    if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+    strategy:
+      matrix:
+        arch: [aarch64, x64]
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: OpenColor-${{ needs.preflight.outputs.version }}-${{ matrix.arch }}
+          path: ./artifacts
+
+      - name: 导入证书
+        run: |
+          echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > certificate.p12
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+
+      - name: 签名 DMG
+        run: |
+          DMG=$(find ./artifacts -name "*.dmg" | head -1)
+          if [ -n "$DMG" ]; then
+            codesign --force --options runtime --sign "${{ secrets.MACOS_TEAM_ID }}" "$DMG"
+            echo "已签名: $DMG"
+          fi
+
+      - name: 公证 (Notarization)
+        run: |
+          DMG=$(find ./artifacts -name "*.dmg" | head -1)
+          if [ -n "$DMG" ]; then
+            xcrun notarytool submit "$DMG" --apple-id "${{ secrets.MACOS_APPLE_ID }}" --password "${{ secrets.MACOS_APP_PASSWORD }}" --team-id "${{ secrets.MACOS_TEAM_ID }}" --wait
+            xcrun stapler staple "$DMG"
+            echo "已公证: $DMG"
+          fi
+
+      - name: 上传签名后的产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-macos-${{ matrix.arch }}-artifacts
+          path: ./artifacts/**/*
+          retention-days: 30
+
+  publish:
+    name: 发布到 GitHub Releases
+    needs: [preflight, build-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v4
+        with:
+          pattern: OpenColor-*
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 生成校验和
+        run: |
+          cd ./artifacts
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: 生成 Release Notes
+        id: release_notes
+        run: |
+          VERSION="${{ needs.preflight.outputs.version }}"
+          # 获取上一个标签
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "## 变更日志" > release_notes.md
+            echo "" >> release_notes.md
+            git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD >> release_notes.md
+          else
+            echo "## 初始版本 $VERSION" > release_notes.md
+          fi
+          
+          echo "" >> release_notes.md
+          echo "## 安装包" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "| 平台 | 架构 | 文件名 |" >> release_notes.md
+          echo "|------|------|--------|" >> release_notes.md
+          
+          for file in ./artifacts/*; do
+            filename=$(basename "$file")
+            case "$filename" in
+              *windows*) platform="Windows" ;;
+              *macos*|*darwin*|*apple*) platform="macOS" ;;
+              *linux*|*ubuntu*) platform="Linux" ;;
+              *) platform="Unknown" ;;
+            esac
+            case "$filename" in
+              *x64*|*amd64*) arch="x64" ;;
+              *aarch64*|*arm64*) arch="ARM64" ;;
+              *) arch="Unknown" ;;
+            esac
+            echo "| $platform | $arch | $filename |" >> release_notes.md
+          done
+          
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          cat release_notes.md >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "OpenColor ${{ needs.preflight.outputs.version }}"
+          body: ${{ env.RELEASE_NOTES }}
+          prerelease: ${{ needs.preflight.outputs.is_prerelease == 'true' }}
+          files: |
+            ./artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: 发送通知
+    needs: [preflight, publish]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: 发布成功通知
+        if: ${{ needs.publish.result == 'success' }}
+        run: |
+          echo "OpenColor ${{ needs.preflight.outputs.version }} 发布成功！"
+          echo "预发布: ${{ needs.preflight.outputs.is_prerelease }}"
+          # 这里可以添加 Discord/Slack 通知
+          # curl -X POST ${{ secrets.DISCORD_WEBHOOK }} -d "content=OpenColor ${{ needs.preflight.outputs.version }} 已发布！"
+
+      - name: 发布失败通知
+        if: ${{ needs.publish.result == 'failure' }}
+        run: |
+          echo "OpenColor ${{ needs.preflight.outputs.version }} 发布失败！"
+          # curl -X POST ${{ secrets.DISCORD_WEBHOOK }} -d "content=OpenColor ${{ needs.preflight.outputs.version }} 发布失败，请检查日志。"

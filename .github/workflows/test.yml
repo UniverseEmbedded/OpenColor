@@ -1,0 +1,66 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  test-python:
+    name: Python 测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 运行 Python 测试
+        run: pixi run pytest --tb=short
+
+  test-web:
+    name: Web 前端测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
+      - name: 运行单元测试
+        run: pixi run web-test-unit
+
+  test-rust:
+    name: Rust 测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
+      - name: 运行 Rust 测试
+        run: pixi run web-test-rust

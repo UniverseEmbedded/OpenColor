@@ -1,3 +1,12 @@
+/* Maple Mono 字体 */
+@font-face {
+  font-family: 'Maple Mono Normal NF CN';
+  src: url('/MapleMonoNormal-NF-CN-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* 深色主题（默认） */
   --bg: #0b0d10;
@@ -20,6 +29,8 @@
   --panel-elevated: #f1f5f9;
   --text: #1e293b;
   --text-muted: #64748b;
+  --accent: #0ea5e9;
+  --accent2: #f97316;
   --line: #e2e8f0;
 }
 
@@ -32,7 +43,7 @@
 html,
 body {
   height: 100%;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Maple Mono Normal NF CN', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
 }
@@ -43,4 +54,29 @@ body {
 
 button {
   font-family: inherit;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* 选中文字样式 */
+::selection {
+  background: var(--accent);
+  color: white;
 }

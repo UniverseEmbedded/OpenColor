@@ -1,0 +1,70 @@
+name: Lint
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  python-lint:
+    name: Python 代码检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 运行 Ruff 检查
+        run: |
+          pixi run pip install ruff
+          pixi run ruff check py_module/
+
+      - name: 运行 Ruff 格式检查
+        run: pixi run ruff format --check py_module/
+
+  web-lint:
+    name: Web 前端代码检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Pixi
+        uses: prefix-dev/setup-pixi@v0.8.0
+        with:
+          pixi-version: v0.39.0
+          cache: true
+
+      - name: 安装前端依赖
+        run: pixi run web-install
+
+      - name: 运行类型检查
+        run: pixi run pnpm -C web run check
+
+  rust-lint:
+    name: Rust 代码检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: 运行 Clippy 检查
+        run: |
+          cd web/src-tauri
+          cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: 检查代码格式
+        run: |
+          cd web/src-tauri
+          cargo fmt -- --check

@@ -5454,7 +5454,7 @@ packages:
 - pypi: ./py_module/opencolor
   name: oc-core
   version: 0.1.0
-  sha256: 2137b69769d5ee3d72b6efc3b55fc7dcf9028ce96f4759720b4ef82b9c2fe7be
+  sha256: 52fcf557f28b86e3edefc30018fa5cba2576beb194a6dd5b3d5b45c5ddbfb2f0
   requires_dist:
   - numpy>=1.24
   - lxml

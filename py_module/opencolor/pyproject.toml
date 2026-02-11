@@ -22,4 +22,4 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/oc_core"]
+packages = ["src/oc_core_02"]

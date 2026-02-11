@@ -16,6 +16,16 @@ pub use library::{LibraryItem, LibraryIndex, parse_oc_short, display_from_short}
 // 重新导出引擎管理器
 pub use engine::EngineManager;
 
+/// 简单的 ping 命令，用于测试 Web → Rust → Python 连通性
+#[tauri::command]
+async fn ping(message: String) -> Result<String, String> {
+    println!("[ping] 收到消息: {}", message);
+    
+    // 这里可以添加调用 Python 引擎的逻辑
+    // 暂时返回简单的响应
+    Ok(format!("Pong from Rust! 收到: {}", message))
+}
+
 /// 应用入口点
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -53,6 +63,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            ping,
             engine::engine_request,
             engine::engine_restart,
             cpp_bridge::cpp_probe,

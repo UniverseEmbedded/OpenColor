@@ -6,7 +6,8 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen as tauriListen } from "@tauri-apps/api/event";
 
-let hasTauri = $state(false);
+// 使用普通变量替代 $state
+let hasTauri = false;
 
 // 检测是否在 Tauri 环境中
 if (typeof window !== "undefined" && (window as any).__TAURI__) {
