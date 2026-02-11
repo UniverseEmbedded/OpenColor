@@ -204,7 +204,7 @@ def extrude_layer_mesh(
         # 根据几何尺度设置清洗阈值（单位：mm）
         minx, miny, maxx, maxy = poly_in.bounds
         scale = max(1.0, float(max(maxx - minx, maxy - miny)))
-        eps = 1e-7 * scale  # 去重/短边阈值
+        eps = 1e-5 * scale  # 去重/短边阈值
 
         def _clean_ring(coords: np.ndarray) -> np.ndarray:
             """【排查手册步骤5】清洗 ring：去闭合重复点、去连续重复点、去极短边、去共线点。"""

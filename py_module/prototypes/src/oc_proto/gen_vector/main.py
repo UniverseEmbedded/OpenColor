@@ -97,9 +97,9 @@ def run(
     union_jobs: int = 0,
     preview_4x: bool = False,
     vector_backend: str = "cv2",
-    cv2_simplify_mm: float = 0.0,
+    cv2_simplify_mm: float = 0.1,
     cv2_min_area_px: int = 4,
-    reconcile: bool = True,
+    reconcile: bool = False,
     reconcile_scale: int = 2,
     reconcile_cv2_simplify_mm: float = 0.05,
     svg_simplify_level: int = 3,
@@ -262,9 +262,9 @@ def run(
     vtracer_params = {
         "colormode": "binary",
         "mode": "spline",
-        "filter_speckle": 0,
-        "corner_threshold": 60,
-        "length_threshold": 4,
+        "filter_speckle": 4,
+        "corner_threshold": 120,
+        "length_threshold": 8,
         "input_scale": 1,
     }
 
@@ -622,8 +622,122 @@ def _simplify_layer_polys(
         if p0 is None or getattr(p0, "is_empty", True):
             continue
 
-        # 简化逻辑...
-        simplified[slot_name] = p0
+        def _count_geom_points(g) -> int:
+            if g is None or getattr(g, "is_empty", True):
+                return 0
+            gt = getattr(g, "geom_type", "")
+            if gt == "Polygon":
+                n = int(len(g.exterior.coords)) if getattr(g, "exterior", None) is not None else 0
+                for ring in getattr(g, "interiors", []) or []:
+                    n += int(len(ring.coords))
+                return n
+            if gt == "MultiPolygon":
+                return sum(_count_geom_points(gg) for gg in getattr(g, "geoms", []) or [])
+            if gt == "GeometryCollection":
+                return sum(_count_geom_points(gg) for gg in getattr(g, "geoms", []) or [])
+            return 0
+
+        before_pts = _count_geom_points(p0)
+        total_before += int(before_pts)
+
+        if int(before_pts) < int(min_target_pts):
+            simplified[slot_name] = p0
+            total_after += int(before_pts)
+            continue
+
+        px_per_mm = float(pixel_w) / float(board_mm)
+        base_tol_mm = float(base_step_mm) * float(tol_factor)
+        per = float(getattr(p0, "length", 0.0))
+        base_tol_mm = float(base_tol_mm) + float(svg_simplify_perimeter_weight) * float(per / float(max(int(before_pts), 1)))
+        base_tol_mm = float(min(float(step_cap_mm), float(max(base_tol_mm, float(mm_per_px) * 0.25))))
+
+        try:
+            orig_r = rasterize_geometry_soft(p0, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1)
+        except Exception as e:
+            logger.error(f"[错误] L{z:02d} SVG简化：原始多边形栅格化失败，slot={slot_name}，原因={e}")
+            simplified[slot_name] = p0
+            total_after += int(before_pts)
+            continue
+
+        if orig_r is None:
+            logger.error(f"[错误] L{z:02d} SVG简化：原始多边形栅格化返回None，slot={slot_name}")
+            simplified[slot_name] = p0
+            total_after += int(before_pts)
+            continue
+
+        orig_b = np.asarray(orig_r > 0.5, dtype=bool)
+        orig_fg = int(np.count_nonzero(orig_b))
+        if orig_fg <= 0:
+            simplified[slot_name] = p0
+            total_after += int(before_pts)
+            continue
+
+        slot_target_ratio = float(target_ratio_black) if str(slot_name).upper() == "BLACK" else float(target_ratio)
+        best = None
+        best_pts = int(before_pts)
+        best_tol = None
+
+        for i in range(int(svg_simplify_max_attempts)):
+            tol_mm = float(base_tol_mm) * float(tol_growth ** float(i))
+            tol_mm = float(min(float(step_cap_mm), tol_mm))
+            if tol_mm <= 0.0:
+                continue
+
+            cand = p0.simplify(tol_mm, preserve_topology=True)
+            if cand is None or getattr(cand, "is_empty", True):
+                continue
+            if not getattr(cand, "is_valid", True):
+                cand = cand.buffer(0)
+            if cand is None or getattr(cand, "is_empty", True):
+                continue
+
+            after_pts = _count_geom_points(cand)
+            if int(after_pts) <= 0 or int(after_pts) >= int(best_pts):
+                continue
+
+            try:
+                cand_r = rasterize_geometry_soft(cand, pixel_w, pixel_h, board_mm, px_per_mm, supersample=1)
+            except Exception as e:
+                logger.error(f"[错误] L{z:02d} SVG简化：候选多边形栅格化失败，slot={slot_name} tol={tol_mm:.6f}mm，原因={e}")
+                continue
+
+            if cand_r is None:
+                continue
+
+            cand_b = np.asarray(cand_r > 0.5, dtype=bool)
+            diff_px = int(np.count_nonzero(orig_b ^ cand_b))
+            diff_ratio = float(diff_px) / float(max(orig_fg, 1))
+
+            if (diff_px <= int(svg_simplify_min_diff_px)) or (diff_ratio <= float(svg_simplify_max_diff_ratio)):
+                best = cand
+                best_pts = int(after_pts)
+                best_tol = float(tol_mm)
+
+                if float(best_pts) <= float(before_pts) * float(slot_target_ratio):
+                    break
+
+        if best is None:
+            simplified[slot_name] = p0
+            total_after += int(before_pts)
+            continue
+
+        if float(post_step_mm) > 0.0:
+            post = best.simplify(float(post_step_mm), preserve_topology=True)
+            if post is not None and (not getattr(post, "is_empty", True)):
+                if not getattr(post, "is_valid", True):
+                    post = post.buffer(0)
+                if post is not None and (not getattr(post, "is_empty", True)):
+                    best = post
+
+        simplified[slot_name] = best
+        total_after += int(_count_geom_points(best))
+        logger.info(
+            f"L{z:02d} SVG简化: slot={slot_name} pts {int(before_pts)} -> {int(best_pts)} tol={float(best_tol or 0.0):.6f}mm"
+        )
+
+    if simplified:
+        for k, v in simplified.items():
+            layer_polys[k] = v
 
     print_ts(f"[信息] L{z:02d} SVG简化完成，用时 {perf_counter() - t_simp0:.3f}s")
 
@@ -700,14 +814,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenColor vtracer 矢量化器")
     parser.add_argument("--input", type=str, default=None, help="gen_masks 的输出目录 (默认自动寻找)")
     parser.add_argument("--vector-backend", type=str, default="cv2", choices=["cv2", "vtracer"], help="矢量化后端")
-    parser.add_argument("--cv2-simplify-mm", type=float, default=0.05, help="cv2 轮廓简化阈值(mm)")
+    parser.add_argument("--cv2-simplify-mm", type=float, default=0.1, help="cv2 轮廓简化阈值(mm)")
     parser.add_argument("--cv2-min-area-px", type=int, default=4, help="cv2 轮廓最小面积阈值(px^2)")
     parser.add_argument("--impl", type=str, default="cpp", choices=["cpp", "python"], help="选择几何计算实现")
     parser.add_argument("--jobs", type=int, default=0, help="并行矢量化任务数，0 表示自动")
     parser.add_argument("--union-jobs", type=int, default=0, help="C++并集分块并行任务数，0 表示自动")
     parser.add_argument("--no-progress", action="store_true", help="关闭进度条与耗时预估输出")
     parser.add_argument("--preview-4x", action="store_true", default=False, help="生成每层彩色预览图(4x)")
-    parser.add_argument("--reconcile", action="store_true", default=True, help="启用 reconcile(默认)")
+    parser.add_argument("--reconcile", action="store_true", default=False, help="启用 reconcile(默认禁用，谨慎使用)")
     parser.add_argument("--no-reconcile", action="store_false", dest="reconcile", help="禁用 reconcile")
     parser.add_argument("--reconcile-scale", type=int, default=2, help="reconcile 栅格分辨率倍率")
     parser.add_argument("--reconcile-cv2-simplify-mm", type=float, default=0.05, help="reconcile 后 cv2 轮廓简化阈值(mm)")

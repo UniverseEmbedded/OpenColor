@@ -239,7 +239,7 @@ def run(
     logger.info("导出选项: STL={}, 3MF={}, C++并集={}", export_stl, export_3mf, use_cpp_union)
 
     # 创建颜色系统
-    slot_preview_rgb = manifest.get("slot_preview_rgb", {})
+    slot_preview_rgb = _get_param("slot_preview_rgb", {})
     cs = ColorSystem.from_material_keys(
         name="ExportSystem",
         keys=slot_names

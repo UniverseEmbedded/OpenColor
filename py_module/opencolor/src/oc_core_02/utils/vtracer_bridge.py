@@ -399,7 +399,7 @@ def _cv2_contours_to_mm_polys(
             logger.warning("保存 cv2_input.png 失败: {}", e)
 
     try:
-        bin2 = cv2.resize(bin_u8, (int(pixel_w) * 2, int(pixel_h) * 2), interpolation=cv2.INTER_NEAREST)
+        bin2 = cv2.resize(bin_u8, (int(pixel_w) * 2, int(pixel_h) * 2), interpolation=cv2.INTER_LINEAR)
         bin2 = cv2.copyMakeBorder(bin2, 1, 1, 1, 1, borderType=cv2.BORDER_CONSTANT, value=0)
         res = cv2.findContours(bin2, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
         if len(res) == 3:

@@ -1,11 +1,11 @@
-<p align="center"> 
- <img alt="OpenColor logo" src="test.svg" width="128" height="128"> 
- <br> 
- <em>I've mastered this, and gathered the lessons it concealed. — Book of Hours, Weather Factory</em> 
- <br> 
- <p align="center"> 
- | <a href="README_en.md">English</a> | <a href="README.md">简体中文</a> | 
- </p>
+<p align="center">
+  <img alt="OpenColor logo" src="data/icon.svg" width="128" height="128">
+  <br>
+  <em>I've mastered this, and gathered the lessons it concealed. — Book of Hours, Weather Factory</em> 
+  <br>
+  <p align="center">
+    | <a href="README_en.md">English</a> | <a href="README.md">简体中文</a> |
+  </p>
 </p>
 
 > [!WARNING]

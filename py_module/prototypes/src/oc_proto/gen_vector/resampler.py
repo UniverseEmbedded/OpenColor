@@ -141,7 +141,7 @@ def resample_line(line, interval=0.1):
         
     return LineString(unique_points)
 
-def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.05, full_mask_poly: Polygon = None, *, use_cpp: bool = True, progress: bool = True, tag: str = "") -> dict:
+def resample_shared_boundaries(layer_polys: dict, tolerance: float = 0.15, full_mask_poly: Polygon = None, *, use_cpp: bool = True, progress: bool = True, tag: str = "") -> dict:
     """
     对同一层内的多个色块多边形进行共享边界重采样。
 

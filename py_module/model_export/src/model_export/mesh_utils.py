@@ -280,7 +280,11 @@ def _export_3mf(
 
     # 创建颜色组
     color_group = model.AddColorGroup()
-    color_group_rid = color_group.GetResourceID()
+    # 获取资源ID：优先使用 GetUniqueResourceID，某些 lib3mf 版本需要此方法
+    if hasattr(color_group, "GetUniqueResourceID"):
+        color_group_rid = int(color_group.GetUniqueResourceID())
+    else:
+        color_group_rid = int(color_group.GetResourceID())
 
     # 为每个插槽分配颜色
     slot_color_pid: dict[str, int] = {}
