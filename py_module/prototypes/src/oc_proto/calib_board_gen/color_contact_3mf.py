@@ -15,10 +15,14 @@ import numpy as np
 import trimesh
 from tqdm import tqdm
 
-from lxml import etree
-from model_export import generate_bambu_project_from_template, MeshData, rgba_to_hex
-
-
+from model_export.standard_3mf import export_standard_3mf_from_meshes
+from model_export.types import apply_alpha_to_brightness
+from oc_proto.calib_board_gen.color_profiles import (
+    get_profile_manager,
+    ColorProfile,
+    parse_color_argument,
+    create_profile_from_args,
+)
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -202,7 +206,7 @@ def _search_layout_cpp(
 
     返回: (网格颜色列表, 宽度, 高度, 总单元格数)，如果 C++ 模块不可用则返回 None
     """
-    # 当前文件: py_module/scripts/src/oc_scripts/color_contact_3mf.py
+    # 当前文件: py_module/prototypes/src/oc_proto/calib_board_gen/color_contact_3mf.py
     # parents[5] 是项目根目录
     root = Path(__file__).resolve().parents[5]
     config = os.environ.get("CMAKE_BUILD_TYPE", "").strip()
@@ -272,21 +276,23 @@ def _search_layout_cpp(
     return [int(x) for x in grid], w, h, v
 
 
-def _placeholder_meshdata() -> MeshData:
-    """创建一个占位用小立方体网格数据。"""
-    mesh = trimesh.creation.box(extents=(0.01, 0.01, 0.01))
-    v = np.asarray(mesh.vertices, dtype=float)
-    f = np.asarray(mesh.faces, dtype=int)
-    return MeshData(vertices=v, faces=f)
-
-
-def _build_bambu_meshes(
+def _build_meshes(
     placements: Sequence[Tuple[int, float, float, int]],
     tile_mm: float,
     thickness_mm: float,
     color_count: int,
-) -> List[MeshData]:
-    """根据放置位置构建拓竹打印机用的多色网格列表。"""
+) -> dict[str, trimesh.Trimesh]:
+    """根据放置位置构建多色网格字典。
+
+    参数:
+        placements: 放置位置列表 [(颜色索引, x, y, 单元格索引), ...]
+        tile_mm: 正方形边长(mm)
+        thickness_mm: 正方形厚度(mm)
+        color_count: 颜色数量
+
+    返回:
+        按颜色索引分组的网格字典 {颜色索引字符串: trimesh.Trimesh}
+    """
     base_tile = trimesh.creation.box(extents=(tile_mm, tile_mm, thickness_mm))
     if color_count <= 0:
         raise ValueError("颜色数量必须大于0")
@@ -299,48 +305,63 @@ def _build_bambu_meshes(
         tile.apply_translation((x + tile_mm / 2.0, y + tile_mm / 2.0, cz))
         parts[color_index].append(tile)
 
-    meshes: List[MeshData] = []
-    for group in parts:
+    meshes: dict[str, trimesh.Trimesh] = {}
+    for i, group in enumerate(parts):
+        slot_name = f"Color_{i:02d}"
         if not group:
-            meshes.append(_placeholder_meshdata())
-            continue
-        mesh = trimesh.util.concatenate(group)
-        v = np.asarray(mesh.vertices, dtype=float)
-        f = np.asarray(mesh.faces, dtype=int)
-        if f.size == 0:
-            meshes.append(_placeholder_meshdata())
+            # 创建占位网格
+            mesh = trimesh.creation.box(extents=(0.01, 0.01, 0.01))
         else:
-            meshes.append(MeshData(vertices=v, faces=f))
+            mesh = trimesh.util.concatenate(group)
+        meshes[slot_name] = mesh
     return meshes
 
 
-def _export_bambu_3mf(
+def _export_standard_3mf(
     *,
     out_path: Path,
-    template_path: Path,
-    colors: Sequence[Tuple[int, int, int]],
+    colors: Sequence[Tuple[int, int, int, int]],
     placements: Sequence[Tuple[int, float, float, int]],
     tile_mm: float,
     thickness_mm: float,
 ) -> None:
-    """导出拓竹打印机专用的 3MF 文件。"""
-    if not template_path.exists():
-        logger.info(f"未找到拓竹模板3MF：{template_path}")
-        return
+    """导出标准3MF文件。
 
-    num_filaments = len(colors)
-    colors_hex = [rgba_to_hex((*c, 255)) for c in colors]
-    meshes = _build_bambu_meshes(placements, tile_mm, thickness_mm, num_filaments)
-    slot_names = [f"Color_{i:02d}" for i in range(num_filaments)]
+    重要：此函数必须使用 apply_alpha_to_brightness 处理颜色，
+    以确保半透明颜色（如 Transparent）与纯色（如 White）在3MF中可区分。
+    否则 Bambu Studio 等软件会将它们识别为同一种颜色。
 
-    generate_bambu_project_from_template(
-        template_3mf=template_path,
+    参数:
+        out_path: 输出3MF文件路径
+        colors: 颜色列表 [(R, G, B, A), ...]，包含Alpha通道
+        placements: 放置位置列表 [(颜色索引, x, y, 单元格索引), ...]
+        tile_mm: 正方形边长(mm)
+        thickness_mm: 正方形厚度(mm)
+    """
+    color_count = len(colors)
+
+    # 构建网格
+    meshes = _build_meshes(placements, tile_mm, thickness_mm, color_count)
+
+    # 准备颜色配置
+    slot_names = [f"Color_{i:02d}" for i in range(color_count)]
+    slot_colors = {}
+    for i, rgba in enumerate(colors):
+        slot_name = f"Color_{i:02d}"
+        # 使用 apply_alpha_to_brightness 处理颜色，将Alpha编码到RGB亮度中
+        # 这是必要的，否则半透明颜色（如White+128Alpha）会与纯色（White+255Alpha）
+        # 在3MF中被识别为同一种颜色
+        adjusted_rgba = apply_alpha_to_brightness(rgba)
+        slot_colors[slot_name] = adjusted_rgba
+
+    # 导出3MF
+    export_standard_3mf_from_meshes(
         out_3mf=out_path,
         meshes=meshes,
         slot_names=slot_names,
-        filament_hex=colors_hex,
+        slot_colors=slot_colors,
     )
-    logger.info(f"拓竹版3MF输出完成：{out_path.resolve()}")
+    logger.info(f"标准3MF输出完成：{out_path.resolve()}")
 
 
 def main() -> None:
@@ -351,9 +372,35 @@ def main() -> None:
         default="out_color_contact/color_contact_squares.3mf",
         help="输出3MF路径",
     )
-    ap.add_argument("--bambu-out", type=str, default="", help="拓竹版3MF输出路径")
-    ap.add_argument("--bambu-template", type=str, default="", help="拓竹模板3MF路径")
-    ap.add_argument("--colors", type=int, required=True, help="颜色数量")
+
+    # 颜色配置选项（与main.py保持一致）
+    color_group = ap.add_mutually_exclusive_group()
+    color_group.add_argument(
+        "--colors",
+        type=str,
+        nargs="+",
+        default=None,
+        help="命令行指定颜色，格式：'名称:R,G,B,A' 或 '名称:R,G,B'"
+    )
+    color_group.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="使用预设颜色配置（可选：rgb, rybw, rgbw, rgbwk, full_8）"
+    )
+    color_group.add_argument(
+        "--profile-file",
+        type=str,
+        default=None,
+        help="从JSON文件加载自定义颜色配置"
+    )
+    color_group.add_argument(
+        "--color-count",
+        type=int,
+        default=None,
+        help="自动生成指定数量的HSV分布颜色（传统方式）"
+    )
+
     ap.add_argument("--tile-mm", type=float, default=10.0, help="正方形边长(mm)")
     ap.add_argument("--thickness-mm", type=float, default=1.0, help="正方形厚度(mm)")
     ap.add_argument(
@@ -362,7 +409,7 @@ def main() -> None:
     ap.add_argument("--tries", type=int, default=60, help="每个网格尺寸的随机尝试次数")
     ap.add_argument("--steps", type=int, default=8000, help="每次尝试的迭代步数")
     ap.add_argument("--seed", type=int, default=0, help="随机种子(0为自动)")
-    ap.add_argument("--no-cpp", action="store_true", help="禁用C++加速模块")
+    ap.add_argument("--python", action="store_true", help="使用Python模式（默认使用C++模式，C++不可用时将报错）")
     args = ap.parse_args()
 
     if args.tile_mm <= 0 or args.thickness_mm <= 0:
@@ -372,12 +419,73 @@ def main() -> None:
     if args.tries <= 0 or args.steps <= 0:
         raise SystemExit("tries 和 steps 必须大于0")
 
-    colors = _gen_colors(int(args.colors))
+    # 获取颜色配置
+    profile = None
+
+    if args.colors:
+        # 从命令行参数创建配置
+        try:
+            profile = create_profile_from_args(args.colors, profile_name="Custom")
+            logger.info(f"使用命令行指定的颜色: {profile.color_names}")
+        except Exception as e:
+            logger.error(f"解析颜色参数失败: {e}")
+            raise SystemExit(1)
+    elif args.profile_file:
+        # 从文件加载配置
+        try:
+            manager = get_profile_manager()
+            profile_id = manager.load_from_file(Path(args.profile_file))
+            profile = manager.get_profile(profile_id)
+            logger.info(f"从文件加载配置: {args.profile_file} -> {profile.name}")
+        except Exception as e:
+            logger.error(f"加载配置文件失败: {e}")
+            raise SystemExit(1)
+    elif args.profile:
+        # 使用预设配置
+        try:
+            manager = get_profile_manager()
+            profile = manager.get_profile(args.profile)
+            logger.info(f"使用预设配置: {profile.name}")
+        except Exception as e:
+            logger.error(f"未知配置 '{args.profile}': {e}")
+            manager = get_profile_manager()
+            logger.info(f"可用配置: {', '.join(manager.list_profiles())}")
+            raise SystemExit(1)
+    elif args.color_count:
+        # 使用传统方式：自动生成HSV颜色
+        color_count = args.color_count
+        colors = _gen_colors(color_count)
+        logger.info(f"使用自动生成的 {color_count} 种HSV颜色")
+    else:
+        # 默认使用4色配置
+        manager = get_profile_manager()
+        profile = manager.get_profile("rybw")
+        logger.info(f"使用默认配置: {profile.name}")
+
+    # 从profile获取颜色，或者使用自动生成的颜色
+    # 重要：必须保留完整的RGBA（包括Alpha通道），以便正确处理半透明颜色
+    if profile is not None:
+        color_count = profile.num_colors
+        colors = []
+        for name in profile.color_names:
+            rgba = profile.get_color_rgba(name)
+            # 保留完整的RGBA，包括Alpha通道
+            # 这是必要的，因为 apply_alpha_to_brightness 需要Alpha来区分半透明和纯色
+            colors.append(rgba)
+        logger.info(f"颜色列表: {profile.color_names}")
+    else:
+        # 自动生成的颜色默认不透明（Alpha=255）
+        colors = [(c[0], c[1], c[2], 255) for c in colors]
+        logger.info(f"生成 {color_count} 种颜色的接触布局")
+
+    # 搜索布局（默认使用C++模式，除非指定--python）
     grid = None
     w = h = v = 0
-    if not args.no_cpp:
+
+    if not args.python:
+        # 默认使用C++模式
         cpp_result = _search_layout_cpp(
-            int(args.colors),
+            color_count,
             int(args.max_extra),
             int(args.tries),
             int(args.steps),
@@ -385,10 +493,15 @@ def main() -> None:
         )
         if cpp_result is not None:
             grid, w, h, v = cpp_result
-
-    if grid is None:
+        else:
+            logger.error("C++加速模块不可用，请运行 'pixi run cpp-build' 编译")
+            logger.error("或添加 --python 参数使用Python模式（较慢）")
+            raise SystemExit(1)
+    else:
+        # 使用Python模式
+        logger.info("使用Python模式搜索布局（较慢）")
         grid, w, h, v = _search_layout(
-            int(args.colors),
+            color_count,
             int(args.max_extra),
             int(args.tries),
             int(args.steps),
@@ -404,15 +517,20 @@ def main() -> None:
             color_index = grid[idx]
             placements.append((color_index, x * args.tile_mm, y * args.tile_mm, idx))
 
-    if args.bambu_out and args.bambu_template:
-        _export_bambu_3mf(
-            out_path=Path(args.bambu_out),
-            template_path=Path(args.bambu_template),
-            colors=colors,
-            placements=placements,
-            tile_mm=args.tile_mm,
-            thickness_mm=args.thickness_mm,
-        )
+    # 导出标准3MF
+    out_path = Path(args.out)
+    _export_standard_3mf(
+        out_path=out_path,
+        colors=colors,
+        placements=placements,
+        tile_mm=args.tile_mm,
+        thickness_mm=args.thickness_mm,
+    )
+
+    logger.info("=" * 60)
+    logger.info(f"生成完成！共 {color_count} 种颜色，{v} 个正方形")
+    logger.info(f"输出文件: {out_path.absolute()}")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

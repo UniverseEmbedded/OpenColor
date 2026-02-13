@@ -8,6 +8,8 @@
   "permissions": [
     "core:default",
     "dialog:default",
+    "log:default",
+    "log:allow-log",
     "opener:default",
     {
       "identifier": "opener:allow-open-path",

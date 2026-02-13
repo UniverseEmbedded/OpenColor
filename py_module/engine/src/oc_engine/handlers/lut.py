@@ -8,13 +8,14 @@ from typing import Any, Dict, Callable, List, Tuple
 import cv2
 import numpy as np
 
+from oc_calib.board_spec import BoardSpec, create_legacy_32x32_spec
 from oc_calib.calibration import (
     WarpParams,
     perspective_warp_bgr,
     render_grid_overlay_bgr,
     extract_lut_from_warped_bgr,
 )
-from oc_calib.calib_types import BoardSpec, Observation, create_legacy_32x32_spec
+from oc_calib.observation import Observation
 from oc_scripts.calibration.color_board.calib_geom import detect_board_quad_by_chroma
 from ..jobs import Job
 

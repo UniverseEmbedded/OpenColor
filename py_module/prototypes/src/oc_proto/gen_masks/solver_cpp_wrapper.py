@@ -7,6 +7,7 @@ import numpy as np
 
 from oc_core_02.utils.bin_loader import import_cpp_extension
 from oc_core_02.utils.logger import get_logger
+from oc_proto.gen_masks.solver import HillClimbingSolver, HillClimbingSolverML
 
 logger = get_logger(__name__)
 
@@ -148,6 +149,10 @@ def create_solver(
     Returns:
         HillClimbingSolverCpp 或 Python HillClimbingSolver
     """
+    if hasattr(model, "model_L") and hasattr(model, "model_a") and hasattr(model, "model_b"):
+        logger.info("[信息] 已检测到ML残差模型，使用Python求解器")
+        return HillClimbingSolverML(model)
+
     if force_cpp and not CPP_AVAILABLE:
         raise RuntimeError("已要求强制使用C++求解器，但当前无法导入 opencolor_solver")
 
@@ -173,6 +178,9 @@ def create_solver(
             return cpp_solver
         except Exception as e:
             raise RuntimeError(f"C++求解器初始化失败: {e}")
+
+    logger.info("[信息] 使用Python求解器")
+    return HillClimbingSolver(model)
 
 
 # 测试函数

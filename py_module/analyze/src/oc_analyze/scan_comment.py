@@ -5,14 +5,74 @@
 
 from __future__ import annotations
 
-
-from oc_core_02.utils.logger import get_logger
-
-logger = get_logger(__name__)
 import os
+import re
 import subprocess
 import sys
+import tempfile
+from datetime import datetime
 from pathlib import Path
+
+from oc_core_02.utils.logger import get_logger
+from tqdm import tqdm
+
+logger = get_logger(__name__)
+
+
+def _run_with_progress(cmd: list[str], cwd: Path | None = None) -> None:
+    """执行命令并显示tqdm进度条"""
+    logger.info(f"[命令] {' '.join(cmd)}")
+
+    process = subprocess.Popen(
+        cmd,
+        cwd=str(cwd) if cwd else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding='utf-8',
+        errors='replace'
+    )
+
+    total_files = 0
+    current_file = 0
+    pbar = None
+
+    # 读取stderr中的进度信息
+    for line in process.stderr:
+        line = line.rstrip('\n\r')
+
+        # 解析总文件数
+        if match := re.match(r'\[PROGRESS_TOTAL\] (\d+)', line):
+            total_files = int(match.group(1))
+            pbar = tqdm(total=total_files, desc="分析文件", unit="file")
+            continue
+
+        # 解析进度
+        if match := re.match(r'\[PROGRESS\] (\d+) (.+)', line):
+            current_file = int(match.group(1))
+            file_path = match.group(2)
+            if pbar:
+                pbar.update(1)
+                pbar.set_postfix_str(Path(file_path).name[:30])
+            continue
+
+        # 其他stderr输出直接打印
+        if not line.startswith('[PROGRESS'):
+            print(line, file=sys.stderr)
+
+    # 等待进程完成
+    process.wait()
+
+    if pbar:
+        pbar.close()
+
+    # 输出stdout
+    if process.stdout:
+        for line in process.stdout:
+            print(line, end='')
+
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, cmd)
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -83,8 +143,8 @@ def _build_cpp_tool(repo_root: Path) -> Path:
     triplet = os.environ.get("VCPKG_TARGET_TRIPLET", "x64-windows").strip()
     config = os.environ.get("CMAKE_BUILD_TYPE", "Release").strip()
 
-    # 构建目录
-    build_dir = cpp_dir / "build_comment_coverage"
+    # 构建目录（与 scan_python_imports 共用）
+    build_dir = cpp_dir / "build_dev_tools"
     build_dir.mkdir(parents=True, exist_ok=True)
 
     # CMake配置参数
@@ -101,7 +161,8 @@ def _build_cpp_tool(repo_root: Path) -> Path:
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain}",
         f"-DVCPKG_TARGET_TRIPLET={triplet}",
         "-DVCPKG_FEATURE_FLAGS=manifests",
-        "-DVCPKG_MANIFEST_FEATURES=dev-comment-coverage",
+        "-DVCPKG_MANIFEST_FEATURES=tree-sitter-scanners",
+        f"-DVCPKG_INSTALLED_DIR={build_dir / 'vcpkg_installed'}",
         "-DOPENCOLOR_BUILD_CORE=OFF",
         "-DOPENCOLOR_BUILD_DEV_TOOLS=ON",
     ]
@@ -128,17 +189,51 @@ def _build_cpp_tool(repo_root: Path) -> Path:
     return exe
 
 
+def _get_git_tracked_files(repo_root: Path) -> list[str]:
+    """获取Git跟踪的文件列表"""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace'
+        )
+        if result.returncode == 0:
+            files = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+            return files
+        else:
+            logger.warning(f"[警告] 获取Git跟踪文件失败：{result.stderr}")
+            return []
+    except Exception as e:
+        logger.warning(f"[警告] 执行git命令失败：{e}")
+        return []
+
+
+def _is_code_file(file_path: str) -> bool:
+    """检查文件是否是代码文件"""
+    code_extensions = {
+        '.c', '.cpp', '.cc', '.cxx', '.hpp', '.h', '.hxx',
+        '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.go',
+        '.rs', '.cs', '.sh', '.bash', '.json', '.toml',
+    }
+    ext = Path(file_path).suffix.lower()
+    return ext in code_extensions
+
+
 def main() -> None:
     """主函数 - 运行注释覆盖率分析工具"""
     # 定位仓库根目录
     repo_root = _find_repo_root(Path(__file__).resolve())
     cpp_dir = repo_root / "cpp_module"
-    build_dir = cpp_dir / "build_comment_coverage"
+    build_dir = cpp_dir / "build_dev_tools"
     config = os.environ.get("CMAKE_BUILD_TYPE", "Release").strip()
 
     # 解析命令行参数
     raw_args = sys.argv[1:]
     need_build = False
+    use_git_only = True  # 默认只分析Git跟踪的文件
     forward_args: list[str] = []
 
     i = 0
@@ -146,6 +241,8 @@ def main() -> None:
         arg = raw_args[i]
         if arg == "--build":
             need_build = True
+        elif arg == "--no-git-only":
+            use_git_only = False
         elif arg == "--":
             # 剩余参数全部转发
             forward_args.extend(raw_args[i + 1 :])
@@ -167,13 +264,50 @@ def main() -> None:
             logger.info("[提示] 请先运行：python comment_coverage_report.py --build")
             sys.exit(1)
 
-    # 如果没有指定输入路径，默认使用仓库根目录
-    if not any(a == "--input" or a.startswith("--input=") for a in forward_args):
-        forward_args = ["--input", str(repo_root)] + forward_args
+    # 准备报告输出路径
+    report_dir = repo_root / "doc" / "report" / "comment"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    md_report_path = report_dir / f"comment_report_{timestamp}.md"
 
-    # 运行分析工具
-    cmd = [str(exe), *forward_args]
-    _run(cmd, cwd=repo_root)
+    # 如果使用git-only模式，获取Git跟踪的代码文件列表
+    if use_git_only:
+        logger.info("[信息] 正在获取Git跟踪的代码文件列表...")
+        tracked_files = _get_git_tracked_files(repo_root)
+        code_files = [f for f in tracked_files if _is_code_file(f)]
+
+        if not code_files:
+            logger.error("[错误] 未找到Git跟踪的代码文件")
+            sys.exit(1)
+
+        logger.info(f"[信息] 找到 {len(code_files)} 个代码文件")
+
+        # 创建临时文件列表
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+            for file_path in code_files:
+                f.write(file_path + '\n')
+            file_list_path = f.name
+
+        try:
+            # 运行分析工具（使用--file-list参数和--md参数）
+            cmd = [str(exe), "--progress", "--file-list", file_list_path, "--md", str(md_report_path), *forward_args]
+            _run_with_progress(cmd, cwd=repo_root)
+            logger.info(f"[信息] Markdown报告已保存到: {md_report_path}")
+        finally:
+            # 清理临时文件
+            try:
+                os.unlink(file_list_path)
+            except:
+                pass
+    else:
+        # 如果没有指定输入路径，默认使用仓库根目录
+        if not any(not a.startswith("--") and not a.startswith("-") for a in forward_args):
+            forward_args = [str(repo_root)] + forward_args
+
+        # 运行分析工具（添加--md参数）
+        cmd = [str(exe), "--progress", "--md", str(md_report_path), *forward_args]
+        _run_with_progress(cmd, cwd=repo_root)
+        logger.info(f"[信息] Markdown报告已保存到: {md_report_path}")
 
 
 if __name__ == "__main__":

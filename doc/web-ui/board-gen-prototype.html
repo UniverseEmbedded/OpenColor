@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校准板生成 - 叠层预览</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #1890ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+
+        /* 卡片列表区域 */
+        .cards-section {
+            margin-bottom: 20px;
+        }
+
+        .cards-section h2 {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 12px;
+            padding-left: 10px;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            padding: 10px;
+        }
+
+        .board-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .board-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .board-card.active {
+            border-color: #1890ff;
+            background: #e6f7ff;
+        }
+
+        .board-card .name {
+            font-weight: 600;
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .board-card .info {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .board-card .info span {
+            display: inline-block;
+            margin-right: 12px;
+        }
+
+        /* 主面板区域 */
+        .main-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .panel-subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* 17×17 网格 */
+        .grid-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            background: #ddd;
+            padding: 1px;
+            border-radius: 4px;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .grid-row {
+            display: flex;
+            gap: 1px;
+        }
+
+        .grid-cell {
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s;
+        }
+
+        .grid-cell:hover {
+            transform: scale(1.3);
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .grid-cell.border-cell {
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* 悬浮提示 */
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 280px;
+            line-height: 1.6;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .tooltip .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 4px;
+        }
+
+        .tooltip .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+
+        .tooltip .tooltip-label {
+            color: #aaa;
+            margin-right: 12px;
+        }
+
+        .tooltip .tooltip-value {
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .tooltip .layers-visual {
+            display: flex;
+            gap: 3px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .tooltip .layer-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* 图例 */
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>校准板生成</h1>
+        <button class="btn btn-primary" onclick="openFolder()">打开文件夹</button>
+    </div>
+
+    <!-- 卡片列表 -->
+    <div class="cards-section">
+        <h2>生成的色盘（点击切换）</h2>
+        <div class="cards-container" id="cardsContainer"></div>
+    </div>
+
+    <!-- 主面板 -->
+    <div class="main-panel">
+        <div class="panel-header">
+            <div>
+                <div class="panel-title" id="panelTitle">请选择色盘</div>
+                <div class="panel-subtitle" id="panelSubtitle">点击上方卡片查看详情</div>
+            </div>
+        </div>
+        <div class="grid-container" id="gridContainer"></div>
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <!-- 悬浮提示 -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // ==================== 配置数据 ====================
+        const COLOR_PROFILES = {
+            rgb: {
+                name: "RGB",
+                colors: {
+                    0: { name: "红", rgba: [255, 0, 0, 255] },
+                    1: { name: "绿", rgba: [0, 255, 0, 255] },
+                    2: { name: "蓝", rgba: [0, 0, 255, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 0 }
+            },
+            rybw: {
+                name: "RYBW",
+                colors: {
+                    0: { name: "红", rgba: [255, 0, 0, 255] },
+                    1: { name: "黄", rgba: [255, 255, 0, 255] },
+                    2: { name: "蓝", rgba: [0, 0, 255, 255] },
+                    3: { name: "白", rgba: [255, 255, 255, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 3 }
+            },
+            rgbw: {
+                name: "RGBW",
+                colors: {
+                    0: { name: "红", rgba: [255, 0, 0, 255] },
+                    1: { name: "绿", rgba: [0, 255, 0, 255] },
+                    2: { name: "蓝", rgba: [0, 0, 255, 255] },
+                    3: { name: "白", rgba: [255, 255, 255, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 3 }
+            },
+            rgbwk: {
+                name: "RGBWK",
+                colors: {
+                    0: { name: "红", rgba: [255, 0, 0, 255] },
+                    1: { name: "绿", rgba: [0, 255, 0, 255] },
+                    2: { name: "蓝", rgba: [0, 0, 255, 255] },
+                    3: { name: "白", rgba: [255, 255, 255, 255] },
+                    4: { name: "黑", rgba: [30, 30, 30, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 4 }
+            },
+            full8: {
+                name: "全8色",
+                colors: {
+                    0: { name: "红", rgba: [255, 0, 0, 255] },
+                    1: { name: "绿", rgba: [0, 255, 0, 255] },
+                    2: { name: "蓝", rgba: [0, 0, 255, 255] },
+                    3: { name: "青", rgba: [0, 255, 255, 255] },
+                    4: { name: "品", rgba: [255, 0, 255, 255] },
+                    5: { name: "黄", rgba: [255, 255, 0, 255] },
+                    6: { name: "白", rgba: [255, 255, 255, 255] },
+                    7: { name: "黑", rgba: [30, 30, 30, 255] }
+                },
+                markers: { TL: 0, TR: 5, BR: 2, BL: 7 }
+            },
+            cmyk: {
+                name: "CMYK",
+                colors: {
+                    0: { name: "青", rgba: [0, 255, 255, 255] },
+                    1: { name: "品", rgba: [255, 0, 255, 255] },
+                    2: { name: "黄", rgba: [255, 255, 0, 255] },
+                    3: { name: "黑", rgba: [30, 30, 30, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 3 }
+            },
+            pastel: {
+                name: "粉彩",
+                colors: {
+                    0: { name: "粉", rgba: [255, 182, 193, 255] },
+                    1: { name: "薄荷", rgba: [152, 255, 152, 255] },
+                    2: { name: "天蓝", rgba: [135, 206, 250, 255] },
+                    3: { name: "淡黄", rgba: [255, 255, 224, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 3 }
+            },
+            neon: {
+                name: "霓虹",
+                colors: {
+                    0: { name: "霓虹红", rgba: [255, 50, 50, 255] },
+                    1: { name: "霓虹绿", rgba: [50, 255, 50, 255] },
+                    2: { name: "霓虹蓝", rgba: [50, 50, 255, 255] },
+                    3: { name: "霓虹黄", rgba: [255, 255, 50, 255] }
+                },
+                markers: { TL: 0, TR: 1, BR: 2, BL: 3 }
+            }
+        };
+
+        const DEFAULT_LAYERS = 5;
+        const DATA_ROWS = 15;
+        const DATA_COLS = 15;
+        const CORE_SIZE = 17;
+
+        // ==================== RTS 颜色预测模型 ====================
+        // 简化的RTS模型参数（基于物理光学原理）
+        const RTS_PARAMS = {
+            // 各颜色的反射率、透射率、吸收率参数
+            rgb: {
+                alpha: [[2.0, -1.0, -1.0], [-1.0, 2.0, -1.0], [-1.0, -1.0, 2.0]], // 反射
+                beta: [[1.5, 0.5, 0.5], [0.5, 1.5, 0.5], [0.5, 0.5, 1.5]],   // 透射
+                gamma: [[0.3, 0.3, 0.3], [0.3, 0.3, 0.3], [0.3, 0.3, 0.3]]  // 散射
+            },
+            rybw: {
+                alpha: [[2.0, -0.5, -1.0, 0.5], [-0.5, 2.0, -0.5, 0.5], [-1.0, -0.5, 2.0, 0.5], [0.3, 0.3, 0.3, 2.0]],
+                beta: [[1.5, 0.3, 0.5, 0.8], [0.3, 1.5, 0.3, 0.8], [0.5, 0.3, 1.5, 0.8], [0.8, 0.8, 0.8, 1.2]],
+                gamma: [[0.3, 0.2, 0.3, 0.2], [0.2, 0.3, 0.2, 0.2], [0.3, 0.2, 0.3, 0.2], [0.2, 0.2, 0.2, 0.1]]
+            },
+            rgbw: {
+                alpha: [[2.0, -1.0, -1.0, 0.3], [-1.0, 2.0, -1.0, 0.3], [-1.0, -1.0, 2.0, 0.3], [0.3, 0.3, 0.3, 2.0]],
+                beta: [[1.5, 0.5, 0.5, 0.8], [0.5, 1.5, 0.5, 0.8], [0.5, 0.5, 1.5, 0.8], [0.8, 0.8, 0.8, 1.2]],
+                gamma: [[0.3, 0.3, 0.3, 0.2], [0.3, 0.3, 0.3, 0.2], [0.3, 0.3, 0.3, 0.2], [0.2, 0.2, 0.2, 0.1]]
+            },
+            rgbwk: {
+                alpha: [[2.0, -1.0, -1.0, 0.3, -1.5], [-1.0, 2.0, -1.0, 0.3, -1.5], [-1.0, -1.0, 2.0, 0.3, -1.5], [0.3, 0.3, 0.3, 2.0, -0.5], [-1.5, -1.5, -1.5, -0.5, 2.0]],
+                beta: [[1.5, 0.5, 0.5, 0.8, 0.1], [0.5, 1.5, 0.5, 0.8, 0.1], [0.5, 0.5, 1.5, 0.8, 0.1], [0.8, 0.8, 0.8, 1.2, 0.3], [0.1, 0.1, 0.1, 0.3, 0.5]],
+                gamma: [[0.3, 0.3, 0.3, 0.2, 0.5], [0.3, 0.3, 0.3, 0.2, 0.5], [0.3, 0.3, 0.3, 0.2, 0.5], [0.2, 0.2, 0.2, 0.1, 0.3], [0.5, 0.5, 0.5, 0.3, 0.8]]
+            },
+            full8: {
+                alpha: [[2.0, -0.8, -0.8, 0.5, 0.5, -0.5, 0.3, -1.5], [-0.8, 2.0, -0.8, 0.5, -0.5, 0.5, 0.3, -1.5], [-0.8, -0.8, 2.0, -0.5, 0.5, 0.5, 0.3, -1.5], [0.5, 0.5, -0.5, 2.0, 0.3, 0.3, 0.5, -0.8], [0.5, -0.5, 0.5, 0.3, 2.0, 0.3, 0.5, -0.8], [-0.5, 0.5, 0.5, 0.3, 0.3, 2.0, 0.5, -0.8], [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 2.0, -0.5], [-1.5, -1.5, -1.5, -0.8, -0.8, -0.8, -0.5, 2.0]],
+                beta: [[1.5, 0.4, 0.4, 0.6, 0.6, 0.4, 0.8, 0.1], [0.4, 1.5, 0.4, 0.6, 0.4, 0.6, 0.8, 0.1], [0.4, 0.4, 1.5, 0.4, 0.6, 0.6, 0.8, 0.1], [0.6, 0.6, 0.4, 1.5, 0.5, 0.5, 0.7, 0.2], [0.6, 0.4, 0.6, 0.5, 1.5, 0.5, 0.7, 0.2], [0.4, 0.6, 0.6, 0.5, 0.5, 1.5, 0.7, 0.2], [0.8, 0.8, 0.8, 0.7, 0.7, 0.7, 1.2, 0.3], [0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.5]],
+                gamma: [[0.3, 0.25, 0.25, 0.2, 0.2, 0.25, 0.15, 0.5], [0.25, 0.3, 0.25, 0.2, 0.25, 0.2, 0.15, 0.5], [0.25, 0.25, 0.3, 0.25, 0.2, 0.2, 0.15, 0.5], [0.2, 0.2, 0.25, 0.3, 0.25, 0.25, 0.2, 0.4], [0.2, 0.25, 0.2, 0.25, 0.3, 0.25, 0.2, 0.4], [0.25, 0.2, 0.2, 0.25, 0.25, 0.3, 0.2, 0.4], [0.15, 0.15, 0.15, 0.2, 0.2, 0.2, 0.1, 0.3], [0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.3, 0.8]]
+            },
+            cmyk: {
+                alpha: [[2.0, 0.3, -0.5, -1.5], [0.3, 2.0, -0.5, -1.5], [-0.5, -0.5, 2.0, -1.5], [-1.5, -1.5, -1.5, 2.0]],
+                beta: [[1.5, 0.6, 0.4, 0.1], [0.6, 1.5, 0.4, 0.1], [0.4, 0.4, 1.5, 0.1], [0.1, 0.1, 0.1, 0.5]],
+                gamma: [[0.3, 0.25, 0.25, 0.5], [0.25, 0.3, 0.25, 0.5], [0.25, 0.25, 0.3, 0.5], [0.5, 0.5, 0.5, 0.8]]
+            },
+            pastel: {
+                alpha: [[1.5, -0.3, -0.3, -0.2], [-0.3, 1.5, -0.3, -0.2], [-0.3, -0.3, 1.5, -0.2], [-0.2, -0.2, -0.2, 1.5]],
+                beta: [[1.2, 0.4, 0.4, 0.5], [0.4, 1.2, 0.4, 0.5], [0.4, 0.4, 1.2, 0.5], [0.5, 0.5, 0.5, 1.0]],
+                gamma: [[0.2, 0.15, 0.15, 0.15], [0.15, 0.2, 0.15, 0.15], [0.15, 0.15, 0.2, 0.15], [0.15, 0.15, 0.15, 0.1]]
+            },
+            neon: {
+                alpha: [[2.2, -0.8, -0.8, -0.5], [-0.8, 2.2, -0.8, -0.5], [-0.8, -0.8, 2.2, -0.5], [-0.5, -0.5, -0.5, 2.0]],
+                beta: [[1.8, 0.6, 0.6, 0.7], [0.6, 1.8, 0.6, 0.7], [0.6, 0.6, 1.8, 0.7], [0.7, 0.7, 0.7, 1.5]],
+                gamma: [[0.25, 0.2, 0.2, 0.2], [0.2, 0.25, 0.2, 0.2], [0.2, 0.2, 0.25, 0.2], [0.2, 0.2, 0.2, 0.2]]
+            }
+        };
+
+        // Sigmoid函数
+        function sigmoid(x) {
+            return 1.0 / (1.0 + Math.exp(-x));
+        }
+
+        // RTS颜色预测
+        function rtsPredict(recipe, profileKey) {
+            const params = RTS_PARAMS[profileKey] || RTS_PARAMS.rgb;
+            const nColors = Object.keys(COLOR_PROFILES[profileKey].colors).length;
+            
+            // 初始化累积效果
+            let accumR = 0, accumG = 0, accumB = 0;
+            let weightSum = 0;
+            
+            // 从底层到顶层遍历
+            for (let i = 0; i < recipe.length; i++) {
+                const layerIdx = recipe[i];
+                const color = COLOR_PROFILES[profileKey].colors[layerIdx];
+                
+                // 获取该层对其他颜色的影响参数
+                const alpha = params.alpha[layerIdx] || params.alpha[0];
+                const beta = params.beta[layerIdx] || params.beta[0];
+                const gamma = params.gamma[layerIdx] || params.gamma[0];
+                
+                // 计算该层的反射率和透射率
+                const r = sigmoid(alpha[0]); // 简化：使用第一个通道
+                const t = sigmoid(beta[0]) * (1.0 - r);
+                const a = 1.0 - r - t; // 吸收率
+                
+                // 层权重（越往上权重越高）
+                const weight = Math.pow(1.2, i);
+                weightSum += weight;
+                
+                // 累积颜色贡献
+                const contribution = weight * (r + t * 0.3); // 透射光部分贡献
+                accumR += color.rgba[0] * contribution / 255;
+                accumG += color.rgba[1] * contribution / 255;
+                accumB += color.rgba[2] * contribution / 255;
+            }
+            
+            // 归一化并应用gamma校正
+            const gamma = 0.8;
+            let finalR = Math.pow(accumR / weightSum, gamma) * 255;
+            let finalG = Math.pow(accumG / weightSum, gamma) * 255;
+            let finalB = Math.pow(accumB / weightSum, gamma) * 255;
+            
+            // 确保在有效范围内
+            finalR = Math.max(0, Math.min(255, Math.round(finalR)));
+            finalG = Math.max(0, Math.min(255, Math.round(finalG)));
+            finalB = Math.max(0, Math.min(255, Math.round(finalB)));
+            
+            return [finalR, finalG, finalB, 255];
+        }
+
+        // ==================== 配方生成算法 ====================
+        // 生成交错序列
+        function altSequence(a, b, countA, countB, layers) {
+            const result = [];
+            let usedA = 0, usedB = 0;
+            
+            for (let i = 0; i < layers; i++) {
+                if (i % 2 === 0) {
+                    if (usedA < countA) {
+                        result.push(a);
+                        usedA++;
+                    } else {
+                        result.push(b);
+                        usedB++;
+                    }
+                } else {
+                    if (usedB < countB) {
+                        result.push(b);
+                        usedB++;
+                    } else {
+                        result.push(a);
+                        usedA++;
+                    }
+                }
+            }
+            return result;
+        }
+
+        // 生成所有组合
+        function* product(iterable, repeat) {
+            const pools = [];
+            for (let i = 0; i < repeat; i++) {
+                pools.push([...iterable]);
+            }
+            
+            function* recursiveProduct(index, current) {
+                if (index === pools.length) {
+                    yield [...current];
+                    return;
+                }
+                for (const item of pools[index]) {
+                    current.push(item);
+                    yield* recursiveProduct(index + 1, current);
+                    current.pop();
+                }
+            }
+            
+            yield* recursiveProduct(0, []);
+        }
+
+        // 构建配方池
+        function buildRecipePool(layers, nColors, targetCount) {
+            const pool = [];
+            const colors = Array.from({length: nColors}, (_, i) => i);
+            
+            // 1色组合
+            for (const c of colors) {
+                pool.push(Array(layers).fill(c));
+                if (pool.length >= targetCount) return pool;
+            }
+            
+            // 2色组合
+            for (let i = 0; i < nColors; i++) {
+                for (let j = i + 1; j < nColors; j++) {
+                    for (let countI = 1; countI < layers; countI++) {
+                        const countJ = layers - countI;
+                        pool.push(altSequence(i, j, countI, countJ, layers));
+                        if (pool.length >= targetCount) return pool;
+                    }
+                }
+            }
+            
+            // 3色及以上组合
+            for (let numColors = 3; numColors <= Math.min(nColors, layers); numColors++) {
+                const selectedColors = colors.slice(0, numColors);
+                
+                for (const combo of product(selectedColors, layers)) {
+                    // 确保至少使用每种颜色一次
+                    const usedColors = new Set(combo);
+                    if (usedColors.size === numColors) {
+                        pool.push(combo);
+                        if (pool.length >= targetCount) return pool;
+                    }
+                }
+            }
+            
+            return pool.slice(0, targetCount);
+        }
+
+        // ==================== 生成板数据 ====================
+        function generateBoard(profileKey, boardIndex) {
+            const profile = COLOR_PROFILES[profileKey];
+            const nColors = Object.keys(profile.colors).length;
+            const targetCount = DATA_ROWS * DATA_COLS;
+            
+            // 生成配方池
+            const recipes = buildRecipePool(DEFAULT_LAYERS, nColors, targetCount);
+            
+            const cells = [];
+            let recipeIdx = 0;
+            
+            for (let row = 0; row < CORE_SIZE; row++) {
+                for (let col = 0; col < CORE_SIZE; col++) {
+                    const isBorder = row === 0 || row === CORE_SIZE - 1 || col === 0 || col === CORE_SIZE - 1;
+                    
+                    let recipe, rgba, slotNames, isMarker = false;
+                    
+                    if (isBorder) {
+                        // 边框标记色
+                        isMarker = true;
+                        let markerIdx;
+                        if (row === 0 && col === 0) markerIdx = profile.markers.TL;
+                        else if (row === 0 && col === CORE_SIZE - 1) markerIdx = profile.markers.TR;
+                        else if (row === CORE_SIZE - 1 && col === CORE_SIZE - 1) markerIdx = profile.markers.BR;
+                        else if (row === CORE_SIZE - 1 && col === 0) markerIdx = profile.markers.BL;
+                        else markerIdx = 0; // 其他边框位置
+                        
+                        recipe = Array(DEFAULT_LAYERS).fill(markerIdx);
+                        rgba = profile.colors[markerIdx].rgba;
+                        slotNames = Array(DEFAULT_LAYERS).fill(profile.colors[markerIdx].name);
+                    } else {
+                        // 数据区
+                        recipe = recipes[recipeIdx] || Array(DEFAULT_LAYERS).fill(0);
+                        rgba = rtsPredict(recipe, profileKey);
+                        slotNames = recipe.map(idx => profile.colors[idx].name);
+                        recipeIdx++;
+                    }
+                    
+                    cells.push({
+                        row,
+                        col,
+                        recipe,
+                        rgba,
+                        slotNames,
+                        isBorder,
+                        isMarker
+                    });
+                }
+            }
+            
+            return {
+                id: boardIndex,
+                name: `${profile.name}色盘 #${boardIndex + 1}`,
+                profileKey,
+                profile: profile.name,
+                nColors,
+                layers: DEFAULT_LAYERS,
+                cells,
+                cellCount: cells.length,
+                dataCellCount: DATA_ROWS * DATA_COLS
+            };
+        }
+
+        // ==================== 生成8个板 ====================
+        const boards = [];
+        const boardConfigs = [
+            { profile: 'rgb', count: 1 },
+            { profile: 'rybw', count: 1 },
+            { profile: 'rgbw', count: 1 },
+            { profile: 'rgbwk', count: 1 },
+            { profile: 'full8', count: 1 },
+            { profile: 'cmyk', count: 1 },
+            { profile: 'pastel', count: 1 },
+            { profile: 'neon', count: 1 }
+        ];
+
+        let boardIndex = 0;
+        for (const config of boardConfigs) {
+            for (let i = 0; i < config.count; i++) {
+                boards.push(generateBoard(config.profile, boardIndex++));
+            }
+        }
+
+        // ==================== UI渲染 ====================
+        let selectedBoardIndex = 0;
+
+        function renderCards() {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = boards.map((board, idx) => `
+                <div class="board-card ${idx === selectedBoardIndex ? 'active' : ''}" onclick="selectBoard(${idx})">
+                    <div class="name">${board.name}</div>
+                    <div class="info">
+                        <span>颜色数: ${board.nColors}</span>
+                        <span>层数: ${board.layers}</span>
+                        <span>格子: ${board.cellCount}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGrid() {
+            const board = boards[selectedBoardIndex];
+            const container = document.getElementById('gridContainer');
+            const profile = COLOR_PROFILES[board.profileKey];
+            
+            // 更新面板标题
+            document.getElementById('panelTitle').textContent = board.name;
+            document.getElementById('panelSubtitle').textContent = 
+                `${board.profile} | ${board.nColors}色 | ${board.layers}层 | ${board.dataCellCount}数据格`;
+            
+            // 渲染网格
+            let html = '';
+            for (let row = 0; row < CORE_SIZE; row++) {
+                html += '<div class="grid-row">';
+                for (let col = 0; col < CORE_SIZE; col++) {
+                    const cell = board.cells[row * CORE_SIZE + col];
+                    const rgba = cell.rgba;
+                    const isBorder = cell.isBorder;
+                    const borderClass = isBorder ? 'border-cell' : '';
+                    
+                    html += `
+                        <div class="grid-cell ${borderClass}"
+                             style="background: rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] / 255})"
+                             data-row="${row}" data-col="${col}"
+                             onmouseenter="showTooltip(event, ${row}, ${col})"
+                             onmouseleave="hideTooltip()">
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            }
+            container.innerHTML = html;
+            
+            // 渲染图例
+            renderLegend(profile);
+        }
+
+        function renderLegend(profile) {
+            const legend = document.getElementById('legend');
+            const colors = Object.entries(profile.colors);
+            
+            legend.innerHTML = colors.map(([idx, color]) => `
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(${color.rgba.join(',')})"></div>
+                    <span>${color.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function selectBoard(index) {
+            selectedBoardIndex = index;
+            renderCards();
+            renderGrid();
+        }
+
+        function showTooltip(event, row, col) {
+            const board = boards[selectedBoardIndex];
+            const cell = board.cells[row * CORE_SIZE + col];
+            const profile = COLOR_PROFILES[board.profileKey];
+            const tooltip = document.getElementById('tooltip');
+            
+            const layerDots = cell.slotNames.map((name, i) => {
+                const colorIdx = cell.recipe[i];
+                const rgba = profile.colors[colorIdx].rgba;
+                return `<div class="layer-dot" style="background: rgba(${rgba.join(',')})" title="${name}"></div>`;
+            }).join('');
+            
+            tooltip.innerHTML = `
+                <div class="tooltip-title">位置: 行${row + 1} 列${col + 1}</div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">类型:</span>
+                    <span class="tooltip-value">${cell.isMarker ? '标记区' : (cell.isBorder ? '边框' : '数据区')}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">配方:</span>
+                    <span class="tooltip-value">[${cell.recipe.join(', ')}]</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">层序列:</span>
+                    <span class="tooltip-value">${cell.slotNames.join('-')}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">RGBA:</span>
+                    <span class="tooltip-value">${cell.rgba.join(', ')}</span>
+                </div>
+                <div class="layers-visual">${layerDots}</div>
+            `;
+            
+            tooltip.style.display = 'block';
+            
+            // 定位tooltip
+            const rect = event.target.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            let left = rect.right + 10;
+            let top = rect.top;
+            
+            // 防止超出屏幕
+            if (left + tooltipRect.width > window.innerWidth) {
+                left = rect.left - tooltipRect.width - 10;
+            }
+            if (top + tooltipRect.height > window.innerHeight) {
+                top = window.innerHeight - tooltipRect.height - 10;
+            }
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        function openFolder() {
+            alert('打开文件夹功能（实际项目中调用Tauri API）');
+        }
+
+        // 初始化
+        renderCards();
+        renderGrid();
+    </script>
+</body>
+</html>

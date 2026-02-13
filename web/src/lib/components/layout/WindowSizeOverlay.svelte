@@ -31,7 +31,7 @@
     <div class="overlay-content">
       <img src="/icon.svg" alt="Logo" class="overlay-logo" />
       <p>{$_('hint.windowTooSmall')}</p>
-      <button class="btn-secondary" on:click={hideForever} type="button">
+      <button class="btn-secondary" onclick={hideForever} type="button">
         <i class="ti ti-eye-off"></i>
         <span>{$_('btn.neverShow')}</span>
       </button>

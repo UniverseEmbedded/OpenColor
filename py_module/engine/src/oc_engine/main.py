@@ -16,6 +16,7 @@ from oc_engine.handlers.board import (
     handle_board_generate,
     handle_board_export_from_spec,
     handle_quick_calib_card_generate,
+    handle_board_preview,
 )
 from oc_engine.handlers.lut import handle_lut_extract, handle_lut_detect
 from oc_engine.handlers.bitmap import handle_bitmap_export
@@ -68,6 +69,12 @@ def _dispatch(job_mgr: JobManager, req_dict: Dict[str, Any]) -> None:
     method = req.method
     params = req.params
 
+    if method == "ping":
+        from oc_engine.api_bridge import ping
+        result = {"result": ping()}
+        write_json_line(make_response(str(id_), result))
+        return
+
     if method == "health.ping":
         result = handle_health_ping()
         write_json_line(make_response(str(id_), result))
@@ -86,6 +93,21 @@ def _dispatch(job_mgr: JobManager, req_dict: Dict[str, Any]) -> None:
             return
         cancelled = job_mgr.cancel_job(job_id)
         write_json_line(make_response(str(id_), {"cancelled": cancelled}))
+        return
+
+    # 同步方法：board.preview
+    if method == "board.preview":
+        try:
+            result = handle_board_preview(params)
+            write_json_line(make_response(str(id_), result))
+        except Exception as e:
+            write_json_line(
+                {
+                    "jsonrpc": "2.0",
+                    "id": str(id_),
+                    "error": {"code": "E_PREVIEW_FAILED", "message": f"预览生成失败: {e}"},
+                }
+            )
         return
 
     out_dir = params.get("out_dir") or _default_out_dir(method)

@@ -199,16 +199,16 @@ ROOT_DIR = Path(__file__).resolve().parent
 DEFAULT_LAYERS = 5
 # 默认层高（毫米）
 DEFAULT_LAYER_HEIGHT = 0.12
-# 默认格子尺寸（毫米）- 校准格子尺寸 6mm
-DEFAULT_CELL_SIZE = 6.0
+# 默认格子尺寸（毫米）- 校准格子尺寸 4mm
+DEFAULT_CELL_SIZE = 4.0
 # 默认缩进量
 DEFAULT_SHRINK = 0.0
 # 数据区域行数
-DATA_ROWS = 15
+DATA_ROWS = 32
 # 数据区域列数
-DATA_COLS = 15
-# 核心尺寸 - 15x15数据 + 1格边框 = 17x17格子
-CORE_SIZE = 17
+DATA_COLS = 32
+# 核心尺寸 - 32x32数据 + 1格边框 = 34x34格子
+CORE_SIZE = 34
 
 # 格子尺寸（毫米）
 CELL_SIZE_MM = DEFAULT_CELL_SIZE
@@ -224,15 +224,29 @@ BIG_TAG_MODULES = 8
 DEFAULT_GROUP_ID = 0
 
 # 颜色定义 (RGBA) —— 8槽位
+# RGBA 格式: [R, G, B, A]，其中 A 为透明度 (0-255)，0=完全透明，255=完全不透明
 COLOR_SYSTEM_8: Dict[str, Tuple[int, int, int, int]] = {
-    "White": (255, 255, 255, 255),      # 白色
-    "Red": (255, 0, 0, 255),            # 红色
-    "Yellow": (255, 255, 0, 255),      # 黄色
-    "Blue": (0, 0, 255, 255),           # 蓝色
-    "Green": (0, 255, 0, 255),          # 绿色
-    "Cyan": (0, 255, 255, 255),         # 青色
-    "Magenta": (255, 0, 255, 255),      # 洋红色
-    "Black": (0, 0, 0, 255),            # 黑色
+    "White": (255, 255, 255, 255),      # 白色（不透明）
+    "Red": (255, 0, 0, 255),            # 红色（不透明）
+    "Yellow": (255, 255, 0, 255),       # 黄色（不透明）
+    "Blue": (0, 0, 255, 255),           # 蓝色（不透明）
+    "Green": (0, 255, 0, 255),          # 绿色（不透明）
+    "Cyan": (0, 255, 255, 255),         # 青色（不透明）
+    "Magenta": (255, 0, 255, 255),      # 洋红色（不透明）
+    "Black": (0, 0, 0, 255),            # 黑色（不透明）
+}
+
+# 透明耗材示例配置（可选）
+# 使用方式: 在调用 generate_8color_boards 前，将 COLOR_SYSTEM_8 替换为 TRANSPARENT_COLOR_SYSTEM
+TRANSPARENT_COLOR_SYSTEM: Dict[str, Tuple[int, int, int, int]] = {
+    "White": (255, 255, 255, 255),      # 白色（不透明）
+    "Red": (255, 0, 0, 255),            # 红色（不透明）
+    "Yellow": (255, 255, 0, 255),       # 黄色（不透明）
+    "Blue": (0, 0, 255, 255),           # 蓝色（不透明）
+    "Green": (0, 255, 0, 255),          # 绿色（不透明）
+    "Cyan": (0, 255, 255, 255),         # 青色（不透明）
+    "Magenta": (255, 0, 255, 255),      # 洋红色（不透明）
+    "Transparent": (255, 255, 255, 128), # 透明耗材（半透明白色，A=128）
 }
 # 槽位名称列表
 SLOT_NAMES_8 = list(COLOR_SYSTEM_8.keys())
@@ -398,6 +412,10 @@ def build_board_spec(
     group_id: int,
     plate_index: int,
     slot_names: List[str] = None,
+    layer_height_mm: float = None,
+    cell_size_mm: float = None,
+    data_rows: int = None,
+    data_cols: int = None,
 ) -> BoardSpec:
     """
     构建校准板规格对象
@@ -408,6 +426,10 @@ def build_board_spec(
         group_id: 组ID
         plate_index: 板子索引
         slot_names: 颜色名称列表，默认为8色配置
+        layer_height_mm: 层高（毫米），默认使用 DEFAULT_LAYER_HEIGHT
+        cell_size_mm: 格子尺寸（毫米），默认使用 DEFAULT_CELL_SIZE
+        data_rows: 数据区域行数，默认使用 DATA_ROWS
+        data_cols: 数据区域列数，默认使用 DATA_COLS
 
     返回:
         BoardSpec对象
@@ -416,29 +438,46 @@ def build_board_spec(
     if slot_names is None:
         slot_names = SLOT_NAMES_8
 
+    # 使用默认层高如果未指定
+    if layer_height_mm is None:
+        layer_height_mm = DEFAULT_LAYER_HEIGHT
+
+    # 使用默认格子尺寸如果未指定
+    if cell_size_mm is None:
+        cell_size_mm = DEFAULT_CELL_SIZE
+
+    # 使用默认行列数如果未指定
+    if data_rows is None:
+        data_rows = DATA_ROWS
+    if data_cols is None:
+        data_cols = DATA_COLS
+
+    # 计算核心尺寸（数据区 + 1格边框）
+    core_size = data_rows + 2  # 上下各1格边框
+
     spec = BoardSpec(
         name=board_name,
-        rows=CORE_SIZE,
-        cols=CORE_SIZE,
-        cell_size_mm=DEFAULT_CELL_SIZE,
+        rows=core_size,
+        cols=core_size,
+        cell_size_mm=cell_size_mm,
         print_profile={
             "layers": DEFAULT_LAYERS,
-            "layer_height_mm": DEFAULT_LAYER_HEIGHT,
-            "total_size_mm": [CORE_SIZE * CELL_SIZE_MM, CORE_SIZE * CELL_SIZE_MM],
+            "layer_height_mm": layer_height_mm,
+            "total_size_mm": [core_size * cell_size_mm, core_size * cell_size_mm],
         },
         markers={
             "TL": (0, 0),                                      # 左上角标记
-            "TR": (CORE_SIZE - 1, 0),                          # 右上角标记
-            "BR": (CORE_SIZE - 1, CORE_SIZE - 1),              # 右下角标记
-            "BL": (0, CORE_SIZE - 1),                          # 左下角标记
+            "TR": (core_size - 1, 0),                          # 右上角标记
+            "BR": (core_size - 1, core_size - 1),              # 右下角标记
+            "BL": (0, core_size - 1),                          # 左下角标记
         },
     )
 
     # 填充核心数据区
     idx = 0
     n_colors = len(slot_names)
-    for r in range(1, CORE_SIZE - 1):
-        for c in range(1, CORE_SIZE - 1):
+    for r in range(1, core_size - 1):
+        for c in range(1, core_size - 1):
             layers = recipes[idx] if idx < len(recipes) else [0] * DEFAULT_LAYERS
             # 使用提供的slot_names映射颜色索引
             spec.cell_map[f"{r},{c}"] = {
@@ -449,8 +488,8 @@ def build_board_spec(
             idx += 1
 
     # 计算尺寸参数
-    core_w_mm = CORE_SIZE * CELL_SIZE_MM
-    core_h_mm = CORE_SIZE * CELL_SIZE_MM
+    core_w_mm = core_size * cell_size_mm
+    core_h_mm = core_size * cell_size_mm
     small_tag_mm = SMALL_TAG_MODULES * TAG_PIXEL_MM
     big_tag_mm = BIG_TAG_MODULES * TAG_PIXEL_MM
 
@@ -753,15 +792,18 @@ def _build_core_volumes(
     if default_border_color is None:
         default_border_color = "White"
 
+    # 从 spec 获取核心尺寸
+    core_size = spec.rows
+
     # 初始化体素数据字典
     volumes: Dict[str, np.ndarray] = {
-        name: np.zeros((DEFAULT_LAYERS, CORE_SIZE, CORE_SIZE), dtype=bool) for name in slot_names
+        name: np.zeros((DEFAULT_LAYERS, core_size, core_size), dtype=bool) for name in slot_names
     }
 
     n_colors = len(slot_names)
 
-    for r_cell in range(CORE_SIZE):
-        for c_cell in range(CORE_SIZE):
+    for r_cell in range(core_size):
+        for c_cell in range(core_size):
             cell_data = spec.cell_map.get(f"{r_cell},{c_cell}")
             if cell_data:
                 # 处理数据区域的格子
@@ -785,15 +827,19 @@ def _build_core_volumes(
     return volumes
 
 
-def _build_triangle_meshes() -> Dict[str, List[trimesh.Trimesh]]:
+def _build_triangle_meshes(total_h: float = None) -> Dict[str, List[trimesh.Trimesh]]:
     """
     构建连接Tag和色盘的三角形填充网格
+
+    参数:
+        total_h: 总高度（毫米），默认使用 DEFAULT_LAYERS * DEFAULT_LAYER_HEIGHT
 
     返回:
         按颜色分类的三角网格列表字典
     """
     meshes: Dict[str, List[trimesh.Trimesh]] = {name: [] for name in SLOT_NAMES_8}
-    total_h = DEFAULT_LAYERS * DEFAULT_LAYER_HEIGHT
+    if total_h is None:
+        total_h = DEFAULT_LAYERS * DEFAULT_LAYER_HEIGHT
     core_w_mm = CORE_SIZE * CELL_SIZE_MM
     core_h_mm = CORE_SIZE * CELL_SIZE_MM
     small_tag_mm = SMALL_TAG_MODULES * TAG_PIXEL_MM
@@ -828,6 +874,7 @@ def spec_to_meshes(
     default_border_color: str = None,
     include_apriltag: bool = False,
     include_side_triangles: bool = False,
+    cell_size_mm: float = None,
 ) -> Dict[str, trimesh.Trimesh]:
     """
     将校准板规格转换为三角网格
@@ -840,6 +887,7 @@ def spec_to_meshes(
         default_border_color: 边框默认颜色，默认为White
         include_apriltag: 是否包含AprilTag
         include_side_triangles: 是否包含侧边三角形
+        cell_size_mm: 格子尺寸（毫米），默认使用 DEFAULT_CELL_SIZE
 
     返回:
         按颜色分类的合并后的三角网格字典
@@ -848,13 +896,20 @@ def spec_to_meshes(
     if slot_names is None:
         slot_names = SLOT_NAMES_8
 
+    # 使用默认格子尺寸如果未指定
+    if cell_size_mm is None:
+        cell_size_mm = DEFAULT_CELL_SIZE
+
+    # 从 spec 中获取层高，如果没有则使用默认值
+    layer_height_mm = spec.print_profile.get("layer_height_mm", DEFAULT_LAYER_HEIGHT)
+
     core_volumes = _build_core_volumes(
         spec,
         slot_names=slot_names,
         marker_colors=marker_colors,
         default_border_color=default_border_color,
     )
-    voxel_size = (CELL_SIZE_MM, CELL_SIZE_MM, DEFAULT_LAYER_HEIGHT)
+    voxel_size = (cell_size_mm, cell_size_mm, layer_height_mm)
 
     meshes_by_slot: Dict[str, List[trimesh.Trimesh]] = {name: [] for name in slot_names}
     for slot_name in slot_names:
@@ -872,8 +927,12 @@ def spec_to_meshes(
         pass
 
     if bool(include_side_triangles):
-        # TODO: 需要修改 _build_triangle_meshes 支持自定义颜色
-        pass
+        # 计算总高度并构建侧边三角形
+        total_h = DEFAULT_LAYERS * layer_height_mm
+        triangle_meshes = _build_triangle_meshes(total_h=total_h)
+        for slot_name, mesh_list in triangle_meshes.items():
+            if slot_name in meshes_by_slot:
+                meshes_by_slot[slot_name].extend(mesh_list)
 
     # 合并每个颜色的所有网格
     merged: Dict[str, trimesh.Trimesh] = {}
@@ -945,6 +1004,7 @@ def generate_8color_boards(
         *,
         include_apriltag: bool = False,
         include_side_triangles: bool = False,
+        layer_height_mm: float = None,
 ) -> None:
     """
     生成8色校准板
@@ -952,9 +1012,16 @@ def generate_8color_boards(
     参数:
         num_boards: 生成的板子数量
         shrink: 格子缩进量
+        include_apriltag: 是否包含AprilTag
+        include_side_triangles: 是否包含侧边三角形
+        layer_height_mm: 层高（毫米），默认使用 DEFAULT_LAYER_HEIGHT
     """
     out_dir = ROOT_DIR / "out_calibration_board_8"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # 使用默认层高如果未指定
+    if layer_height_mm is None:
+        layer_height_mm = DEFAULT_LAYER_HEIGHT
 
     num_cells = DATA_ROWS * DATA_COLS
     total_cells_needed = num_cells * num_boards
@@ -972,7 +1039,7 @@ def generate_8color_boards(
         recs = recipes[start_idx : start_idx + num_cells]
 
         # 构建校准板规格
-        spec = build_board_spec(name, recs, DEFAULT_GROUP_ID, b_idx)
+        spec = build_board_spec(name, recs, DEFAULT_GROUP_ID, b_idx, layer_height_mm=layer_height_mm)
         spec_path = out_dir / f"{name.replace(' ', '_')}_board_spec.json"
         spec.save(spec_path)
 
@@ -994,6 +1061,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="生成 8 色校准板")
     parser.add_argument("--num_boards", type=int, default=8, help="生成的板子数量")
     parser.add_argument("--shrink", type=float, default=DEFAULT_SHRINK, help="格子缩进量 (shrink)")
+    parser.add_argument("--layer-height", type=float, default=DEFAULT_LAYER_HEIGHT, help=f"层高（毫米，默认 {DEFAULT_LAYER_HEIGHT}）")
     args = parser.parse_args()
 
-    generate_8color_boards(num_boards=args.num_boards, shrink=args.shrink)
+    generate_8color_boards(num_boards=args.num_boards, shrink=args.shrink, layer_height_mm=args.layer_height)

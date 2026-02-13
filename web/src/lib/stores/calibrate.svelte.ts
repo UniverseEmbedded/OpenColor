@@ -5,17 +5,34 @@
 import { writable, get } from 'svelte/store';
 import type { 
   BoardItem, SampleDataset, 
-  SampleCell, Point, TrainingConfig, TrainingProgress, ModelItem 
+  SampleCell, Point, TrainingConfig, TrainingProgress, ModelItem,
+  ColorProfile, BoardCell
 } from '$lib/types';
 import { getTauriBridge } from '../tauri/bridge';
 
 const bridge = getTauriBridge();
 
+// 进度信息接口
+export interface ProgressInfo {
+  current: number;
+  total: number;
+  percentage: number;
+  elapsedMs: number;
+  estimatedRemainingMs: number;
+  stage: string;
+  stageDescription: string;
+}
+
 // 校准板生成状态
 interface BoardGenState {
   isGenerating: boolean;
   progress: number;
+  progressInfo: ProgressInfo | null;
   generatedBoards: BoardItem[];
+  profiles: ColorProfile[];
+  selectedProfile: ColorProfile | null;
+  selectedBoard: BoardItem | null;
+  previewCells: BoardCell[];
   error: string | null;
 }
 
@@ -57,41 +74,115 @@ function createBoardGenStore() {
   const state = writable<BoardGenState>({
     isGenerating: false,
     progress: 0,
+    progressInfo: null,
     generatedBoards: [],
+    profiles: [],
+    selectedProfile: null,
+    selectedBoard: null,
+    previewCells: [],
     error: null
   });
 
   return {
     subscribe: state.subscribe,
-    
+
+    // 加载耗材组列表
+    async loadProfiles() {
+      if (!bridge.hasTauri) return;
+
+      try {
+        const result = await bridge.invoke<{ profiles: ColorProfile[] }>('list_profiles');
+        state.update(s => ({
+          ...s,
+          profiles: result.profiles,
+          selectedProfile: result.profiles[0] || null
+        }));
+      } catch (e) {
+        console.error('加载耗材组列表失败:', e);
+      }
+    },
+
+    // 选择耗材组
+    selectProfile(profileId: string) {
+      state.update(s => {
+        const profile = s.profiles.find(p => p.id === profileId) || null;
+        return { ...s, selectedProfile: profile };
+      });
+    },
+
     // 生成校准板
     async generateBoards(config: {
-      outputDir: string;
-      specName: string;
+      profileId: string;
       numBoards: number;
       shrink: number;
+      layers: number;
       layerHeightMm: number;
-      includeApriltag: boolean;
-      includeSideTriangles: boolean;
+      cellSizeMm: number;
+      dataRows: number;
+      dataCols: number;
+      workspacePath: string;
     }) {
       if (!bridge.hasTauri) {
         throw new Error('不在 Tauri 环境中');
       }
 
-      state.update(s => ({ ...s, isGenerating: true, progress: 0, error: null }));
+      const startTime = Date.now();
+      let unlistenProgress: (() => void) | null = null;
+
+      state.update(s => ({ ...s, isGenerating: true, progress: 0, progressInfo: null, error: null }));
 
       try {
-        const result = await bridge.invoke<{ specPaths: string[]; printPaths: string[] }>('board_gen', config);
-        
-        // 刷新校准板列表
-        await this.loadBoards(config.outputDir);
-        
-        state.update(s => ({ ...s, isGenerating: false, progress: 1 }));
+        // 设置进度监听
+        unlistenProgress = await bridge.listen<{
+          current: number;
+          total: number;
+          stage: string;
+          stageDescription: string;
+        }>('board_gen:progress', (payload) => {
+          const elapsed = Date.now() - startTime;
+          const percentage = payload.total > 0 ? payload.current / payload.total : 0;
+          const estimatedTotal = percentage > 0 ? elapsed / percentage : 0;
+          const estimatedRemaining = Math.max(0, estimatedTotal - elapsed);
+
+          state.update(s => ({
+            ...s,
+            progress: percentage,
+            progressInfo: {
+              current: payload.current,
+              total: payload.total,
+              percentage: Math.round(percentage * 100),
+              elapsedMs: elapsed,
+              estimatedRemainingMs: estimatedRemaining,
+              stage: payload.stage,
+              stageDescription: payload.stageDescription
+            }
+          }));
+        });
+
+        const result = await bridge.invoke<{ 
+          spec_paths: string[]; 
+          print_paths: string[];
+          boards: BoardItem[];
+        }>('board_gen', config);
+
+        // 使用后端返回的boards数据（包含正确的dataRows/dataCols）
+        state.update(s => ({
+          ...s,
+          isGenerating: false,
+          progress: 1,
+          progressInfo: null,
+          generatedBoards: [...s.generatedBoards, ...(result.boards || [])]
+        }));
+
         return result;
       } catch (e) {
         const errorMsg = String(e);
-        state.update(s => ({ ...s, isGenerating: false, error: errorMsg }));
+        state.update(s => ({ ...s, isGenerating: false, progressInfo: null, error: errorMsg }));
         throw e;
+      } finally {
+        if (unlistenProgress) {
+          unlistenProgress();
+        }
       }
     },
 
@@ -100,12 +191,41 @@ function createBoardGenStore() {
       if (!bridge.hasTauri) return;
 
       try {
-        const result = await bridge.invoke<{ boards: BoardItem[] }>('library_list_boards', { 
-          workspacePath 
+        const result = await bridge.invoke<{ boards: BoardItem[] }>('library_list_boards', {
+          workspacePath
         });
         state.update(s => ({ ...s, generatedBoards: result.boards }));
       } catch (e) {
         console.error('加载校准板列表失败:', e);
+      }
+    },
+
+    // 选择校准板
+    async selectBoard(board: BoardItem | null) {
+      state.update(s => ({ ...s, selectedBoard: board }));
+      if (board) {
+        await this.loadBoardPreview();
+      }
+    },
+
+    // 从后端加载真实的预览数据
+    async loadBoardPreview() {
+      const currentState = get(state);
+      const profile = currentState.selectedProfile;
+      const board = currentState.selectedBoard;
+      if (!profile) return;
+      if (!board) return;
+
+      try {
+        const result = await bridge.invoke<{ cells: BoardCell[] }>('board_preview', {
+          profileId: profile.id,
+          specPath: board.path
+        });
+        state.update(s => ({ ...s, previewCells: result.cells }));
+      } catch (e) {
+        const errorMsg = String(e);
+        console.error('加载预览数据失败:', e);
+        state.update(s => ({ ...s, previewCells: [], error: errorMsg }));
       }
     },
 

@@ -1,7 +1,10 @@
 use std::backtrace::Backtrace;
 use std::time::Instant;
 
+use log::{info, error};
 use tauri::Manager;
+use tauri::tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState};
+use tauri_plugin_log::{Target, TargetKind};
 
 // 模块声明
 mod library;
@@ -11,6 +14,7 @@ mod utils;
 mod cpp_bridge;
 mod workspace;
 mod calibrate;
+mod notification;
 
 // 重新导出库模块的公共类型
 pub use library::{LibraryItem, LibraryIndex, parse_oc_short, display_from_short};
@@ -21,7 +25,7 @@ pub use engine::EngineManager;
 /// 简单的 ping 命令，用于测试 Web → Rust → Python 连通性
 #[tauri::command]
 async fn ping(message: String) -> Result<String, String> {
-    println!("[ping] 收到消息: {}", message);
+    info!("[ping] 收到消息: {}", message);
     
     // 这里可以添加调用 Python 引擎的逻辑
     // 暂时返回简单的响应
@@ -32,7 +36,6 @@ async fn ping(message: String) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let start = Instant::now();
-    println!("[初始化] 启动应用");
     
     // 设置 panic 钩子以捕获崩溃信息
     std::panic::set_hook(Box::new(|info| {
@@ -40,19 +43,25 @@ pub fn run() {
         eprintln!("[崩溃] 捕获到 panic: {info}");
         eprintln!("[崩溃] 调用栈: {bt}");
     }));
-    println!("[初始化] 已启用 panic 日志");
     
     tauri::Builder::default()
         .setup(move |app| {
             let setup_start = Instant::now();
-            println!("[初始化] 开始设置 Tauri");
             
-            // 初始化日志插件
+            // 初始化日志插件（必须先初始化才能使用 log 宏）
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
+                    .targets([
+                        Target::new(TargetKind::Stdout),
+                        Target::new(TargetKind::LogDir { file_name: None })
+                    ])
                     .build(),
             )?;
+            
+            info!("[初始化] 启动应用");
+            info!("[初始化] 已启用 panic 日志");
+            info!("[初始化] 开始设置 Tauri");
             
             // 管理引擎管理器状态
             app.manage(EngineManager::new(app.handle().clone()));
@@ -60,20 +69,27 @@ pub fn run() {
             // 初始化工作区
             match workspace::init_workspace(app.handle()) {
                 Ok(ws) => {
-                    println!("[初始化] 工作区初始化成功: {}", ws.name);
+                    info!("[初始化] 工作区初始化成功: {}", ws.name);
                 }
                 Err(e) => {
-                    eprintln!("[错误] 工作区初始化失败: {e}");
+                    error!("[错误] 工作区初始化失败: {e}");
                 }
             }
             
-            println!("[初始化] Tauri 设置完成，耗时 {} ms", setup_start.elapsed().as_millis());
-            println!("[初始化] 应用准备就绪，耗时 {} ms", start.elapsed().as_millis());
+            info!("[初始化] Tauri 设置完成，耗时 {} ms", setup_start.elapsed().as_millis());
+            
+            // 初始化系统托盘
+            init_tray(app.handle())?;
+            info!("[初始化] 系统托盘初始化完成");
+            
+            info!("[初始化] 应用准备就绪，耗时 {} ms", start.elapsed().as_millis());
+            
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             ping,
             // 工作区 API
@@ -82,10 +98,12 @@ pub fn run() {
             workspace::workspace_create,
             workspace::workspace_list_recent,
             workspace::workspace_remove_from_recent,
+            workspace::workspace_get_info,
             // 引擎 API
             engine::engine_request,
             engine::engine_restart,
             cpp_bridge::cpp_probe,
+            cpp_bridge::check_gpu,
             // 文件系统 API
             file_utils::read_file_base64,
             file_utils::read_text_file,
@@ -114,6 +132,13 @@ pub fn run() {
             calibrate::model_train_cancel,
             calibrate::library_list_boards,
             calibrate::library_list_models,
+            calibrate::list_profiles,
+            calibrate::board_preview,
+            calibrate::rts_predict_single,
+            calibrate::delete_board,
+            calibrate::rename_board,
+            // 通知 API
+            notification::show_notification,
         ])
         .build(tauri::generate_context!())
         .expect("构建 Tauri 应用失败")
@@ -121,15 +146,71 @@ pub fn run() {
             // 处理应用退出事件，清理 Python 引擎
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 if let Some(state) = app_handle.try_state::<EngineManager>() {
-                    println!("[信息] 正在清理 Python 引擎...");
+                    info!("[信息] 正在清理 Python 引擎...");
                     if let Err(e) = state.shutdown() {
-                        eprintln!("[错误] Python 引擎清理失败: {e}");
+                        error!("[错误] Python 引擎清理失败: {e}");
                     } else {
-                        println!("[信息] Python 引擎清理完成");
+                        info!("[信息] Python 引擎清理完成");
                     }
                 }
             }
         });
+}
+
+/// 初始化系统托盘
+fn init_tray(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    // 创建托盘菜单
+    let show_i = tauri::menu::MenuItem::with_id(app, "show", "显示", true, None::<&str>)?;
+    let hide_i = tauri::menu::MenuItem::with_id(app, "hide", "隐藏", true, None::<&str>)?;
+    let quit_i = tauri::menu::MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    
+    let menu = tauri::menu::Menu::with_items(app, &[&show_i, &hide_i, &quit_i])?;
+    
+    // 创建托盘图标
+    let _tray = TrayIconBuilder::new()
+        .icon(app.default_window_icon().unwrap().clone())
+        .menu(&menu)
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, event| {
+            match event.id().as_ref() {
+                "show" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+                "hide" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                }
+                "quit" => {
+                    app.exit(0);
+                }
+                _ => {}
+            }
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                // 左键点击托盘图标显示/隐藏窗口
+                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                    if window.is_visible().unwrap_or(false) {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+            }
+        })
+        .build(app)?;
+    
+    Ok(())
 }
 
 // ==================== 单元测试 ====================

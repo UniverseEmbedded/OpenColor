@@ -380,7 +380,7 @@ def run(
     run_id = make_out_subdir_name_for_file(src_path)
 
     out_run_dir, model_dir, model, cs, n_layers, params = _load_model_and_setup(
-        src_path, out_dir_base, output_dir, run_id
+        src_path, out_dir_base, output_dir, run_id, layer_height_mm=layer_height_mm
     )
 
     params.n_layers = n_layers

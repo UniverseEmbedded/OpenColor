@@ -52,8 +52,16 @@ body {
   height: 100%;
 }
 
-button {
+button,
+select,
+input,
+textarea {
   font-family: inherit;
+}
+
+/* 等宽字体类 - 用于需要显示代码、路径等场景 */
+.font-mono {
+  font-family: 'Maple Mono Normal NF CN', monospace;
 }
 
 /* 滚动条样式 */

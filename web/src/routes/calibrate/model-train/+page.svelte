@@ -117,13 +117,13 @@
 
 <div class="model-train-page">
   <h1>{$_('nav.calibrate.modelTrain')}</h1>
-  <p class="description">使用RT光学模型+GPR训练颜色预测模型</p>
+  <p class="description">{$_('modelTrain.description')}</p>
 
   {#if error}
     <div class="error-message">
       <i class="ti ti-alert-circle"></i>
       <span>{error}</span>
-      <button onclick={() => modelTrainStore.clearError()} type="button" aria-label="关闭错误">
+      <button onclick={() => modelTrainStore.clearError()} type="button" aria-label={$_('app.close')}>
         <i class="ti ti-x"></i>
       </button>
     </div>
@@ -132,23 +132,23 @@
   <div class="content-grid">
     <!-- 配置面板 -->
     <div class="config-panel">
-      <h2>训练配置</h2>
+      <h2>{$_('modelTrain.configTitle')}</h2>
 
       <!-- 数据集选择 -->
       <div class="form-group">
-        <label>数据集</label>
+        <div class="form-label">{$_('modelTrain.dataset')}</div>
         <button class="btn-secondary select-btn" onclick={selectDatasets}>
           <i class="ti ti-file-upload"></i>
-          选择数据集
+          {$_('modelTrain.selectDataset')}
         </button>
         {#if config.datasetPaths.length > 0}
-          <span class="file-count">已选择 {config.datasetPaths.length} 个文件</span>
+          <span class="file-count">{config.datasetPaths.length} files selected</span>
         {/if}
       </div>
 
       <!-- 材料组 -->
       <div class="form-group">
-        <label for="materialGroup">材料组</label>
+        <label for="materialGroup">{$_('modelTrain.materialGroup')}</label>
         <input
           id="materialGroup"
           type="text"
@@ -159,7 +159,7 @@
 
       <!-- 层高 -->
       <div class="form-group">
-        <label for="layerHeight">层高 (mm)</label>
+        <label for="layerHeight">{$_('modelTrain.layerHeight')}</label>
         <input
           id="layerHeight"
           type="number"
@@ -172,11 +172,11 @@
 
       <!-- 光学模型 -->
       <div class="form-group">
-        <label for="opticalModel">光学模型</label>
+        <label for="opticalModel">{$_('modelTrain.opticalModel')}</label>
         <select id="opticalModel" bind:value={config.opticalModel}>
-          <option value="rts">RTS (推荐)</option>
-          <option value="four_flux">Four-Flux</option>
-          <option value="tmm">TMM</option>
+          <option value="rts">{$_('modelTrain.opticalModel.rts')}</option>
+          <option value="four_flux">{$_('modelTrain.opticalModel.fourFlux')}</option>
+          <option value="tmm">{$_('modelTrain.opticalModel.tmm')}</option>
         </select>
       </div>
 
@@ -187,17 +187,17 @@
             type="checkbox"
             bind:checked={config.useVulkan}
           />
-          使用 Vulkan GPU加速
+          {$_('modelTrain.useVulkan')}
         </label>
       </div>
 
       <!-- GPR参数 -->
       <div class="form-group">
-        <label>GPR核函数</label>
-        <select bind:value={config.gprParams!.kernel}>
-          <option value="rbf">RBF</option>
-          <option value="matern">Matérn</option>
-          <option value="rational_quadratic">Rational Quadratic</option>
+        <label for="gprKernelSelect">{$_('modelTrain.gprKernel')}</label>
+        <select id="gprKernelSelect" bind:value={config.gprParams!.kernel}>
+          <option value="rbf">{$_('modelTrain.kernel.rbf')}</option>
+          <option value="matern">{$_('modelTrain.kernel.matern')}</option>
+          <option value="rational_quadratic">{$_('modelTrain.kernel.rationalQuadratic')}</option>
         </select>
       </div>
 
@@ -206,7 +206,7 @@
         {#if isTraining}
           <button class="btn-danger" onclick={cancelTraining}>
             <i class="ti ti-player-stop"></i>
-            停止训练
+            {$_('modelTrain.stopTraining')}
           </button>
         {:else}
           <button
@@ -215,7 +215,7 @@
             disabled={config.datasetPaths.length === 0}
           >
             <i class="ti ti-player-play"></i>
-            开始训练
+            {$_('modelTrain.startTraining')}
           </button>
         {/if}
       </div>
@@ -227,9 +227,9 @@
             <div class="progress-fill" style="width: {(progress.epoch / progress.totalEpochs) * 100}%"></div>
           </div>
           <div class="progress-stats">
-            <span>轮次: {progress.epoch}/{progress.totalEpochs}</span>
-            <span>损失: {progress.loss.toFixed(4)}</span>
-            <span>ΔE: {progress.avgDeltaE.toFixed(2)}</span>
+            <span>{$_('modelTrain.epoch')}: {progress.epoch}/{progress.totalEpochs}</span>
+            <span>{$_('modelTrain.loss')}: {progress.loss.toFixed(4)}</span>
+            <span>{$_('modelTrain.deltaE')}: {progress.avgDeltaE.toFixed(2)}</span>
           </div>
         </div>
       {/if}
@@ -240,14 +240,14 @@
       <!-- 日志面板 -->
       <div class="logs-panel">
         <div class="logs-header">
-          <h2>训练日志</h2>
-          <button class="btn-icon" onclick={clearLogs} title="清空日志">
+          <h2>{$_('modelTrain.trainingLogs')}</h2>
+          <button class="btn-icon" onclick={clearLogs} title={$_('modelTrain.clearLogs')}>
             <i class="ti ti-trash"></i>
           </button>
         </div>
         <div class="logs-content">
           {#if logs.length === 0}
-            <div class="empty-logs">等待训练开始...</div>
+            <div class="empty-logs">{$_('modelTrain.waitingForTraining')}</div>
           {:else}
             {#each logs as log}
               <div class="log-line">{log}</div>
@@ -258,11 +258,11 @@
 
       <!-- 模型列表 -->
       <div class="models-panel">
-        <h2>训练好的模型</h2>
+        <h2>{$_('modelTrain.trainedModels')}</h2>
         {#if trainedModels.length === 0}
           <div class="empty-state">
             <i class="ti ti-brain"></i>
-            <span>尚未训练任何模型</span>
+            <span>{$_('modelTrain.noModels')}</span>
           </div>
         {:else}
           <div class="model-list">
@@ -356,6 +356,14 @@
   }
 
   .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .form-label {
     display: block;
     font-size: 12px;
     font-weight: 500;

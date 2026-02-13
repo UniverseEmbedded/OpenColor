@@ -2,12 +2,20 @@
   import { _ } from '$lib/i18n';
   import { workspaceStore, type WorkspaceInfo } from '$lib/stores/workspace.svelte';
   import { onMount } from 'svelte';
-  
+
+  // Props
+  interface Props {
+    direction?: 'up' | 'down';
+  }
+  let { direction = 'up' }: Props = $props();
+
   // 本地状态
   let isOpen = $state(false);
   let currentWorkspace = $state<WorkspaceInfo | null>(null);
   let recentWorkspaces = $state<WorkspaceInfo[]>([]);
   let isLoading = $state(false);
+  let buttonRef = $state<HTMLButtonElement | null>(null);
+  let dropdownPosition = $state({ top: 0, left: 0, width: 0 });
   
   // 订阅 store
   $effect(() => {
@@ -24,8 +32,51 @@
     workspaceStore.init();
   });
   
+  // 计算下拉框位置
+  function calculatePosition() {
+    if (buttonRef) {
+      const rect = buttonRef.getBoundingClientRect();
+      const dropdownWidth = 280; // 下拉框最小宽度
+      const padding = 16; // 窗口边距
+      const gap = 4; // 按钮与下拉框的间距
+      
+      // 计算右侧边界，确保不超出窗口
+      let left = rect.left;
+      if (left + dropdownWidth > window.innerWidth - padding) {
+        left = window.innerWidth - dropdownWidth - padding;
+      }
+      
+      // 根据方向计算垂直位置
+      let top: number;
+      if (direction === 'up') {
+        // 向上展开：从按钮顶部向上，紧贴按钮
+        // 先计算实际内容高度（估算）
+        const itemCount = Math.max(recentWorkspaces.length, 1);
+        const estimatedHeight = Math.min(320, 60 + itemCount * 44 + 100);
+        top = rect.top - estimatedHeight - gap;
+        
+        // 如果向上会超出窗口顶部，则改为向下展开
+        if (top < padding) {
+          top = rect.bottom + gap;
+        }
+      } else {
+        // 向下展开：从按钮底部向下，紧贴按钮
+        top = rect.bottom + gap;
+      }
+      
+      dropdownPosition = {
+        top: Math.max(padding, top),
+        left: Math.max(padding, left),
+        width: Math.max(rect.width, dropdownWidth)
+      };
+    }
+  }
+  
   // 切换下拉菜单
   function toggleDropdown() {
+    if (!isOpen) {
+      calculatePosition();
+    }
     isOpen = !isOpen;
   }
   
@@ -90,7 +141,7 @@
 <svelte:window onclick={handleClickOutside} />
 
 <div class="workspace-selector">
-  <button class="workspace-btn" onclick={toggleDropdown} disabled={isLoading}>
+  <button class="workspace-btn" onclick={toggleDropdown} disabled={isLoading} bind:this={buttonRef}>
     <i class="ti ti-folder"></i>
     <span class="workspace-name">
       {currentWorkspace?.name || $_('workspace.default')}
@@ -99,7 +150,7 @@
   </button>
   
   {#if isOpen}
-    <div class="workspace-dropdown">
+    <div class="workspace-dropdown" class:direction-down={direction === 'down'} style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px;">
       <div class="dropdown-header">
         <span>{$_('workspace.recent')}</span>
       </div>
@@ -200,18 +251,20 @@
   }
   
   .workspace-dropdown {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 0;
-    right: 0;
+    position: fixed;
     background: var(--panel-elevated);
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 8px 0;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    z-index: 100;
+    z-index: 10000;
     max-height: 400px;
     overflow-y: auto;
+  }
+
+  .workspace-dropdown.direction-down {
+    /* 向下展开时不需要额外样式，位置已通过JS计算 */
+    top: 100%;
   }
   
   .dropdown-header {

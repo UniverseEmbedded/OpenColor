@@ -267,8 +267,8 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
             # AprilTag override (Top Layer)
             elif (
                 params.enable_apriltag
-                and 2 <= x < 2 + params.tag_size_cells
-                and 2 <= y < 2 + params.tag_size_cells
+                and 2 <= x < 2 + params.tag_total_cells
+                and 2 <= y < 2 + params.tag_total_cells
             ):
                 p_pattern = get_apriltag_36h11_pattern(params.primary_tag_id)
                 val = p_pattern[y - 2, x - 2]
@@ -276,11 +276,11 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
                 color = (255, 255, 255) if val == 1 else (0, 0, 0)
             elif (
                 params.enable_apriltag
-                and (total - 2 - params.tag_size_cells) <= x < (total - 2)
-                and (total - 2 - params.tag_size_cells) <= y < (total - 2)
+                and (total - 2 - params.tag_total_cells) <= x < (total - 2)
+                and (total - 2 - params.tag_total_cells) <= y < (total - 2)
             ):
                 s_pattern = get_apriltag_36h11_pattern(params.secondary_tag_id)
-                ts = params.tag_size_cells
+                ts = params.tag_total_cells
                 start_s = total - 2 - ts
                 val = s_pattern[y - start_s, x - start_s]
                 # 在预览图中强制使用纯黑白
@@ -301,7 +301,7 @@ def render_board_preview(params: BoardParams, px_per_cell: int = 18) -> Image.Im
             )
 
     # grid (skip tag areas)
-    ts = params.tag_size_cells
+    ts = params.tag_total_cells
     p_start = 2
     p_end = 2 + ts
     s_start = total - 2 - ts
@@ -425,7 +425,7 @@ def create_board_spec(params: BoardParams) -> BoardSpec:
     # 添加 AprilTag 信息
     if params.enable_apriltag:
         cell_mm = params.cell_size_mm
-        tag_size = params.tag_size_cells * cell_mm
+        tag_size = params.tag_total_cells * cell_mm
 
         # Primary Tag (左上，靠近 TL marker 但留出静区)
         # 假设放在 (2, 2) 单元格开始
@@ -443,8 +443,8 @@ def create_board_spec(params: BoardParams) -> BoardSpec:
         }
 
         # Secondary Tag (右下)
-        s_x = (total - 2 - params.tag_size_cells) * cell_mm
-        s_y = (total - 2 - params.tag_size_cells) * cell_mm
+        s_x = (total - 2 - params.tag_total_cells) * cell_mm
+        s_y = (total - 2 - params.tag_total_cells) * cell_mm
         spec.apriltag["secondary"] = {
             "tag_id": params.secondary_tag_id,
             "size_mm": tag_size,
@@ -587,148 +587,6 @@ def build_board_volumes_from_spec(
         "materials": materials if isinstance(materials, list) else None,
     }
     return volumes, info
-
-
-def export_board_standard_3mf(params: BoardParams, out_3mf: Path) -> Path:
-    """导出校准板为标准3MF格式文件"""
-    volumes = build_board_volumes(params)
-    meshes = build_board_meshes_from_volumes(
-        volumes=volumes,
-        cell_size_mm=params.cell_size_mm,
-        layer_height_mm=params.layer_height_mm,
-    )
-
-    materials = (
-        _normalize_materials(params.materials) if params.materials is not None else None
-    )
-    if materials is not None:
-        slot_names_all = [
-            str(m.get("name") or f"M{i}") for i, m in enumerate(materials)
-        ]
-        slot_colors: Dict[str, Tuple[int, int, int, int]] = {}
-        for i, m in enumerate(materials):
-            name = slot_names_all[i]
-            r, g, b, a = m.get("rgba") or [255, 255, 255, 255]
-            slot_colors[name] = (int(r), int(g), int(b), int(a))
-        slot_names_used = [
-            sn
-            for sn in slot_names_all
-            if meshes.get(sn) is not None
-            and getattr(meshes[sn], "faces", None) is not None
-            and len(meshes[sn].faces) > 0
-        ]
-
-        export_standard_3mf_from_meshes(
-            out_3mf=out_3mf,
-            meshes=meshes,
-            slot_names=slot_names_used,
-            slot_colors=slot_colors,
-        )
-        return out_3mf
-
-    cs: ColorSystem = ALL_SYSTEMS[params.color_system]
-
-    slot_names_used = [
-        sn
-        for sn in cs.slot_names
-        if meshes.get(sn) is not None
-        and getattr(meshes[sn], "faces", None) is not None
-        and len(meshes[sn].faces) > 0
-    ]
-    slot_colors: Dict[str, Tuple[int, int, int, int]] = {
-        sn: (
-            int(cs.slot_preview_rgb[sn][0]),
-            int(cs.slot_preview_rgb[sn][1]),
-            int(cs.slot_preview_rgb[sn][2]),
-            255,
-        )
-        for sn in cs.slot_names
-        if sn in cs.slot_preview_rgb
-    }
-
-    export_standard_3mf_from_meshes(
-        out_3mf=out_3mf,
-        meshes=meshes,
-        slot_names=slot_names_used,
-        slot_colors=slot_colors,
-    )
-    return out_3mf
-
-
-def export_board_standard_3mf_from_spec(spec: BoardSpec, out_3mf: Path) -> Path:
-    """根据规格定义导出校准板为标准3MF格式文件"""
-    volumes, info = build_board_volumes_from_spec(spec)
-    mats = info.get("materials")
-    slot_names_any = info.get("slot_names")
-    if (
-        isinstance(mats, list)
-        and isinstance(slot_names_any, list)
-        and len(mats) == len(slot_names_any)
-        and len(slot_names_any) > 0
-    ):
-        slot_colors: Dict[str, Tuple[int, int, int, int]] = {}
-        for i, m in enumerate(mats):
-            name = str(slot_names_any[i])
-            rgba = m.get("rgba") if isinstance(m, dict) else None
-            if not (isinstance(rgba, list) and len(rgba) >= 4):
-                rgba = [255, 255, 255, 255]
-            slot_colors[name] = (int(rgba[0]), int(rgba[1]), int(rgba[2]), int(rgba[3]))
-        meshes = build_board_meshes_from_volumes(
-            volumes=volumes,
-            cell_size_mm=float(info.get("cell_size_mm") or 0.42),
-            layer_height_mm=float(info.get("layer_height_mm") or 0.2),
-        )
-
-        slot_names_used = [
-            sn
-            for sn in slot_names_any
-            if meshes.get(sn) is not None
-            and getattr(meshes[sn], "faces", None) is not None
-            and len(meshes[sn].faces) > 0
-        ]
-
-        export_standard_3mf_from_meshes(
-            out_3mf=out_3mf,
-            meshes=meshes,
-            slot_names=slot_names_used,
-            slot_colors=slot_colors,
-        )
-        return out_3mf
-
-    color_system = str(info.get("color_system") or "RYBW")
-    cs: ColorSystem = ALL_SYSTEMS[color_system]
-    meshes = build_board_meshes_from_volumes(
-        volumes=volumes,
-        cell_size_mm=float(info.get("cell_size_mm") or 0.42),
-        layer_height_mm=float(info.get("layer_height_mm") or 0.2),
-    )
-
-    slot_names_used = [
-        sn
-        for sn in cs.slot_names
-        if meshes.get(sn) is not None
-        and getattr(meshes[sn], "faces", None) is not None
-        and len(meshes[sn].faces) > 0
-    ]
-    slot_colors: Dict[str, Tuple[int, int, int, int]] = {
-        sn: (
-            int(cs.slot_preview_rgb[sn][0]),
-            int(cs.slot_preview_rgb[sn][1]),
-            int(cs.slot_preview_rgb[sn][2]),
-            255,
-        )
-        for sn in cs.slot_names
-        if sn in cs.slot_preview_rgb
-    }
-
-    export_standard_3mf_from_meshes(
-        out_3mf=out_3mf,
-        meshes=meshes,
-        slot_names=slot_names_used,
-        slot_colors=slot_colors,
-    )
-    return out_3mf
-
 
 def export_board_stls_from_spec(spec: BoardSpec, out_dir: Path) -> Dict[str, Path]:
     """根据规格定义导出校准板各槽位的STL文件"""

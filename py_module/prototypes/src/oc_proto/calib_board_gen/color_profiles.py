@@ -9,6 +9,8 @@ import json
 
 
 # 默认颜色配置
+# RGBA 格式: [R, G, B, A]，其中 A 为透明度 (0-255)
+# 0 = 完全透明, 255 = 完全不透明
 DEFAULT_COLOR_PROFILES: Dict[str, Dict[str, Any]] = {
     "rgb": {
         "name": "RGB三原色",
@@ -92,6 +94,43 @@ DEFAULT_COLOR_PROFILES: Dict[str, Dict[str, Any]] = {
             "TR": "Red",
             "BR": "Blue",
             "BL": "Yellow",
+        },
+    },
+    "transparent_7": {
+        "name": "7色+透明",
+        "description": "7种标准色加1种透明耗材配置",
+        "colors": {
+            "Red": [255, 0, 0, 255],
+            "Green": [0, 255, 0, 255],
+            "Blue": [0, 0, 255, 255],
+            "Cyan": [0, 255, 255, 255],
+            "Yellow": [255, 255, 0, 255],
+            "Magenta": [255, 0, 255, 255],
+            "White": [255, 255, 255, 255],
+            "Transparent": [255, 255, 255, 128],  # 半透明白色，A=128
+        },
+        "marker_colors": {
+            "TL": "Blue",
+            "TR": "Red",
+            "BR": "Blue",
+            "BL": "Yellow",
+        },
+    },
+    "transparent_full": {
+        "name": "全透明配置",
+        "description": "包含多种透明度级别的配置",
+        "colors": {
+            "White": [255, 255, 255, 255],       # 不透明
+            "White_75": [255, 255, 255, 192],    # 75%不透明
+            "White_50": [255, 255, 255, 128],    # 50%透明
+            "White_25": [255, 255, 255, 64],     # 75%透明
+            "Clear": [255, 255, 255, 32],        # 几乎全透明
+        },
+        "marker_colors": {
+            "TL": "White",
+            "TR": "White_75",
+            "BR": "White_50",
+            "BL": "White_25",
         },
     },
 }

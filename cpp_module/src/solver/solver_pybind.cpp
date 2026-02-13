@@ -85,23 +85,31 @@ static PhysGPRModel load_model_from_python(
     std::vector<std::string> feature_names
 ) {
     PhysGPRModel model;
-    
-    // 加载光学参数
-    py::array_t<float> mu_a = optical_dict["mu_a"].cast<py::array_t<float>>();
-    py::array_t<float> mu_s = optical_dict["mu_s"].cast<py::array_t<float>>();
-    py::array_t<float> g = optical_dict["g"].cast<py::array_t<float>>();
-    
-    // 调整向量大小并复制数据
-    model.optical.mu_a.resize(mu_a.size());
-    model.optical.mu_s.resize(mu_s.size());
-    model.optical.g.resize(g.size());
-    
-    std::memcpy(model.optical.mu_a.data(), mu_a.data(), sizeof(float) * mu_a.size());
-    std::memcpy(model.optical.mu_s.data(), mu_s.data(), sizeof(float) * mu_s.size());
-    std::memcpy(model.optical.g.data(), g.data(), sizeof(float) * g.size());
+
+    // 检查是否存在RTS模型参数（alpha/beta/gamma）
+    const bool has_rts_params = optical_dict.contains("alpha") && optical_dict.contains("beta") && optical_dict.contains("gamma");
+
+    // 检查是否存在Four-Flux模型参数（mu_a/mu_s/g）
+    const bool has_four_flux_params = optical_dict.contains("mu_a") && optical_dict.contains("mu_s") && optical_dict.contains("g");
+
+    if (has_four_flux_params) {
+        // 加载Four-Flux光学参数
+        py::array_t<float> mu_a = optical_dict["mu_a"].cast<py::array_t<float>>();
+        py::array_t<float> mu_s = optical_dict["mu_s"].cast<py::array_t<float>>();
+        py::array_t<float> g = optical_dict["g"].cast<py::array_t<float>>();
+
+        // 调整向量大小并复制数据
+        model.optical.mu_a.resize(mu_a.size());
+        model.optical.mu_s.resize(mu_s.size());
+        model.optical.g.resize(g.size());
+
+        std::memcpy(model.optical.mu_a.data(), mu_a.data(), sizeof(float) * mu_a.size());
+        std::memcpy(model.optical.mu_s.data(), mu_s.data(), sizeof(float) * mu_s.size());
+        std::memcpy(model.optical.g.data(), g.data(), sizeof(float) * g.size());
+    }
 
     // 如果存在alpha/beta/gamma参数，也一并加载
-    if (optical_dict.contains("alpha") && optical_dict.contains("beta") && optical_dict.contains("gamma")) {
+    if (has_rts_params) {
         py::array_t<float> alpha = optical_dict["alpha"].cast<py::array_t<float>>();
         py::array_t<float> beta = optical_dict["beta"].cast<py::array_t<float>>();
         py::array_t<float> gamma = optical_dict["gamma"].cast<py::array_t<float>>();
@@ -113,6 +121,11 @@ static PhysGPRModel load_model_from_python(
         std::memcpy(model.optical.alpha.data(), alpha.data(), sizeof(float) * alpha.size());
         std::memcpy(model.optical.beta.data(), beta.data(), sizeof(float) * beta.size());
         std::memcpy(model.optical.gamma.data(), gamma.data(), sizeof(float) * gamma.size());
+    }
+
+    // 至少需要一种光学模型参数
+    if (!has_rts_params && !has_four_flux_params) {
+        throw std::runtime_error("光学参数必须包含RTS参数(alpha/beta/gamma)或Four-Flux参数(mu_a/mu_s/g)至少一种");
     }
     
     // 加载其他光学参数

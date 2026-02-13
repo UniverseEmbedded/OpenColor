@@ -73,12 +73,23 @@ def get_data_path(*parts: str) -> Path:
     return get_app_root().joinpath("data", *parts)
 
 
-def default_out_dir(method: str) -> Path:
+def default_out_dir(method: str, workspace_path: str | None = None) -> Path:
     """获取引擎作业的默认输出目录路径。
 
-    对于特定的数据存档方法，使用用户文档目录作为输出位置。
-    其他情况下默认输出到 <app_root>/out_engine 目录下。
+    参数:
+        method: 方法名，如 "board.generate"
+        workspace_path: 工作区路径，如果提供则在对应环节目录下创建时间戳子文件夹
+
+    返回:
+        输出目录路径
     """
+    ts = time.strftime("%Y%m%d_%H%M%S")
+
+    # 如果提供了工作区路径，在对应环节目录下创建时间戳子文件夹
+    if workspace_path:
+        # 根据方法名确定环节目录
+        stage_dir = _get_stage_dir(method)
+        return Path(workspace_path) / stage_dir / ts
 
     # 根据方法名决定是否使用文档目录
     if method.startswith("quick_calib") or method in [
@@ -86,8 +97,24 @@ def default_out_dir(method: str) -> Path:
         "materials.archive",
     ]:
         base = get_user_documents_dir()
-        ts = time.strftime("%Y%m%d_%H%M%S")
         return base / method.replace(".", "_") / ts
 
-    ts = time.strftime("%Y%m%d_%H%M%S")
     return get_app_root() / "out_engine" / method.replace(".", "_") / ts
+
+
+def _get_stage_dir(method: str) -> str:
+    """根据方法名获取对应的环节目录名。"""
+    stage_map = {
+        "board.generate": "01_board_gen",
+        "board.preview": "01_board_gen",
+        "board.export_from_spec": "01_board_gen",
+        "quick_calib.generate_card": "01_board_gen",
+        "lut.extract_from_photo": "02_photo_warp",
+        "lut.detect_points": "02_photo_warp",
+        "dataset.create": "03_sample_build",
+        "dataset.add_observation": "03_sample_build",
+        "dataset.aggregate": "03_sample_build",
+        "bitmap.export": "07_export",
+        "svg.export": "07_export",
+    }
+    return stage_map.get(method, "temp")

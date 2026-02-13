@@ -128,6 +128,17 @@ export interface BoardItem {
   rows: number;
   cols: number;
   modifiedAt: string;
+  // 保存生成时使用的耗材组信息
+  profileId?: string;
+  profileName?: string;
+  profileColors?: { r: number; g: number; b: number; name: string }[];
+  // 数据格数量（实际有配方的格子数，不包括边框）
+  dataRows?: number;
+  dataCols?: number;
+  // 生成参数
+  cellSizeMm?: number;
+  layerHeightMm?: number;
+  layers?: number;
 }
 
 // 校正参数
@@ -205,4 +216,24 @@ export interface ColorModel {
     avgDeltaE: number;
   };
   modelParams: any;
+}
+
+// 颜色定义
+export interface ColorDef {
+  name: string;
+  r: number;
+  g: number;
+  b: number;
+}
+
+// 耗材组（颜色配置）
+export interface ColorProfile {
+  id: string;
+  name: string;
+  description: string;
+  colors: ColorDef[];
+  marker_tl: string;
+  marker_tr: string;
+  marker_br: string;
+  marker_bl: string;
 }

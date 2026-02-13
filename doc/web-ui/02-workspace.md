@@ -61,7 +61,7 @@ C:\Users\{用户名}\Documents\OpenColor\
 应用设置存储在系统应用数据目录，与工作区分离：
 
 ```
-Windows: %LOCALAPPDATA%\com.opencolor.app\settings.json
+Windows: %LOCALAPPDATA%\OpenColor\settings.json
 ```
 
 settings.json 包含工作区相关配置：

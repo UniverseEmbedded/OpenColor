@@ -93,9 +93,12 @@ class JobManager:
                 sys.stderr.flush()
             except Exception as e:
                 # 处理任务执行异常
+                import traceback
                 msg = f"{e}"
                 write_json_line(make_event_error(job.job_id, "E_JOB", msg))
                 sys.stderr.write(f"[错误] 任务失败: {msg}\n")
+                sys.stderr.write("[错误] Stack trace:\n")
+                traceback.print_exc(file=sys.stderr)
                 sys.stderr.flush()
             finally:
                 # 任务结束后从管理器中移除

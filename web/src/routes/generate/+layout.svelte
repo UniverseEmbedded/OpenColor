@@ -1,6 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { navigationStore } from '$lib/stores/navigation.svelte.ts';
+
+  interface Props {
+    children?: Snippet;
+  }
+
+  let { children }: Props = $props();
   
   onMount(() => {
     navigationStore.toggleNav('generate');
@@ -8,7 +14,7 @@
 </script>
 
 <div class="generate-layout">
-  <slot />
+  {@render children?.()}
 </div>
 
 <style>

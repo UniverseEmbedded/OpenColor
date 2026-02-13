@@ -2,8 +2,8 @@
   "name": "opencolor-cpp-module",
   "version-string": "0.1.0",
   "features": {
-    "dev-comment-coverage": {
-      "description": "Tree-sitter 注释覆盖率分析工具（开发用途）",
+    "tree-sitter-scanners": {
+      "description": "Tree-sitter 代码扫描工具（注释覆盖率、Python导入分析等）",
       "dependencies": [
         "tree-sitter"
       ]

@@ -35,7 +35,15 @@ export const navItems: NavItem[] = [
       { id: 'library/boards', label: 'nav.library.boards', icon: 'ti-grid-dots' },
       { id: 'library/photos', label: 'nav.library.photos', icon: 'ti-photo' },
       { id: 'library/models', label: 'nav.library.models', icon: 'ti-cube' },
-      { id: 'library/materials', label: 'nav.library.materials', icon: 'ti-palette' },
+      { 
+        id: 'library/materials', 
+        label: 'nav.library.materials', 
+        icon: 'ti-palette',
+        children: [
+          { id: 'library/materials/filaments', label: 'nav.library.filaments', icon: 'ti-circle' },
+          { id: 'library/materials/profiles', label: 'nav.library.profiles', icon: 'ti-color-swatch' },
+        ]
+      },
       { id: 'library/exports', label: 'nav.library.exports', icon: 'ti-files' },
     ],
   },
@@ -48,6 +56,7 @@ export const navItems: NavItem[] = [
       { id: 'settings/workspace', label: 'nav.settings.workspace', icon: 'ti-folder' },
       { id: 'settings/engine', label: 'nav.settings.engine', icon: 'ti-engine' },
       { id: 'settings/project', label: 'nav.settings.project', icon: 'ti-file-settings' },
+      { id: 'settings/debug', label: 'nav.settings.debug', icon: 'ti-bug' },
     ],
   },
 ];
@@ -118,15 +127,32 @@ function createNavigationStore() {
       const parts = current.split('/');
       const breadcrumbs: NavItem[] = [];
       
-      let parent = navItems.find(n => n.id === parts[0]);
-      if (parent) {
-        breadcrumbs.push(parent);
-        if (parts[1] && parent.children) {
-          const child = parent.children.find(c => c.id === current);
-          if (child) {
-            breadcrumbs.push(child);
-          }
-        }
+      const level1 = navItems.find(n => n.id === parts[0]);
+      if (!level1) {
+        return breadcrumbs;
+      }
+
+      breadcrumbs.push(level1);
+
+      if (parts.length < 2 || !level1.children) {
+        return breadcrumbs;
+      }
+
+      const level2Id = `${parts[0]}/${parts[1]}`;
+      const level2 = level1.children.find(c => c.id === level2Id);
+      if (!level2) {
+        return breadcrumbs;
+      }
+
+      breadcrumbs.push(level2);
+
+      if (parts.length < 3 || !level2.children) {
+        return breadcrumbs;
+      }
+
+      const level3 = level2.children.find(c => c.id === current);
+      if (level3) {
+        breadcrumbs.push(level3);
       }
       
       return breadcrumbs;

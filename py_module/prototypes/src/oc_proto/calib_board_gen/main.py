@@ -75,6 +75,10 @@ def run(
     include_apriltag: bool = False,
     include_side_triangles: bool = False,
     profile: ColorProfile = None,
+    layer_height_mm: float = None,
+    cell_size_mm: float = None,
+    data_rows: int = None,
+    data_cols: int = None,
 ):
     """
     运行校准板生成
@@ -85,6 +89,10 @@ def run(
         include_apriltag: 是否包含AprilTag
         include_side_triangles: 是否包含侧边三角形
         profile: 颜色配置，默认为8色配置
+        layer_height_mm: 层高（毫米），默认使用 generate_board.DEFAULT_LAYER_HEIGHT
+        cell_size_mm: 格子尺寸（毫米），默认使用 generate_board.DEFAULT_CELL_SIZE
+        data_rows: 数据区域行数，默认使用 generate_board.DATA_ROWS
+        data_cols: 数据区域列数，默认使用 generate_board.DATA_COLS
     """
     # 使用默认8色配置
     if profile is None:
@@ -102,8 +110,25 @@ def run(
     ensure_data(prototype_dir, [])
     out_dir = get_out_dir(prototype_dir)
 
+    # 使用默认层高如果未指定
+    if layer_height_mm is None:
+        layer_height_mm = gen_bd.DEFAULT_LAYER_HEIGHT
+
+    # 使用默认格子尺寸如果未指定
+    if cell_size_mm is None:
+        cell_size_mm = gen_bd.DEFAULT_CELL_SIZE
+
+    # 使用默认行列数如果未指定
+    if data_rows is None:
+        data_rows = gen_bd.DATA_ROWS
+    if data_cols is None:
+        data_cols = gen_bd.DATA_COLS
+
     logger.info(f"开始生成 {num_boards} 个 {n_colors} 色校准板 到 {out_dir}...")
     logger.info(f"颜色配置: {profile.name} ({', '.join(slot_names)})")
+    logger.info(f"层高: {layer_height_mm}mm")
+    logger.info(f"格子尺寸: {cell_size_mm}mm")
+    logger.info(f"数据区域: {data_rows}行 x {data_cols}列")
 
     def generate_to_out(
         num_boards,
@@ -111,8 +136,12 @@ def run(
         output_dir,
         include_apriltag,
         include_side_triangles,
+        layer_height_mm,
+        cell_size_mm,
+        data_rows,
+        data_cols,
     ):
-        num_cells = gen_bd.DATA_ROWS * gen_bd.DATA_COLS
+        num_cells = data_rows * data_cols
         total_cells_needed = num_cells * num_boards
         recipes = gen_bd.build_recipe_pool(
             layers=gen_bd.DEFAULT_LAYERS,
@@ -125,10 +154,21 @@ def run(
             board_char = chr(65 + b_idx) if b_idx < 26 else str(b_idx)
             name = f"{n_colors}-Color Board {board_char}"
             start_idx = b_idx * num_cells
-            recs = recipes[start_idx : start_idx + num_cells]
+            end_idx = start_idx + num_cells
+
+            # 如果起始位置已超出配方池范围，停止生成更多板子
+            if start_idx >= len(recipes):
+                logger.info(f"配方池已耗尽，停止生成后续板子（已生成 {b_idx} 个板子）")
+                break
+
+            # 如果结束位置超出配方池范围，只使用剩余配方
+            if end_idx > len(recipes):
+                recs = recipes[start_idx:]
+            else:
+                recs = recipes[start_idx:end_idx]
 
             spec = gen_bd.build_board_spec(
-                name, recs, gen_bd.DEFAULT_GROUP_ID, b_idx, slot_names=slot_names
+                name, recs, gen_bd.DEFAULT_GROUP_ID, b_idx, slot_names=slot_names, layer_height_mm=layer_height_mm, cell_size_mm=cell_size_mm, data_rows=data_rows, data_cols=data_cols
             )
             spec_path = output_dir / f"{name.replace(' ', '_')}_board_spec.json"
             spec.save(spec_path)
@@ -142,6 +182,7 @@ def run(
                 default_border_color=default_border_color,
                 include_apriltag=bool(include_apriltag),
                 include_side_triangles=bool(include_side_triangles),
+                cell_size_mm=cell_size_mm,
             )
             out_3mf = gen_bd.export_standard_3mf(
                 output_dir, spec, meshes_by_slot,
@@ -169,6 +210,10 @@ def run(
         out_dir,
         include_apriltag=bool(include_apriltag),
         include_side_triangles=bool(include_side_triangles),
+        layer_height_mm=layer_height_mm,
+        cell_size_mm=cell_size_mm,
+        data_rows=data_rows,
+        data_cols=data_cols,
     )
 
     # 写入 Manifest
@@ -186,7 +231,8 @@ def run(
             "color_names": slot_names,
             "color_profile": profile.name,
             "layers": gen_bd.DEFAULT_LAYERS,
-            "cell_size": gen_bd.DEFAULT_CELL_SIZE,
+            "cell_size": cell_size_mm,
+            "layer_height_mm": layer_height_mm,
         },
     )
 
@@ -260,6 +306,22 @@ def main():
         "--colors", type=str, nargs="+", default=None,
         help="命令行指定颜色，格式：'名称:R,G,B,A' 或 '名称:R,G,B'"
     )
+    parser.add_argument(
+        "--layer-height", type=float, default=None,
+        help=f"层高（毫米，默认 {gen_bd.DEFAULT_LAYER_HEIGHT}）"
+    )
+    parser.add_argument(
+        "--cell-size", type=float, default=None,
+        help=f"格子尺寸（毫米，默认 {gen_bd.DEFAULT_CELL_SIZE}）"
+    )
+    parser.add_argument(
+        "--rows", type=int, default=None,
+        help=f"数据区域行数（默认 {gen_bd.DATA_ROWS}）"
+    )
+    parser.add_argument(
+        "--cols", type=int, default=None,
+        help=f"数据区域列数（默认 {gen_bd.DATA_COLS}）"
+    )
 
     args = parser.parse_args()
 
@@ -302,6 +364,10 @@ def main():
         include_apriltag=bool(args.include_apriltag),
         include_side_triangles=bool(args.include_side_triangles),
         profile=profile,
+        layer_height_mm=args.layer_height,
+        cell_size_mm=args.cell_size,
+        data_rows=args.rows,
+        data_cols=args.cols,
     )
 
 

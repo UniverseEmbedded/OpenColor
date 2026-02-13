@@ -34,16 +34,21 @@ if(OPENCOLOR_BUILD_CORE)
     src/color_contact_search.cpp
   )
 
-  # 添加 Web 探测的可执行文件目标
-  add_executable(opencolor_web_probe
-    src/web_probe.cpp
-  )
-
   # 查找 shaderc 库（用于 Vulkan 着色器编译）
   find_package(unofficial-shaderc CONFIG REQUIRED)
   # 查找 Vulkan SDK
   find_package(Vulkan REQUIRED)
   find_package(Clipper2 CONFIG REQUIRED)
+
+  # 添加 Web 探测的可执行文件目标
+  add_executable(opencolor_web_probe
+    src/web_probe.cpp
+  )
+
+  # 为 opencolor_web_probe 链接 Vulkan 库
+  target_link_libraries(opencolor_web_probe PRIVATE
+    Vulkan::Vulkan
+  )
   find_package(manifold CONFIG REQUIRED)
 
   # 设置 vcpkg 安装目录的包含路径
@@ -169,5 +174,6 @@ endif()
 
 if(OPENCOLOR_BUILD_DEV_TOOLS)
   add_subdirectory(tools/comment_coverage_ts)
+  add_subdirectory(tools/python_import_scanner)
 endif()
 

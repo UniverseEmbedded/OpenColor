@@ -17,7 +17,7 @@
     cols = 17 
   }: Props = $props();
 
-  let canvas: HTMLCanvasElement;
+  let canvas = $state<HTMLCanvasElement | null>(null);
   let ctx: CanvasRenderingContext2D | null = null;
   let image: HTMLImageElement | null = null;
   let isDragging = false;

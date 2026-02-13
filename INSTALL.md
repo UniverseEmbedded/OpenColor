@@ -693,6 +693,56 @@ vulkaninfo --summary
 
 如果显示 GPU 信息，说明 Vulkan 运行时已就绪。现代 NVIDIA/AMD/Intel 显卡驱动通常都已包含 Vulkan 支持。
 
+## Q: Rust 编译太慢，如何加速？
+
+A: 可以安装 `sccache` 来缓存 Rust 编译结果，显著加快后续编译速度。
+
+### 安装 sccache（可选但推荐）
+
+```bash
+# 使用 --locked 参数确保依赖版本兼容
+cargo install sccache --locked
+```
+
+> **注意**：在 Windows 上直接 `cargo install sccache` 可能会遇到 `windows-sys` 版本兼容性问题（错误：`unresolved import windows_sys::Win32::System::Threading::CreateProcessW`）。**务必使用 `--locked` 参数**。
+
+### 配置环境变量
+
+安装完成后，设置环境变量启用 sccache：
+
+**Windows (PowerShell):**
+```powershell
+# 临时启用（当前终端）
+$env:RUSTC_WRAPPER="sccache"
+
+# 永久启用（用户级）
+[Environment]::SetEnvironmentVariable("RUSTC_WRAPPER", "sccache", "User")
+```
+
+**macOS/Linux:**
+```bash
+# 添加到 ~/.bashrc 或 ~/.zshrc
+export RUSTC_WRAPPER=sccache
+```
+
+### 验证配置
+
+```bash
+# 检查 sccache 是否生效
+sccache --version
+
+# 查看缓存统计
+sccache --show-stats
+```
+
+### 清理缓存
+
+如果缓存占用空间过大，可以清理：
+```bash
+sccache --stop-server
+sccache --start-server
+```
+
 ## 参考链接
 
 [3]: https://pyvkfft.readthedocs.io/en/latest/index.html

@@ -94,13 +94,24 @@ if (typeof window !== 'undefined') {
 function createSettingsStore() {
   return {
     subscribe: (callback: (value: { appSettings: AppSettings; projectSettings: ProjectSettings }) => void) => {
+      let currentApp = get(appSettings);
+      let currentProject = get(projectSettings);
+      callback({ appSettings: currentApp, projectSettings: currentProject });
+
       const unsubscribeApp = appSettings.subscribe(app => {
-        const unsubscribeProject = projectSettings.subscribe(project => {
-          callback({ appSettings: app, projectSettings: project });
-        });
-        return unsubscribeProject;
+        currentApp = app;
+        callback({ appSettings: currentApp, projectSettings: currentProject });
       });
-      return unsubscribeApp;
+
+      const unsubscribeProject = projectSettings.subscribe(project => {
+        currentProject = project;
+        callback({ appSettings: currentApp, projectSettings: currentProject });
+      });
+
+      return () => {
+        unsubscribeApp();
+        unsubscribeProject();
+      };
     },
     
     get appSettings() { return get(appSettings); },

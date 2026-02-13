@@ -279,8 +279,7 @@
 | 文件 | 说明 |
 |------|------|
 | [cpp_module/scripts/setup_cpp.py](cpp_module/scripts/setup_cpp.py) | C++ 环境设置 |
-| [cpp_module/scripts/build_demo.py](cpp_module/scripts/build_demo.py) | 构建演示 |
-| [cpp_module/scripts/run_demo.py](cpp_module/scripts/run_demo.py) | 运行演示 |
+| [cpp_module/scripts/build.py](cpp_module/scripts/build.py) | 构建演示 |
 | [cpp_module/tools/comment_coverage_ts/](cpp_module/tools/comment_coverage_ts/) | TypeScript 注释覆盖率工具 |
 
 ---

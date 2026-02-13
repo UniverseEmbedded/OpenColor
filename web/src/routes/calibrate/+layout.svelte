@@ -1,15 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { navigationStore } from '$lib/stores/navigation.svelte.ts';
+
+  interface Props {
+    children?: Snippet;
+  }
+
+  let { children }: Props = $props();
   
   onMount(() => {
-    // 确保校准导航展开
     navigationStore.toggleNav('calibrate');
   });
 </script>
 
 <div class="calibrate-layout">
-  <slot />
+  {@render children?.()}
 </div>
 
 <style>

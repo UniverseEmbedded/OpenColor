@@ -16,6 +16,10 @@
   $effect(() => {
     const unsubscribe = settingsStore.subscribe((value) => {
       appSettings = value.appSettings;
+      isAutoLocale = appSettings.locale === 'auto';
+      selectedLocale = appSettings.locale === 'auto'
+        ? 'zh-CN'
+        : (appSettings.locale as Exclude<Locale, 'auto'>);
     });
     return unsubscribe;
   });
@@ -35,12 +39,10 @@
   const logLevels = ['debug', 'info', 'warn', 'error'] as const;
 
   // 是否启用自动语言
-  let isAutoLocale = $state(appSettings.locale === 'auto');
+  let isAutoLocale = $state(false);
 
   // 当前选中的语言（非 auto 时）
-  let selectedLocale = $state<Exclude<Locale, 'auto'>>(
-    appSettings.locale === 'auto' ? 'zh-CN' : (appSettings.locale as Exclude<Locale, 'auto'>)
-  );
+  let selectedLocale = $state<Exclude<Locale, 'auto'>>('zh-CN');
 
   // 处理自动开关变化
   function handleAutoChange(e: Event) {

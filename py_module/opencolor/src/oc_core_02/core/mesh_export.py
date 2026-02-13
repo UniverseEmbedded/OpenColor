@@ -103,6 +103,9 @@ def voxel_grid_to_mesh(
         labels = occ.astype(np.int32)
         n_components = 1 if bool(np.any(occ)) else 0
 
+    # 获取体素尺寸
+    sx, sy, sz = grid.voxel_size
+
     def _mk_quads(indices: np.ndarray, face: str) -> tuple[np.ndarray, np.ndarray]:
         if indices.size == 0:
             return np.zeros((0, 3), dtype=np.float64), np.zeros((0, 3), dtype=np.int64)
@@ -113,12 +116,12 @@ def voxel_grid_to_mesh(
 
         world_y = float(height - 1) - y
 
-        x0 = x + float(shrink)
-        x1 = (x + 1.0) - float(shrink)
-        y0 = world_y + float(shrink)
-        y1 = (world_y + 1.0) - float(shrink)
-        z0 = z + float(shrink)
-        z1 = (z + 1.0) - float(shrink)
+        x0 = (x + float(shrink)) * sx
+        x1 = ((x + 1.0) - float(shrink)) * sx
+        y0 = (world_y + float(shrink)) * sy
+        y1 = ((world_y + 1.0) - float(shrink)) * sy
+        z0 = (z + float(shrink)) * sz
+        z1 = ((z + 1.0) - float(shrink)) * sz
 
         valid = (x1 > x0) & (y1 > y0) & (z1 > z0)
         if not bool(np.any(valid)):

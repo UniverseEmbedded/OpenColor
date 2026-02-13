@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
@@ -12,6 +12,12 @@ use tauri_plugin_dialog::{DialogExt, FilePath};
 pub struct FileBase64 {
     pub mime: String,
     pub data: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FileFilter {
+    pub name: String,
+    pub extensions: Vec<String>,
 }
 
 /// 根据文件扩展名猜测 MIME 类型
@@ -99,7 +105,7 @@ pub fn file_exists(path: String) -> Result<bool, String> {
 pub async fn file_select_dialog(
     app: AppHandle,
     title: Option<String>,
-    filters: Option<Vec<(String, Vec<String>)>>,
+    filters: Option<Vec<FileFilter>>,
     multiple: Option<bool>,
 ) -> Result<Option<Vec<String>>, String> {
     let mut dialog = app.dialog().file();
@@ -111,21 +117,30 @@ pub async fn file_select_dialog(
     
     // 设置文件过滤器 - 将 Vec<String> 转换为 &[&str]
     if let Some(f) = filters {
-        for (name, extensions) in f {
-            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
-            dialog = dialog.add_filter(name, &ext_refs);
+        for filter in f {
+            let ext_refs: Vec<&str> = filter.extensions.iter().map(|s| s.as_str()).collect();
+            dialog = dialog.add_filter(filter.name, &ext_refs);
         }
     }
     
-    // 打开对话框
-    let result = dialog.blocking_pick_file();
-    
+    let allow_multiple = multiple.unwrap_or(false);
+
+    let result = if allow_multiple {
+        dialog.blocking_pick_files()
+    } else {
+        dialog.blocking_pick_file().map(|p| vec![p])
+    };
+
     match result {
-        Some(FilePath::Path(path)) => {
-            Ok(Some(vec![path.to_string_lossy().to_string()]))
-        }
-        Some(FilePath::Url(url)) => {
-            Ok(Some(vec![url.to_string()]))
+        Some(paths) => {
+            let out = paths
+                .into_iter()
+                .map(|p| match p {
+                    FilePath::Path(path) => path.to_string_lossy().to_string(),
+                    FilePath::Url(url) => url.to_string(),
+                })
+                .collect::<Vec<_>>();
+            Ok(Some(out))
         }
         None => Ok(None),
     }
@@ -166,7 +181,7 @@ pub async fn file_save_dialog(
     app: AppHandle,
     title: Option<String>,
     default_name: Option<String>,
-    filters: Option<Vec<(String, Vec<String>)>>,
+    filters: Option<Vec<FileFilter>>,
 ) -> Result<Option<String>, String> {
     let mut dialog = app.dialog().file();
     
@@ -182,9 +197,9 @@ pub async fn file_save_dialog(
     
     // 设置文件过滤器 - 将 Vec<String> 转换为 &[&str]
     if let Some(f) = filters {
-        for (name, extensions) in f {
-            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
-            dialog = dialog.add_filter(name, &ext_refs);
+        for filter in f {
+            let ext_refs: Vec<&str> = filter.extensions.iter().map(|s| s.as_str()).collect();
+            dialog = dialog.add_filter(filter.name, &ext_refs);
         }
     }
     

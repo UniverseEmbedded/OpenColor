@@ -44,16 +44,19 @@ class BoardGenerateParams(BaseModel):
     out_dir: Optional[str] = None
     color_system: str = "RYBW"
     n_layers: int = 5
-    cell_size_mm: float = 0.42
-    layer_height_mm: float = 0.2
-    total_cells: int = 34
-    data_cells: int = 32
+    cell_size_mm: float = 4.0
+    layer_height_mm: float = 0.12
+    total_cells: int = 26
+    data_cells: int = 24
 
     rows: Optional[int] = None
     cols: Optional[int] = None
+    dataRows: Optional[int] = None
+    dataCols: Optional[int] = None
     layers: Optional[int] = None
     tileSizeMm: Optional[float] = None
     tile_size_mm: Optional[float] = None
+    cellSizeMm: Optional[float] = None
     layerHeightMm: Optional[float] = None
     shrink: Optional[float] = None
     fileName: Optional[str] = None
@@ -61,6 +64,8 @@ class BoardGenerateParams(BaseModel):
     materials: Optional[List[Dict[str, Any]]] = None
     export_format: str = "3mf"
     export_formats: List[str] = Field(default_factory=lambda: ["3mf"])
+    workspace_path: Optional[str] = None
+    timestamp: Optional[str] = None
 
 
 class BoardExportParams(BaseModel):
@@ -68,6 +73,25 @@ class BoardExportParams(BaseModel):
     out_dir: Optional[str] = None
     export_format: str = "3mf"
     export_formats: List[str] = Field(default_factory=lambda: ["3mf"])
+
+
+class BoardPreviewParams(BaseModel):
+    """校准板预览参数"""
+    profile_id: str
+    spec_path: str
+    materials: Optional[List[Dict[str, Any]]] = None
+    rows: Optional[int] = None
+    cols: Optional[int] = None
+    dataRows: Optional[int] = None
+    dataCols: Optional[int] = None
+    layers: Optional[int] = None
+    cell_size_mm: Optional[float] = None
+    layer_height_mm: Optional[float] = None
+    shrink: Optional[float] = None
+    marker_tl: Optional[str] = None
+    marker_tr: Optional[str] = None
+    marker_br: Optional[str] = None
+    marker_bl: Optional[str] = None
 
 
 class LutExtractParams(BaseModel):

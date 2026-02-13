@@ -1,28 +1,38 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as path from 'path';
+import * as fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Playwright Tauri 原生模式配置
  * 用于在真实的 Tauri 应用中运行测试
  * 
- * 注意：运行此测试需要先构建 Tauri 应用
- * 命令：pnpm tauri build
+ * 运行方式：
+ * 1. 先启动前端开发服务器：pnpm dev
+ * 2. 然后运行测试，测试会启动 Tauri 应用并连接到前端服务器
  */
 
-// Tauri 应用路径（根据平台自动选择）
+// Tauri 应用路径（优先使用 debug 版本）
 const getTauriBinary = () => {
-  const platform = process.platform;
-  const targetDir = './src-tauri/target/release';
+  const debugPath = path.join(__dirname, 'src-tauri', 'target', 'debug', 'app.exe');
+  const releasePath = path.join(__dirname, 'src-tauri', 'target', 'release', 'app.exe');
   
-  switch (platform) {
-    case 'win32':
-      return `${targetDir}/app.exe`;
-    case 'darwin':
-      return `${targetDir}/app`;
-    case 'linux':
-      return `${targetDir}/app`;
-    default:
-      throw new Error(`不支持的平台: ${platform}`);
+  // 优先使用 debug 版本
+  if (fs.existsSync(debugPath)) {
+    console.log('使用 debug 版本:', debugPath);
+    return debugPath;
   }
+  
+  // 否则使用 release 版本
+  if (fs.existsSync(releasePath)) {
+    console.log('使用 release 版本:', releasePath);
+    return releasePath;
+  }
+  
+  throw new Error('找不到 Tauri 应用，请先运行 pnpm tauri dev 或 pnpm tauri build');
 };
 
 export default defineConfig({
@@ -44,11 +54,6 @@ export default defineConfig({
   timeout: 60 * 1000, // Tauri 启动较慢，给 60 秒
   
   use: {
-    // Tauri 使用 WebDriver 协议
-    connectOptions: {
-      wsEndpoint: 'ws://127.0.0.1:9000',
-    },
-    
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry',
@@ -58,16 +63,32 @@ export default defineConfig({
     
     actionTimeout: 15 * 1000,
     navigationTimeout: 15 * 1000,
+    
+    // 基础 URL
+    baseURL: 'http://localhost:5173',
   },
 
   projects: [
     {
       name: 'tauri',
       use: {
-        // Tauri 特定的配置
+        // 启动 Tauri 应用
+        launchOptions: {
+          executablePath: getTauriBinary(),
+          args: [],
+          env: {
+            ...process.env,
+          }
+        }
       },
     },
   ],
 
-  // 不需要 webServer，因为直接启动 Tauri 应用
+  // 启动前端开发服务器
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000, // 2分钟启动超时
+  },
 });

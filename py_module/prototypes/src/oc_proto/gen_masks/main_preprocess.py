@@ -15,6 +15,7 @@ from PIL import Image
 from oc_core_02.core.bitmap_pipeline import BitmapParams, _mask_transparency_and_bg
 from oc_core_02.core.color_systems import ColorSystem
 from oc_xgb.model_io import load_model
+from oc_proto.calib_color_rts.models.ml_residual_model import MLResidualModel
 from oc_core_02.utils.paths import RESOURCES, get_out_dir, make_out_subdir_name_for_file
 
 from .main_utils import _choose_preview_output_size, _clear_dir_keep_root
@@ -31,8 +32,16 @@ def _load_model_and_setup(
     out_dir_base: Path,
     output_dir: Optional[str],
     run_id: str,
+    layer_height_mm: float = None,
 ) -> tuple[Path, Path, Dict, ColorSystem, int, BitmapParams]:
     """加载模型并设置输出目录
+
+    Args:
+        src_path: 输入图像路径
+        out_dir_base: 基础输出目录
+        output_dir: 自定义输出目录
+        run_id: 运行ID
+        layer_height_mm: 层高（毫米），默认使用 0.12
 
     Returns:
         out_run_dir: 输出目录
@@ -101,6 +110,18 @@ def _load_model_and_setup(
             prefer_vulkan = 1 if "vulkan" in p else 0
             candidates.append((prefer_rts, prefer_vulkan, mtime, model_dir))
 
+        # 查找 ml_residual_model.json (ML残差模型)
+        for meta_path in calib_rts_root.rglob("ml_residual_model.json"):
+            model_dir = meta_path.parent
+            try:
+                mtime = float(meta_path.stat().st_mtime)
+            except Exception:
+                mtime = 0.0
+            p = str(model_dir).lower()
+            prefer_ml = 3
+            prefer_vulkan = 1 if "vulkan" in p else 0
+            candidates.append((prefer_ml, prefer_vulkan, mtime, model_dir))
+
     # 在旧版 calib_color_model_fit_01 中搜索
     if calib_old_root.exists():
         for meta_path in calib_old_root.rglob("color_model.json"):
@@ -127,16 +148,24 @@ def _load_model_and_setup(
     logger.info(f"[信息] 使用模型目录: {model_dir}")
 
     # 加载模型
-    model = load_model(model_dir)
-    cs = ColorSystem.from_material_keys(
-        name="DynamicModelSystem", keys=model.optical.material_keys
-    )
-    n_layers = int(model.optical.n_layers)
+    if (model_dir / "ml_residual_model.json").exists():
+        model = MLResidualModel.load(model_dir)
+        material_keys = model.material_keys
+        n_layers = int(model.n_layers)
+    else:
+        model = load_model(model_dir)
+        material_keys = model.optical.material_keys
+        n_layers = int(model.optical.n_layers)
+    cs = ColorSystem.from_material_keys(name="DynamicModelSystem", keys=material_keys)
+
+    # 使用默认层高如果未指定
+    if layer_height_mm is None:
+        layer_height_mm = 0.12
 
     # 设置位图参数
     params = BitmapParams()
     params.n_layers = n_layers
-    params.layer_height_mm = 0.12
+    params.layer_height_mm = layer_height_mm
     params.target_width_mm = 60.0
     params.nozzle_width_mm = 60.0 / 1920.0
     params.auto_bg_remove = False
@@ -227,10 +256,10 @@ def _preprocess_image(
         traceback.print_exc()
         raise
 
-    # 生成掩码
+    # 生成掩码（使用传入的层高，默认为0.12）
     params = BitmapParams()
     params.n_layers = 1
-    params.layer_height_mm = 0.12
+    params.layer_height_mm = layer_height_mm if 'layer_height_mm' in dir() else 0.12
     params.target_width_mm = 60.0
     params.nozzle_width_mm = 60.0 / float(max(1, w))
     params.auto_bg_remove = False

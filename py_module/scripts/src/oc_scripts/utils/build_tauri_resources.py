@@ -9,7 +9,7 @@ from __future__ import annotations
   (必须包含 opencolor_engine.exe 及其兄弟目录 `_internal/`)
 
 - C++ 探测可执行文件到: web/src-tauri/resources/cpp/
-  (由 cpp_module/scripts/build_demo.py 复制)
+  (由 cpp_module/scripts/build.py 复制)
 
 - 数据资源到: web/src-tauri/resources/data/
 

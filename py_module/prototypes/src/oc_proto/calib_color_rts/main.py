@@ -26,6 +26,8 @@ from oc_proto.calib_color_rts.runner import run_fit, synthesize_palettes_from_a
 from oc_xgb.color_space import rgb01_to_lab, lab_to_rgb01
 from oc_xgb.model_io import load_model
 from oc_xgb.xgb_features import build_gpr_features, build_layer_sequences
+from oc_xgb.xgb_model import XGBParams, train_three_channel_regressors, predict_three_channel
+from oc_proto.calib_color_rts.models.ml_residual_model import MLResidualModel
 from oc_xgb.xgb_fit import predict_phys_gpr_lab, predict_ad_rgb01, PhysGPRConfig
 
 logger = get_logger(__name__)
@@ -299,6 +301,78 @@ def _rts_predict_u8_for_dataset(ds: Dataset, rts_model: dict) -> np.ndarray:
     pred_srgb01 = _rts_linear01_to_srgb01_f64(pred_lin).astype(np.float32)
     pred_u8 = (pred_srgb01 * 255.0 + 0.5).astype(np.uint8)
     return pred_u8
+
+
+def _train_ml_residual_model(
+    train_ds: Dataset,
+    rts_model: dict,
+    n_layers: int,
+    layer_names_order: str,
+    use_gpu: bool = False,
+) -> tuple[MLResidualModel, dict]:
+    train_cells = [c for c in train_ds.cells if c.enabled and bool(c.recipe)]
+    if not train_cells:
+        raise RuntimeError("训练色盘A中没有可用训练样本")
+
+    recipes = [c.recipe for c in train_cells]
+    y_rgb01 = np.asarray(
+        [c.measured_rgb.astype(np.float32) / 255.0 for c in train_cells],
+        dtype=np.float32,
+    )
+    y_lab = rgb01_to_lab(y_rgb01)
+
+    seqs_train = []
+    for c in train_cells:
+        if isinstance(getattr(c, "layer_names", None), list) and len(c.layer_names) > 0:
+            seqs_train.append(_rts_normalize_seq(list(c.layer_names), n_layers))
+        else:
+            seqs_train.append(_rts_build_seq_from_recipe(c.recipe, n_layers))
+
+    idx_train = _rts_idx_mat(seqs_train, rts_model["mats"], layer_names_order)
+    pred_lin = _rts_predict_linear_idx(
+        idx_train, rts_model["alpha"], rts_model["beta"], rts_model["gamma"]
+    )
+    base_srgb01 = _rts_linear01_to_srgb01_f64(pred_lin).astype(np.float32)
+    base_lab = rgb01_to_lab(base_srgb01)
+
+    X_features, feature_names = build_gpr_features(
+        recipes,
+        rts_model["mats"],
+        base_lab,
+        n_layers=n_layers,
+        layer_names_order=layer_names_order,
+    )
+
+    y_resid = y_lab - base_lab
+    params = XGBParams(use_gpu=bool(use_gpu))
+    model_L, model_a, model_b = train_three_channel_regressors(
+        X_features, y_resid, params
+    )
+    pred_resid = predict_three_channel((model_L, model_a, model_b), X_features)
+    final_lab = base_lab + pred_resid
+    de = np.linalg.norm(y_lab - final_lab, axis=1)
+    stats = {
+        "train_mean_deltaE76": float(np.mean(de)),
+        "train_p95_deltaE76": float(np.quantile(de, 0.95)),
+        "n_samples": int(len(train_cells)),
+    }
+    logger.info(
+        f"[ML残差] 训练完成: mean dE={stats['train_mean_deltaE76']:.4f}, p95 dE={stats['train_p95_deltaE76']:.4f}, n={stats['n_samples']}"
+    )
+
+    ml_model = MLResidualModel(
+        rts_alpha=np.asarray(rts_model["alpha"], dtype=np.float64),
+        rts_beta=np.asarray(rts_model["beta"], dtype=np.float64),
+        rts_gamma=np.asarray(rts_model["gamma"], dtype=np.float64),
+        material_keys=list(rts_model["mats"]),
+        n_layers=int(n_layers),
+        layer_names_order=str(layer_names_order),
+        model_L=model_L,
+        model_a=model_a,
+        model_b=model_b,
+        feature_names=list(feature_names),
+    )
+    return ml_model, stats
 
 
 def _rts_synthesize_palettes(
@@ -694,6 +768,15 @@ def run_eval_pipeline(
             json.dumps(rts_meta, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         logger.info(f"[Eval] RTS: 模型已保存: {model_path}")
+
+        ml_model, ml_stats = _train_ml_residual_model(
+            train_ds,
+            rts_model,
+            n_layers=int(fit_args.n_layers),
+            layer_names_order=str(fit_args.layer_names_order),
+            use_gpu=False,
+        )
+        ml_model.save(models_out_root, train_stats=ml_stats)
 
         # 修复：使用RTS模型生成B~E的合成数据
         logger.info(f"[Eval] RTS: 使用训练好的RTS模型生成B~E的target_rgb...")

@@ -4,15 +4,23 @@
  *
  * 本程序用于分析代码库的注释覆盖率，支持多种编程语言。
  * 使用Tree-sitter进行语法解析，准确识别注释范围。
+ * 支持多线程并行分析。
  */
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <future>
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <queue>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -255,14 +263,22 @@ static bool is_git_repo(const fs::path& dir) {
 
 static bool is_git_tracked(const fs::path& file_path) {
   std::string path_str = file_path.string();
+#ifdef _WIN32
+  std::string cmd = "git ls-files --error-unmatch \"" + path_str + "\" >nul 2>&1";
+#else
   std::string cmd = "git ls-files --error-unmatch \"" + path_str + "\" 2>/dev/null";
+#endif
   int ret = std::system(cmd.c_str());
   return ret == 0;
 }
 
 static bool is_git_ignored(const fs::path& file_path) {
   std::string path_str = file_path.string();
+#ifdef _WIN32
+  std::string cmd = "git check-ignore -q \"" + path_str + "\" >nul 2>&1";
+#else
   std::string cmd = "git check-ignore -q \"" + path_str + "\" 2>/dev/null";
+#endif
   int ret = std::system(cmd.c_str());
   return ret == 0;
 }
@@ -715,6 +731,9 @@ static std::string generate_markdown_report(const SummaryStats& stats) {
   double coverage = calculate_coverage(stats);
   double zh_coverage = calculate_zh_coverage(stats);
 
+  // 计算总字符数（用于计算注释在总字符中的占比）
+  uint64_t total_chars = stats.total_code + stats.total_comment;
+
   oss << "# 注释覆盖率报告\n\n";
   oss << "## 总体统计\n\n";
   oss << "| 指标 | 数值 |\n";
@@ -742,15 +761,55 @@ static std::string generate_markdown_report(const SummaryStats& stats) {
   }
 
   if (!stats.file_details.empty()) {
-    oss << "## 文件详情\n\n";
-    oss << "| 文件路径 | 语言 | 代码字符 | 注释字符 | 中文字符 |\n";
-    oss << "|----------|------|----------|----------|----------|\n";
+    // 准备文件详情数据，添加计算字段
+    struct FileDetailExt {
+      const FileStats* stats;
+      double comment_ratio;      // 注释覆盖率
+      double comment_in_total;   // 注释在总字符中的占比
+      double zh_in_comment;      // 中文在注释中的占比
+    };
+
+    std::vector<FileDetailExt> file_exts;
+    file_exts.reserve(stats.file_details.size());
+
     for (const auto& file : stats.file_details) {
+      FileDetailExt ext;
+      ext.stats = &file;
+
+      // 计算注释覆盖率（注释字符 / (代码字符 + 注释字符)）
+      uint64_t total = file.code_chars + file.comment_chars;
+      ext.comment_ratio = total > 0 ? (double)file.comment_chars / total : 0.0;
+
+      // 计算注释在总字符中的占比
+      ext.comment_in_total = total_chars > 0 ? (double)file.comment_chars / total_chars : 0.0;
+
+      // 计算中文在注释中的占比
+      ext.zh_in_comment = file.comment_chars > 0 ? (double)file.comment_zh_chars / file.comment_chars : 0.0;
+
+      file_exts.push_back(ext);
+    }
+
+    // 排序：第一优先级注释覆盖率（越少越靠前），第二优先级中文占比（越少越靠前）
+    std::sort(file_exts.begin(), file_exts.end(), [](const FileDetailExt& a, const FileDetailExt& b) {
+      if (a.comment_ratio != b.comment_ratio) {
+        return a.comment_ratio < b.comment_ratio;  // 注释覆盖率越少越靠前
+      }
+      return a.zh_in_comment < b.zh_in_comment;    // 中文占比越少越靠前
+    });
+
+    oss << "## 文件详情\n\n";
+    oss << "| 文件路径 | 语言 | 代码字符 | 注释字符 | 中文字符 | 注释覆盖率 | 注释占总字符比 | 中文占注释比 |\n";
+    oss << "|----------|------|----------|----------|----------|------------|----------------|--------------|\n";
+    for (const auto& ext : file_exts) {
+      const auto& file = *ext.stats;
       oss << "| " << file.path
           << " | " << file.lang
           << " | " << format_number(file.code_chars)
           << " | " << format_number(file.comment_chars)
           << " | " << format_number(file.comment_zh_chars)
+          << " | " << format_percentage(ext.comment_ratio * 100)
+          << " | " << format_percentage(ext.comment_in_total * 100)
+          << " | " << format_percentage(ext.zh_in_comment * 100)
           << " |\n";
     }
     oss << "\n";
@@ -772,33 +831,14 @@ extern "C" {
   TSLanguage* tree_sitter_python(void);
   TSLanguage* tree_sitter_javascript(void);
   TSLanguage* tree_sitter_typescript(void);
+  TSLanguage* tree_sitter_tsx(void);
   TSLanguage* tree_sitter_java(void);
   TSLanguage* tree_sitter_go(void);
   TSLanguage* tree_sitter_rust(void);
-  TSLanguage* tree_sitter_swift(void);
-  TSLanguage* tree_sitter_kotlin(void);
   TSLanguage* tree_sitter_c_sharp(void);
-  TSLanguage* tree_sitter_php(void);
-  TSLanguage* tree_sitter_ruby(void);
-  TSLanguage* tree_sitter_lua(void);
   TSLanguage* tree_sitter_bash(void);
-  TSLanguage* tree_sitter_sql(void);
-  TSLanguage* tree_sitter_html(void);
-  TSLanguage* tree_sitter_css(void);
   TSLanguage* tree_sitter_json(void);
-  TSLanguage* tree_sitter_yaml(void);
   TSLanguage* tree_sitter_toml(void);
-  TSLanguage* tree_sitter_ini(void);
-  TSLanguage* tree_sitter_cmake(void);
-  TSLanguage* tree_sitter_make(void);
-  TSLanguage* tree_sitter_dockerfile(void);
-  TSLanguage* tree_sitter_gitignore(void);
-  TSLanguage* tree_sitter_editorconfig(void);
-  TSLanguage* tree_sitter_eslint(void);
-  TSLanguage* tree_sitter_prettier(void);
-  TSLanguage* tree_sitter_stylelint(void);
-  TSLanguage* tree_sitter_babel(void);
-  TSLanguage* tree_sitter_tsconfig(void);
 }
 
 static std::unordered_map<std::string, const TSLanguage*> build_language_map() {
@@ -808,33 +848,14 @@ static std::unordered_map<std::string, const TSLanguage*> build_language_map() {
   m["python"] = tree_sitter_python();
   m["javascript"] = tree_sitter_javascript();
   m["typescript"] = tree_sitter_typescript();
+  m["tsx"] = tree_sitter_tsx();
   m["java"] = tree_sitter_java();
   m["go"] = tree_sitter_go();
   m["rust"] = tree_sitter_rust();
-  m["swift"] = tree_sitter_swift();
-  m["kotlin"] = tree_sitter_kotlin();
   m["c_sharp"] = tree_sitter_c_sharp();
-  m["php"] = tree_sitter_php();
-  m["ruby"] = tree_sitter_ruby();
-  m["lua"] = tree_sitter_lua();
   m["shell"] = tree_sitter_bash();
-  m["sql"] = tree_sitter_sql();
-  m["html"] = tree_sitter_html();
-  m["css"] = tree_sitter_css();
   m["json"] = tree_sitter_json();
-  m["yaml"] = tree_sitter_yaml();
   m["toml"] = tree_sitter_toml();
-  m["ini"] = tree_sitter_ini();
-  m["cmake"] = tree_sitter_cmake();
-  m["make"] = tree_sitter_make();
-  m["dockerfile"] = tree_sitter_dockerfile();
-  m["gitignore"] = tree_sitter_gitignore();
-  m["editorconfig"] = tree_sitter_editorconfig();
-  m["eslint"] = tree_sitter_eslint();
-  m["prettier"] = tree_sitter_prettier();
-  m["stylelint"] = tree_sitter_stylelint();
-  m["babel"] = tree_sitter_babel();
-  m["tsconfig"] = tree_sitter_tsconfig();
   return m;
 }
 
@@ -842,9 +863,27 @@ static void print_usage(const char* program_name) {
   std::cout << "用法: " << program_name << " [选项] <路径...>\n";
   std::cout << "选项:\n";
   std::cout << "  --git-only      只分析Git跟踪的文件\n";
+  std::cout << "  --progress      显示进度信息到stderr\n";
+  std::cout << "  --file-list <文件>  从文件列表读取要分析的文件\n";
   std::cout << "  --json <文件>   生成JSON报告到指定文件\n";
   std::cout << "  --md <文件>     生成Markdown报告到指定文件\n";
   std::cout << "  -h, --help      显示帮助信息\n";
+}
+
+static std::vector<std::string> read_file_list(const std::string& list_file) {
+  std::vector<std::string> files;
+  std::ifstream f(list_file);
+  if (!f.is_open()) {
+    std::cerr << "错误: 无法打开文件列表: " << list_file << "\n";
+    return files;
+  }
+  std::string line;
+  while (std::getline(f, line)) {
+    if (!line.empty()) {
+      files.push_back(line);
+    }
+  }
+  return files;
 }
 
 int main(int argc, char* argv[]) {
@@ -854,7 +893,9 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<fs::path> input_paths;
+  std::optional<std::string> file_list_path;
   bool git_tracked_only = false;
+  bool show_progress = false;
   std::optional<std::string> json_output_path;
   std::optional<std::string> md_output_path;
 
@@ -862,6 +903,15 @@ int main(int argc, char* argv[]) {
     std::string arg = argv[i];
     if (arg == "--git-only") {
       git_tracked_only = true;
+    } else if (arg == "--progress") {
+      show_progress = true;
+    } else if (arg == "--file-list") {
+      if (i + 1 < argc) {
+        file_list_path = argv[++i];
+      } else {
+        std::cerr << "错误: --file-list 需要指定文件路径\n";
+        return 1;
+      }
     } else if (arg == "--json") {
       if (i + 1 < argc) {
         json_output_path = argv[++i];
@@ -888,24 +938,66 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  if (input_paths.empty()) {
-    std::cerr << "错误: 需要指定至少一个输入路径\n";
-    print_usage(argv[0]);
-    return 1;
-  }
-
   const auto language_map = build_language_map();
+  std::vector<FileEntry> files;
 
-  std::vector<FileEntry> files = collect_files(input_paths, git_tracked_only);
+  // 如果从文件列表读取
+  if (file_list_path) {
+    auto file_paths = read_file_list(*file_list_path);
+    for (const auto& path_str : file_paths) {
+      fs::path path(path_str);
+      if (!fs::exists(path)) {
+        // 尝试相对于当前工作目录
+        path = fs::current_path() / path_str;
+      }
+      if (!fs::exists(path) || !fs::is_regular_file(path)) {
+        continue;
+      }
+
+      std::string ext = path.extension().string();
+      std::string lang = get_language_from_ext(ext);
+      if (lang.empty()) continue;
+
+      auto content = read_file_to_string(path);
+      if (!content) continue;
+
+      files.push_back(FileEntry{
+        .path = path.string(),
+        .lang = lang,
+        .source = std::move(*content),
+        .error = ""
+      });
+    }
+  } else {
+    if (input_paths.empty()) {
+      std::cerr << "错误: 需要指定至少一个输入路径或使用--file-list\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+    files = collect_files(input_paths, git_tracked_only);
+  }
   if (files.empty()) {
     std::cerr << "错误: 未找到任何文件\n";
     return 1;
   }
 
+  // 输出文件总数用于进度条
+  if (show_progress) {
+    std::cerr << "[PROGRESS_TOTAL] " << files.size() << std::endl;
+  }
+
   SummaryStats summary;
   std::unordered_map<std::string, LanguageStats> lang_stats_map;
+  std::mutex summary_mutex;
+  std::atomic<size_t> processed_count{0};
 
-  for (const auto& file : files) {
+  // 获取线程数（默认使用硬件并发数）
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if (num_threads == 0) num_threads = 4;
+
+  // 并行分析文件
+  auto analyze_file = [&](size_t idx) -> FileStats {
+    const auto& file = files[idx];
     std::string error;
     const TSLanguage* lang = language_map.count(file.lang) ? language_map.at(file.lang) : nullptr;
     auto ranges = extract_comment_ranges(file.source, lang, file.lang, error);
@@ -915,28 +1007,66 @@ int main(int argc, char* argv[]) {
     uint64_t comment_zh_chars = 0;
     count_coverage_chars(file.source, ranges, code_chars, comment_chars, comment_zh_chars);
 
-    summary.total_code += code_chars;
-    summary.total_comment += comment_chars;
-    summary.total_comment_zh += comment_zh_chars;
-    summary.file_count++;
-
-    if (!lang_stats_map.count(file.lang)) {
-      lang_stats_map[file.lang] = LanguageStats{.lang = file.lang};
+    // 输出进度
+    size_t current = ++processed_count;
+    if (show_progress) {
+      std::cerr << "[PROGRESS] " << current << " " << file.path << std::endl;
     }
-    auto& ls = lang_stats_map[file.lang];
-    ls.total_code += code_chars;
-    ls.total_comment += comment_chars;
-    ls.total_comment_zh += comment_zh_chars;
-    ls.file_count++;
 
-    summary.file_details.push_back(FileStats{
+    return FileStats{
       .path = file.path,
       .lang = file.lang,
       .code_chars = code_chars,
       .comment_chars = comment_chars,
       .comment_zh_chars = comment_zh_chars,
       .error = error
-    });
+    };
+  };
+
+  // 使用线程池并行处理
+  std::vector<std::future<FileStats>> futures;
+  futures.reserve(files.size());
+
+  {
+    std::vector<std::thread> threads;
+    std::atomic<size_t> next_idx{0};
+
+    auto worker = [&]() {
+      while (true) {
+        size_t idx = next_idx.fetch_add(1);
+        if (idx >= files.size()) break;
+
+        FileStats stats = analyze_file(idx);
+
+        // 合并结果（需要加锁）
+        std::lock_guard<std::mutex> lock(summary_mutex);
+        summary.total_code += stats.code_chars;
+        summary.total_comment += stats.comment_chars;
+        summary.total_comment_zh += stats.comment_zh_chars;
+        summary.file_count++;
+
+        if (!lang_stats_map.count(stats.lang)) {
+          lang_stats_map[stats.lang] = LanguageStats{.lang = stats.lang};
+        }
+        auto& ls = lang_stats_map[stats.lang];
+        ls.total_code += stats.code_chars;
+        ls.total_comment += stats.comment_chars;
+        ls.total_comment_zh += stats.comment_zh_chars;
+        ls.file_count++;
+
+        summary.file_details.push_back(std::move(stats));
+      }
+    };
+
+    // 启动工作线程
+    for (unsigned int i = 0; i < num_threads; ++i) {
+      threads.emplace_back(worker);
+    }
+
+    // 等待所有线程完成
+    for (auto& t : threads) {
+      t.join();
+    }
   }
 
   for (const auto& [lang, stats] : lang_stats_map) {

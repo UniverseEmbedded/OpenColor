@@ -103,13 +103,19 @@ def main() -> None:
     # 运行构建
     _run(["cmake", "--build", str(build_dir), "--config", config], cwd=cpp_dir)
 
-    # 检查主可执行文件
-    exe = build_dir / config / "opencolor_cpp_module.exe"
-    if exe.exists():
-        logger.info(f"[完成] 构建成功：{exe}")
+    # 检查构建输出文件
+    expected_outputs = [
+        build_dir / config / "opencolor_web_probe.exe",
+        build_dir / config / "opencolor_color_contact_search.exe",
+    ]
+    found_outputs = [f for f in expected_outputs if f.exists()]
+    if found_outputs:
+        logger.info(f"[完成] 构建成功，找到 {len(found_outputs)} 个可执行文件")
+        for f in found_outputs:
+            logger.info(f"  - {f.name}")
     else:
         logger.warning(
-            "[警告] 未找到输出 exe（可能使用了不同的生成器/配置），请在 build 目录下查找"
+            "[警告] 未找到预期的可执行文件输出，请在 build 目录下查找"
         )
 
     # 复制Web探测程序到Tauri资源目录

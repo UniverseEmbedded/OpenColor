@@ -224,7 +224,7 @@ routes/library/
 ├── materials/
 │   ├── +page.svelte            # 材料管理
 │   └── [id]/
-│       └── +page.svelte        # 材料组详情
+│       └── +page.svelte        # 耗材组详情
 └── exports/
     ├── +page.svelte            # 生成文件列表
     └── [id]/

@@ -82,10 +82,10 @@ set(_ts_tag_bash "v0.20.5")
 set(_ts_tag_json "v0.20.2")
 set(_ts_tag_toml "v0.5.1")
 
-opencolor_add_tree_sitter_grammar(ts_lang_c "https://github.com/tree-sitter/tree-sitter-c.git" "${_ts_tag_c}")
-opencolor_add_tree_sitter_grammar(ts_lang_cpp "https://github.com/tree-sitter/tree-sitter-cpp.git" "${_ts_tag_cpp}")
-opencolor_add_tree_sitter_grammar(ts_lang_python "https://github.com/tree-sitter/tree-sitter-python.git" "${_ts_tag_python}")
-opencolor_add_tree_sitter_grammar(ts_lang_javascript "https://github.com/tree-sitter/tree-sitter-javascript.git" "${_ts_tag_javascript}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_c "https://github.com/tree-sitter/tree-sitter-c.git" "${_ts_tag_c}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_cpp "https://github.com/tree-sitter/tree-sitter-cpp.git" "${_ts_tag_cpp}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_python "https://github.com/tree-sitter/tree-sitter-python.git" "${_ts_tag_python}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_javascript "https://github.com/tree-sitter/tree-sitter-javascript.git" "${_ts_tag_javascript}")
 
 FetchContent_Declare(
   ts_typescript_src
@@ -94,16 +94,16 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(ts_typescript_src)
-opencolor_add_tree_sitter_grammar_from_src_dir(ts_lang_typescript "${ts_typescript_src_SOURCE_DIR}/typescript/src")
-opencolor_add_tree_sitter_grammar_from_src_dir(ts_lang_tsx "${ts_typescript_src_SOURCE_DIR}/tsx/src")
+opencolor_add_tree_sitter_grammar_from_src_dir(cc_ts_lang_typescript "${ts_typescript_src_SOURCE_DIR}/typescript/src")
+opencolor_add_tree_sitter_grammar_from_src_dir(cc_ts_lang_tsx "${ts_typescript_src_SOURCE_DIR}/tsx/src")
 
-opencolor_add_tree_sitter_grammar(ts_lang_java "https://github.com/tree-sitter/tree-sitter-java.git" "${_ts_tag_java}")
-opencolor_add_tree_sitter_grammar(ts_lang_c_sharp "https://github.com/tree-sitter/tree-sitter-c-sharp.git" "${_ts_tag_c_sharp}")
-opencolor_add_tree_sitter_grammar(ts_lang_go "https://github.com/tree-sitter/tree-sitter-go.git" "${_ts_tag_go}")
-opencolor_add_tree_sitter_grammar(ts_lang_rust "https://github.com/tree-sitter/tree-sitter-rust.git" "${_ts_tag_rust}")
-opencolor_add_tree_sitter_grammar(ts_lang_bash "https://github.com/tree-sitter/tree-sitter-bash.git" "${_ts_tag_bash}")
-opencolor_add_tree_sitter_grammar(ts_lang_json "https://github.com/tree-sitter/tree-sitter-json.git" "${_ts_tag_json}")
-opencolor_add_tree_sitter_grammar(ts_lang_toml "https://github.com/tree-sitter/tree-sitter-toml.git" "${_ts_tag_toml}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_java "https://github.com/tree-sitter/tree-sitter-java.git" "${_ts_tag_java}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_c_sharp "https://github.com/tree-sitter/tree-sitter-c-sharp.git" "${_ts_tag_c_sharp}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_go "https://github.com/tree-sitter/tree-sitter-go.git" "${_ts_tag_go}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_rust "https://github.com/tree-sitter/tree-sitter-rust.git" "${_ts_tag_rust}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_bash "https://github.com/tree-sitter/tree-sitter-bash.git" "${_ts_tag_bash}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_json "https://github.com/tree-sitter/tree-sitter-json.git" "${_ts_tag_json}")
+opencolor_add_tree_sitter_grammar(cc_ts_lang_toml "https://github.com/tree-sitter/tree-sitter-toml.git" "${_ts_tag_toml}")
 
 add_executable(opencolor_comment_coverage_ts
   src/main.cpp
@@ -113,17 +113,17 @@ target_compile_features(opencolor_comment_coverage_ts PRIVATE cxx_std_20)
 
 target_link_libraries(opencolor_comment_coverage_ts PRIVATE
   unofficial::tree-sitter::tree-sitter
-  ts_lang_c
-  ts_lang_cpp
-  ts_lang_python
-  ts_lang_javascript
-  ts_lang_typescript
-  ts_lang_tsx
-  ts_lang_java
-  ts_lang_c_sharp
-  ts_lang_go
-  ts_lang_rust
-  ts_lang_bash
-  ts_lang_json
-  ts_lang_toml
+  cc_ts_lang_c
+  cc_ts_lang_cpp
+  cc_ts_lang_python
+  cc_ts_lang_javascript
+  cc_ts_lang_typescript
+  cc_ts_lang_tsx
+  cc_ts_lang_java
+  cc_ts_lang_c_sharp
+  cc_ts_lang_go
+  cc_ts_lang_rust
+  cc_ts_lang_bash
+  cc_ts_lang_json
+  cc_ts_lang_toml
 )

@@ -18,6 +18,7 @@ pub struct WorkspaceInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceIndex {
     pub version: i32,
+    pub name: String,
     pub created_at: i64,
     pub updated_at: i64,
     pub metadata: HashMap<String, Value>,
@@ -28,6 +29,7 @@ impl Default for WorkspaceIndex {
         let now = chrono::Local::now().timestamp();
         Self {
             version: 1,
+            name: "未命名工作区".to_string(),
             created_at: now,
             updated_at: now,
             metadata: HashMap::new(),
@@ -129,18 +131,19 @@ pub fn workspace_create(
         })?;
     }
     
-    // 创建 index.json
-    let index = WorkspaceIndex::default();
-    let index_path = workspace_path.join("index.json");
-    let index_content = serde_json::to_string_pretty(&index).map_err(|e| e.to_string())?;
-    std::fs::write(&index_path, index_content).map_err(|e| e.to_string())?;
-    
-    // 获取工作区名称
+    // 获取工作区名称（用于 index.json 和 WorkspaceInfo）
     let workspace_name = workspace_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unnamed")
         .to_string();
+    
+    // 创建 index.json，使用文件夹名作为默认名称
+    let mut index = WorkspaceIndex::default();
+    index.name = workspace_name.clone();
+    let index_path = workspace_path.join("index.json");
+    let index_content = serde_json::to_string_pretty(&index).map_err(|e| e.to_string())?;
+    std::fs::write(&index_path, index_content).map_err(|e| e.to_string())?;
     
     let now = chrono::Local::now().timestamp();
     let workspace_info = WorkspaceInfo {
@@ -187,14 +190,21 @@ pub fn ensure_default_workspace(app: &AppHandle) -> Result<WorkspaceInfo, String
 #[tauri::command]
 pub fn workspace_list_recent(app: AppHandle) -> Result<Vec<WorkspaceInfo>, String> {
     let recent_path = get_app_data_dir(&app)?.join("recent_workspaces.json");
-    
+
     if !recent_path.exists() {
         return Ok(vec![]);
     }
-    
+
     let content = std::fs::read_to_string(&recent_path).map_err(|e| e.to_string())?;
-    let recent: Vec<WorkspaceInfo> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    
+    let mut recent: Vec<WorkspaceInfo> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    // 更新每个工作区的显示名称（从 index.json 读取最新名称）
+    for ws in &mut recent {
+        if Path::new(&ws.path).exists() {
+            ws.name = get_workspace_display_name(&ws.path);
+        }
+    }
+
     Ok(recent)
 }
 
@@ -253,6 +263,24 @@ pub fn workspace_remove_from_recent(app: AppHandle, path: String) -> Result<(), 
     Ok(())
 }
 
+/// 从工作区路径读取 index.json 获取显示名称
+fn get_workspace_display_name(path: &str) -> String {
+    let index_path = PathBuf::from(path).join("index.json");
+    if let Ok(content) = std::fs::read_to_string(&index_path) {
+        if let Ok(index) = serde_json::from_str::<WorkspaceIndex>(&content) {
+            if !index.name.is_empty() {
+                return index.name;
+            }
+        }
+    }
+    // 如果读取失败，返回文件夹名
+    PathBuf::from(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unnamed")
+        .to_string()
+}
+
 /// 初始化工作区（在应用启动时调用）
 pub fn init_workspace(app: &AppHandle) -> Result<WorkspaceInfo, String> {
     // 尝试获取当前工作区
@@ -261,16 +289,16 @@ pub fn init_workspace(app: &AppHandle) -> Result<WorkspaceInfo, String> {
     if let Some(path) = current {
         // 检查工作区是否仍然存在
         if Path::new(&path).exists() {
+            // 从 index.json 读取显示名称
+            let display_name = get_workspace_display_name(&path);
+            let folder_name = Path::new(&path).file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unnamed")
+                .to_string();
             // 更新最近列表
             let info = WorkspaceInfo {
-                id: Path::new(&path).file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unnamed")
-                    .to_string(),
-                name: Path::new(&path).file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unnamed")
-                    .to_string(),
+                id: folder_name,
+                name: display_name,
                 path: path.clone(),
                 created_at: chrono::Local::now().timestamp(),
                 last_opened: chrono::Local::now().timestamp(),
@@ -283,6 +311,31 @@ pub fn init_workspace(app: &AppHandle) -> Result<WorkspaceInfo, String> {
     // 创建或获取默认工作区
     let default = ensure_default_workspace(app)?;
     workspace_set_current(app.clone(), default.path.clone())?;
-    
+
     Ok(default)
+}
+
+/// 获取工作区信息（包括从 index.json 读取的显示名称）
+#[tauri::command]
+pub fn workspace_get_info(_app: AppHandle, path: String) -> Result<WorkspaceInfo, String> {
+    let path_obj = PathBuf::from(&path);
+    if !path_obj.exists() {
+        return Err("工作区路径不存在".to_string());
+    }
+
+    let display_name = get_workspace_display_name(&path);
+    let folder_name = path_obj
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unnamed")
+        .to_string();
+
+    let now = chrono::Local::now().timestamp();
+    Ok(WorkspaceInfo {
+        id: folder_name,
+        name: display_name,
+        path,
+        created_at: now,
+        last_opened: now,
+    })
 }

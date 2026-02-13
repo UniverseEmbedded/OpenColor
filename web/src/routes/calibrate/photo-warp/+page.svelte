@@ -5,6 +5,7 @@
   import { workspaceStore } from '$lib/stores/workspace.svelte';
   import { getTauriBridge } from '$lib/tauri/bridge';
   import { onMount } from 'svelte';
+  import { convertFileSrc } from '@tauri-apps/api/core';
   import WarpCanvas from '$lib/components/canvas/WarpCanvas.svelte';
   import type { Point, BoardItem } from '$lib/types';
 
@@ -27,6 +28,8 @@
   let selectedPhoto = $state<string | null>(null);
   let selectedSpec = $state<string | null>(null);
   let availableSpecs = $state<BoardItem[]>([]);
+  let boardPreviewPath = $state<string | null>(null);
+  let boardPreviewExists = $state(false);
 
   // 样本提取结果
   let datasetPath = $state<string | null>(null);
@@ -79,6 +82,41 @@
       }
     } catch (e) {
       console.error('选择照片失败:', e);
+    }
+  }
+
+  function getBoardPreviewPath(specPath: string): string {
+    if (specPath.includes('_board_spec.json')) {
+      return specPath.replace('_board_spec.json', '_preview.png');
+    }
+    if (specPath.endsWith('.json')) {
+      return specPath.replace('.json', '_preview.png');
+    }
+    return `${specPath}_preview.png`;
+  }
+
+  async function refreshBoardPreview(specPath: string | null) {
+    if (!specPath) {
+      boardPreviewPath = null;
+      boardPreviewExists = false;
+      return;
+    }
+
+    const previewPath = getBoardPreviewPath(specPath);
+    boardPreviewPath = previewPath;
+
+    if (!bridge.hasTauri) {
+      boardPreviewExists = false;
+      return;
+    }
+
+    try {
+      boardPreviewExists = await bridge.invoke<boolean>('file_exists', {
+        path: previewPath
+      });
+    } catch (e) {
+      console.error('检查校准板预览图失败:', e);
+      boardPreviewExists = false;
     }
   }
 
@@ -153,23 +191,49 @@
     photoWarpStore.setCornerPoints(points);
   }
 
+  function normalizeFilePath(path: string): string {
+    if (!path.startsWith('file://')) return path;
+    try {
+      const url = new URL(path);
+      const decodedPath = decodeURIComponent(url.pathname);
+      return decodedPath.replace(/^\/(\w:)/, '$1');
+    } catch (e) {
+      console.error('解析文件路径失败:', e);
+      return path;
+    }
+  }
+
+  function getAssetUrl(path: string | null): string | null {
+    if (!path) return null;
+    const normalized = normalizeFilePath(path);
+    if (!bridge.hasTauri) return normalized;
+    return convertFileSrc(normalized);
+  }
+
   // 获取照片URL
   function getPhotoUrl(): string | null {
-    if (!selectedPhoto) return null;
-    // 在Tauri环境中，需要将本地路径转换为可访问的URL
-    return selectedPhoto;
+    return getAssetUrl(selectedPhoto);
   }
+
+  function getBoardPreviewUrl(): string | null {
+    if (!boardPreviewPath || !boardPreviewExists) return null;
+    return getAssetUrl(boardPreviewPath);
+  }
+
+  $effect(() => {
+    refreshBoardPreview(selectedSpec);
+  });
 </script>
 
 <div class="photo-warp-page">
   <h1>{$_('nav.calibrate.photoWarp')}</h1>
-  <p class="description">手动4点透视校正色盘照片，提取颜色样本</p>
+  <p class="description">{$_('photoWarp.description')}</p>
 
   {#if error}
     <div class="error-message">
       <i class="ti ti-alert-circle"></i>
       <span>{error}</span>
-      <button onclick={() => photoWarpStore.clearError()} type="button" aria-label="关闭错误">
+      <button onclick={() => photoWarpStore.clearError()} type="button" aria-label={$_('photoWarp.closeError')}>
         <i class="ti ti-x"></i>
       </button>
     </div>
@@ -180,15 +244,16 @@
     <div class="left-panel">
       <!-- 文件选择 -->
       <div class="section">
-        <h2>文件选择</h2>
+        <h2>{$_('photoWarp.fileSelect')}</h2>
 
         <div class="form-group">
-          <label>校准板规格</label>
+        <label for="boardSpecSelect">{$_('photoWarp.boardSpec')}</label>
           <select
+          id="boardSpecSelect"
             value={selectedSpec || ''}
             onchange={(e) => photoWarpStore.selectSpec(e.currentTarget.value)}
           >
-            <option value="">请选择规格文件</option>
+            <option value="">{$_('photoWarp.selectSpec')}</option>
             {#each availableSpecs as spec}
               <option value={spec.path}>{spec.name}</option>
             {/each}
@@ -196,10 +261,21 @@
         </div>
 
         <div class="form-group">
-          <label>照片</label>
+        <div class="form-label">{$_('photoWarp.boardPreview')}</div>
+          {#if getBoardPreviewUrl()}
+            <div class="spec-preview">
+              <img src={getBoardPreviewUrl() || ''} alt={$_('photoWarp.boardPreview')} />
+            </div>
+          {:else}
+            <div class="spec-preview-empty">{$_('photoWarp.boardPreviewEmpty')}</div>
+          {/if}
+        </div>
+
+        <div class="form-group">
+        <div class="form-label">{$_('photoWarp.photo')}</div>
           <button class="btn-secondary select-btn" onclick={selectPhoto}>
             <i class="ti ti-photo"></i>
-            {selectedPhoto ? '更换照片' : '选择照片'}
+            {selectedPhoto ? $_('photoWarp.changePhoto') : $_('photoWarp.selectPhoto')}
           </button>
           {#if selectedPhoto}
             <span class="file-path">{selectedPhoto}</span>
@@ -209,23 +285,23 @@
 
       <!-- 角点控制 -->
       <div class="section">
-        <h2>角点控制</h2>
+        <h2>{$_('photoWarp.cornerControl')}</h2>
 
         <div class="rotation-controls">
           <button class="btn-secondary" onclick={() => rotate(false)}>
             <i class="ti ti-rotate-counterclockwise"></i>
-            逆时针 90°
+            {$_('photoWarp.rotateCCW')}
           </button>
           <span class="rotation-display">{rotationCount * 90}°</span>
           <button class="btn-secondary" onclick={() => rotate(true)}>
             <i class="ti ti-rotate-clockwise"></i>
-            顺时针 90°
+            {$_('photoWarp.rotateCW')}
           </button>
         </div>
 
         <button class="btn-secondary" onclick={clearPoints}>
           <i class="ti ti-trash"></i>
-          清空角点
+          {$_('photoWarp.clearPoints')}
         </button>
 
         <button
@@ -235,10 +311,10 @@
         >
           {#if isProcessing}
             <i class="ti ti-loader-2 spinning"></i>
-            处理中...
+            {$_('photoWarp.processing')}
           {:else}
             <i class="ti ti-transform"></i>
-            执行校正
+            {$_('photoWarp.executeWarp')}
           {/if}
         </button>
       </div>
@@ -246,14 +322,14 @@
       <!-- 样本提取结果 -->
       {#if datasetPath}
         <div class="section result-section">
-          <h2>样本提取结果</h2>
+          <h2>{$_('photoWarp.sampleResult')}</h2>
           <div class="result-stats">
             <div class="stat">
-              <span class="label">总格子数</span>
+              <span class="label">{$_('photoWarp.totalCells')}</span>
               <span class="value">{cellCount}</span>
             </div>
             <div class="stat">
-              <span class="label">启用格子</span>
+              <span class="label">{$_('photoWarp.enabledCells')}</span>
               <span class="value">{enabledCellCount}</span>
             </div>
           </div>
@@ -264,7 +340,7 @@
     <!-- 右侧画布 -->
     <div class="right-panel">
       <div class="canvas-section">
-        <h2>照片校正</h2>
+        <h2>{$_('photoWarp.photoWarp')}</h2>
         <WarpCanvas
           imageUrl={getPhotoUrl()}
           cornerPoints={cornerPoints}
@@ -276,18 +352,18 @@
 
       {#if warpedImage || overlayImage}
         <div class="preview-section">
-          <h2>校正结果</h2>
+          <h2>{$_('photoWarp.warpResult')}</h2>
           <div class="preview-grid">
             {#if warpedImage}
               <div class="preview-item">
-                <span class="label">校正后图像</span>
-                <img src={warpedImage} alt="校正后" />
+                <span class="label">{$_('photoWarp.warpedImage')}</span>
+                <img src={getAssetUrl(warpedImage) || ''} alt="Warped" />
               </div>
             {/if}
             {#if overlayImage}
               <div class="preview-item">
-                <span class="label">网格叠加</span>
-                <img src={overlayImage} alt="网格叠加" />
+                <span class="label">{$_('photoWarp.gridOverlay')}</span>
+                <img src={getAssetUrl(overlayImage) || ''} alt="Grid Overlay" />
               </div>
             {/if}
           </div>
@@ -377,6 +453,36 @@
     font-weight: 500;
     color: var(--text-muted);
     margin-bottom: 6px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .spec-preview {
+    background: var(--panel);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 8px;
+  }
+
+  .spec-preview img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+
+  .spec-preview-empty {
+    padding: 12px;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
   }
 
   .form-group select {

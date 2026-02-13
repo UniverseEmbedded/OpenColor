@@ -43,7 +43,9 @@ except Exception as e:
 from .atomic_io import atomic_zip_create
 
 # 导入类型定义和工具函数
-from .types import DEFAULT_SLOT_COLORS, rgba_to_hex
+# 注意：apply_alpha_to_brightness 用于解决半透明颜色与纯色在3MF中视觉重复的问题
+# 必须在所有颜色导出路径中使用（包括 lib3mf 和 XML 两种导出方式）
+from .types import DEFAULT_SLOT_COLORS, rgba_to_hex, apply_alpha_to_brightness
 
 
 def _to_lib3mf_geometry(mesh: trimesh.Trimesh):
@@ -86,6 +88,13 @@ def _export_standard_3mf_from_meshes_lib3mf(
     slot_names: Sequence[str],
     colors: Mapping[str, Tuple[int, int, int, int]],
 ) -> Path:
+    """
+    使用 lib3mf 库导出 3MF 文件（默认导出路径）。
+
+    注意：此函数必须使用 apply_alpha_to_brightness 处理颜色，
+    以确保半透明颜色（如 Transparent）与纯色（如 White）在视觉上可区分。
+    否则 Bambu Studio 等软件会将它们识别为同一种颜色。
+    """
     wrapper = get_wrapper() if get_wrapper is not None else lib3mf.Wrapper()
     model = wrapper.CreateModel()
 
@@ -109,8 +118,10 @@ def _export_standard_3mf_from_meshes_lib3mf(
     color_property_ids: Dict[str, int] = {}
     for slot in slot_names:
         rgba = colors.get(str(slot), (200, 200, 200, 255))
+        # 将 Alpha 编码到 RGB 亮度，避免半透明颜色与纯色在视觉上重复
+        rgba_adjusted = apply_alpha_to_brightness(rgba)
         color = wrapper.RGBAToColor(
-            int(rgba[0]), int(rgba[1]), int(rgba[2]), int(rgba[3])
+            int(rgba_adjusted[0]), int(rgba_adjusted[1]), int(rgba_adjusted[2]), int(rgba_adjusted[3])
         )
         pid = int(color_group.AddColor(color))
         color_property_ids[str(slot)] = pid
@@ -203,6 +214,11 @@ def export_standard_3mf(
 ) -> Path:
     """
     导出符合标准的 3MF 文件，包含多个网格对象。
+
+    .. deprecated::
+        此函数已弃用，请使用 export_standard_3mf_from_meshes() 代替。
+        该函数要求传入已加载的 trimesh 对象，而不是 STL 文件路径，
+        这样可以避免重复加载网格数据，提高性能。
 
     几何体取自 STL 文件；颜色通过 BaseMaterials 分配。
 
@@ -361,6 +377,16 @@ def export_standard_3mf_from_meshes(
     slot_names: Sequence[str],
     slot_colors: Mapping[str, Tuple[int, int, int, int]] | None = None,
 ) -> Path:
+    """
+    导出 3MF 文件的主入口函数。
+
+    会自动选择导出方式：
+    - 优先使用 lib3mf 库导出（支持更多特性）
+    - 如果 lib3mf 不可用，回退到纯 XML 导出
+
+    注意：两种导出路径都必须处理半透明颜色的亮度编码，
+    参见 _export_standard_3mf_from_meshes_lib3mf 和 rgba_to_hex 的实现。
+    """
     if not slot_names:
         raise ValueError("slot_names 不能为空")
 

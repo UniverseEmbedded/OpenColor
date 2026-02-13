@@ -824,7 +824,7 @@ def _unique_path(p: Path) -> Path:
 **涉及位置**:
 
 - `py_module\prototypes\src\oc_proto\calib_color_rts\main.py` (第 1-10 行, 共 10 行)
-- `cpp_module\scripts\build_demo.py` (第 1-10 行, 共 10 行)
+- `cpp_module\scripts\build.py` (第 1-10 行, 共 10 行)
 - `py_module\prototypes\src\oc_proto\gen_masks\gray_test.py` (第 1-10 行, 共 10 行)
 - `py_module\prototypes\src\oc_proto\calib_sample_build\main.py` (第 1-10 行, 共 10 行)
 

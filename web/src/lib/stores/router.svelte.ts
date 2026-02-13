@@ -19,11 +19,14 @@ const routes: Record<string, () => Promise<{ default: Component }>> = {
   'library-photos': () => import('../../routes/library/photos/+page.svelte'),
   'library-models': () => import('../../routes/library/models/+page.svelte'),
   'library-materials': () => import('../../routes/library/materials/+page.svelte'),
+  'library-materials-filaments': () => import('../../routes/library/materials/filaments/+page.svelte'),
+  'library-materials-profiles': () => import('../../routes/library/materials/profiles/+page.svelte'),
   'library-exports': () => import('../../routes/library/exports/+page.svelte'),
   'settings-general': () => import('../../routes/settings/general/+page.svelte'),
   'settings-workspace': () => import('../../routes/settings/workspace/+page.svelte'),
   'settings-engine': () => import('../../routes/settings/engine/+page.svelte'),
   'settings-project': () => import('../../routes/settings/project/+page.svelte'),
+  'settings-debug': () => import('../../routes/settings/debug/+page.svelte'),
 };
 
 // 使用 writable store 替代 $state
@@ -36,6 +39,7 @@ export async function navigate(path: string) {
   const routeKey = path.replace(/\//g, '-');
   
   if (routes[routeKey]) {
+    console.log('[路由] 开始导航:', path);
     currentRoute.set(routeKey);
     const module = await routes[routeKey]();
     currentComponent.set(module.default);
@@ -45,14 +49,16 @@ export async function navigate(path: string) {
     
     // 更新URL hash
     window.location.hash = path;
+    console.log('[路由] 导航完成:', path);
   } else {
-    console.error(`[Router] 路由不存在: ${path} (键: ${routeKey})`);
+    console.error(`[路由] 路由不存在: ${path} (键: ${routeKey})`);
   }
 }
 
 // 根据hash初始化路由
 export function initRouter() {
   const hash = window.location.hash.slice(1) || 'calibrate/board-gen';
+  console.log('[路由] 初始化开始:', hash);
   navigate(hash);
   
   // 监听hash变化
@@ -60,9 +66,11 @@ export function initRouter() {
     const newHash = window.location.hash.slice(1);
     const newRouteKey = newHash.replace(/\//g, '-');
     if (newRouteKey !== get(currentRoute)) {
+      console.log('[路由] Hash 变化触发导航:', newHash);
       navigate(newHash);
     }
   });
+  console.log('[路由] 初始化完成');
 }
 
 // 导出路由状态

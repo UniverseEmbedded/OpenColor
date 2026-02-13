@@ -57,6 +57,13 @@ impl EngineManager {
         let py_paths = vec![
             root.join("py_module/engine/src"),
             root.join("py_module/opencolor/src"),
+            root.join("py_module/model_export/src"),
+            root.join("py_module/calibration/src"),
+            root.join("py_module/analyze/src"),
+            root.join("py_module/prototypes/src"),
+            root.join("py_module/sdf/src"),
+            root.join("py_module/xgb/src"),
+            root.join("py_module/scripts/src"),
             root.join("py_module/LumenBoardTool/src"),
         ];
 
@@ -149,7 +156,7 @@ impl EngineManager {
     }
 
     /// 向引擎发送请求
-    fn send_request(&self, method: String, params: Value) -> Result<Value, String> {
+    pub fn send_request(&self, method: String, params: Value) -> Result<Value, String> {
         self.start_engine()?;
         
         let params_json = serde_json::to_string(&params).map_err(|e| e.to_string())?;

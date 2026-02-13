@@ -6,7 +6,7 @@
 
 ### APP设置 (AppSettings)
 
-存储位置：`%LOCALAPPDATA%\com.opencolor.app\settings.json`
+存储位置：`%LOCALAPPDATA%\OpenColor\settings.json`
 
 | 字段名 | 类型 | 说明 |
 |--------|------|------|
@@ -41,9 +41,9 @@
 
 | 字段名 | 类型 | 说明 |
 |--------|------|------|
-| 默认材料组ID (defaultMaterialGroupId) | 字符串 | 该工作区默认使用的材料组标识 |
+| 默认耗材组ID (defaultFilamentGroupId) | 字符串 | 该工作区默认使用的耗材组标识 |
 | 默认层高毫米 (defaultLayerHeightMm) | 数字 | 默认层高，单位毫米 |
-| 默认模型ID (defaultModelId) | 字符串 | 由材料组和层高自动确定的模型标识 |
+| 默认模型ID (defaultModelId) | 字符串 | 由耗材组和层高自动确定的模型标识 |
 | 导出偏好 (exportPreferences) | 对象 | 默认导出选项 |
 | ├─ 导出STL开关 (exportStl) | 布尔值 | 是否默认导出STL格式 |
 | ├─ 导出3MF开关 (export3mf) | 布尔值 | 是否默认导出3MF格式 |
@@ -131,7 +131,7 @@
 | 字段名 | 类型 | 说明 |
 |--------|------|------|
 | 版本 (version) | 字符串 | 模型格式版本 |
-| 材料组 (materialGroup) | 字符串 | 训练使用的材料组标识 |
+| 耗材组 (materialGroup) | 字符串 | 训练使用的耗材组标识 |
 | 层高毫米 (layerHeightMm) | 数字 | 训练时的层高参数 |
 | 训练统计 (trainingStats) | 对象 | 训练过程统计信息 |
 | ├─ 训练轮数 (epochs) | 数字 | 训练迭代次数 |
@@ -197,19 +197,19 @@
 
 ## 素材库数据
 
-### 材料组 (MaterialGroup)
+### 耗材组 (FilamentGroup)
 
 文件格式：`oc1_mg_{名称}_{通道数}c.json`
 
 | 字段名 | 类型 | 说明 |
 |--------|------|------|
-| 名称 (name) | 字符串 | 材料组显示名称 |
+| 名称 (name) | 字符串 | 耗材组显示名称 |
 | 通道数量 (channelCount) | 数字 | 颜色通道数，如4表示RGBW |
 | 槽位配置 (slots) | 对象数组 | 每个槽位的配置 |
 | ├─ 槽位索引 (slotIndex) | 数字 | 槽位序号 |
 | ├─ 耗材ID (filamentId) | 字符串 | 该槽位使用的耗材标识 |
 | └─ 层数 (layerCount) | 数字 | 该槽位打印层数 |
-| 耗材引用 (filamentRefs) | 字符串数组 | 材料组引用的所有耗材标识 |
+| 耗材引用 (filamentRefs) | 字符串数组 | 耗材组引用的所有耗材标识 |
 
 ### 耗材 (Filament)
 
@@ -233,7 +233,7 @@ flowchart TD
     A[APP设置] --> B[当前工作区]
     B --> C[工作区元数据]
     B --> D[项目设置]
-    D --> E[默认材料组]
+    D --> E[默认耗材组]
     D --> F[默认层高]
     E & F --> G[默认模型]
     B --> H[环节输出数据]
@@ -244,7 +244,7 @@ flowchart TD
     H --> H5[叠色像素]
     H --> H6[矢量化]
     H --> H7[模型导出]
-    I[素材库] --> J[材料组]
+    I[素材库] --> J[耗材组]
     I --> K[耗材]
     J --> K
 ```

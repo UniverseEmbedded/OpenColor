@@ -4,16 +4,19 @@
   import Header from '$lib/components/layout/Header.svelte';
   import MobileSubNav from '$lib/components/layout/MobileSubNav.svelte';
   import WindowSizeOverlay from '$lib/components/layout/WindowSizeOverlay.svelte';
+  import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { navigationStore } from '$lib/stores/navigation.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import { initRouter, getRouter } from '$lib/stores/router.svelte';
-  
+
   const router = getRouter();
-  
+
   // 本地状态
   let CurrentComponent: any = $state(null);
   let isMobile: boolean = $state(false);
-  
+  let isAppReady: boolean = $state(false);
+
   // 订阅 router store
   $effect(() => {
     const unsubscribe = router.subscribe((value) => {
@@ -21,7 +24,7 @@
     });
     return unsubscribe;
   });
-  
+
   // 订阅 navigation store
   $effect(() => {
     const unsubscribe = navigationStore.subscribe((value) => {
@@ -29,40 +32,64 @@
     });
     return unsubscribe;
   });
-  
-  // 移除启动加载屏幕
-  function removeLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-      loadingScreen.style.opacity = '0';
-      setTimeout(() => {
-        loadingScreen.remove();
-      }, 300);
-    }
+
+  // 触发应用就绪事件，通知加载层组件
+  function notifyAppReady() {
+    (window as any).__appReady = true;
+    window.dispatchEvent(new CustomEvent('app:ready'));
   }
 
-  // 初始化设置和路由
-  onMount(() => {
+  // 初始化应用
+  async function initApp() {
+    console.log('[启动] WebUI 初始化开始');
+
+    // 初始化设置
     settingsStore.init();
+    console.log('[启动] 设置初始化完成');
+
+    // 初始化路由
     initRouter();
+    console.log('[启动] 路由初始化完成');
 
     // 检测窗口大小
     const checkMobile = () => {
       navigationStore.setMobile(window.innerWidth < 1024);
     };
-
     checkMobile();
     window.addEventListener('resize', checkMobile);
+    console.log('[启动] 窗口尺寸监听已就绪');
 
-    // 移除启动加载屏幕
-    removeLoadingScreen();
+    // 等待关键数据加载完成
+    try {
+      // 等待工作区初始化完成
+      console.log('[启动] 工作区初始化开始');
+      await workspaceStore.init();
+      console.log('[启动] 工作区初始化完成');
+
+      // 标记应用已就绪
+      isAppReady = true;
+
+      // 通知加载层组件应用已就绪
+      notifyAppReady();
+      console.log('[启动] 应用就绪事件已发送');
+    } catch (e) {
+      console.error('[启动] 应用初始化失败:', e);
+      // 即使失败也标记就绪，避免卡住
+      notifyAppReady();
+      console.log('[启动] 应用就绪事件已发送（异常情况下）');
+    }
 
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
+  }
+
+  onMount(() => {
+    initApp();
   });
 </script>
 
+<LoadingOverlay />
 <WindowSizeOverlay />
 
 <div class="app-layout" class:mobile={isMobile}>
@@ -74,10 +101,18 @@
     {/if}
     <Header />
     <div class="content">
-      {#if CurrentComponent}
+      {#if !isAppReady}
+        <div class="loading">
+          <i class="ti ti-loader-2 spinning"></i>
+          <span>初始化中...</span>
+        </div>
+      {:else if CurrentComponent}
         <CurrentComponent />
       {:else}
-        <div class="loading">加载中...</div>
+        <div class="loading">
+          <i class="ti ti-loader-2 spinning"></i>
+          <span>加载中...</span>
+        </div>
       {/if}
     </div>
   </main>
@@ -128,10 +163,29 @@
   
   .loading {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
     color: var(--text-muted);
+    gap: 12px;
+  }
+
+  .loading i {
+    font-size: 32px;
+  }
+
+  .loading span {
+    font-size: 14px;
+  }
+
+  .spinning {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
   
   /* 移动端布局 */

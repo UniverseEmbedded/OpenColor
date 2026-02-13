@@ -6,3 +6,5 @@ dist/
 /*.log
 *.exe
 /stats.html
+/playwright-report*/
+/test-results/

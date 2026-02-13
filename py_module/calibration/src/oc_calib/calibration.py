@@ -22,21 +22,6 @@ class WarpParams:
     vignette_fix: bool = False  # 暗角补偿
 
 
-def estimate_coarse_homography(
-    image_gray: np.ndarray, board_spec: Any, params: WarpParams
-) -> Tuple[Optional[np.ndarray], Dict[str, Any]]:
-    """估计粗略的单应性矩阵 H_coarse，并返回调试信息"""
-    debug_info = {
-        "detections": [],
-        "tag_used": None,
-        "tag_type": None,
-        "rms_error": None,
-    }
-
-    # AprilTag 功能已移除
-    return None, debug_info
-
-
 def get_board_corners_from_h(
     H: np.ndarray, board_spec: Any
 ) -> List[Tuple[float, float]]:

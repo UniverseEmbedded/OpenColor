@@ -91,7 +91,7 @@ interface SampleCell {
 // 训练配置
 interface TrainingConfig {
   datasetPaths: string[];          // 数据集文件路径数组
-  materialGroupId: string;         // 材料组标识
+  materialGroupId: string;         // 耗材组标识
   layerHeightMm: number;           // 层高毫米
   opticalModel: 'rts' | 'four_flux' | 'tmm';  // 光学模型类型
   useVulkan: boolean;              // 是否使用Vulkan加速
@@ -591,7 +591,7 @@ interface ListModelsOutput {
 interface ModelItem {
   path: string;                // 文件路径
   name: string;                // 显示名称
-  materialGroup: string;       // 材料组
+  materialGroup: string;       // 耗材组
   layerHeightMm: number;       // 层高毫米
   avgDeltaE: number;           // 平均DeltaE
   trainedAt: string;           // 训练时间
@@ -600,17 +600,17 @@ interface ModelItem {
 
 ### library_list_material_groups
 
-列出所有材料组
+列出所有耗材组
 
 ```typescript
 // 输入：无（全局素材库）
 // 输出：
-interface ListMaterialGroupsOutput {
-  groups: MaterialGroupItem[];  // 材料组列表
+interface ListFilamentGroupsOutput {
+  groups: FilamentGroupItem[];  // 耗材组列表
 }
 
-interface MaterialGroupItem {
-  id: string;                  // 材料组标识
+interface FilamentGroupItem {
+  id: string;                  // 耗材组标识
   name: string;                // 显示名称
   channelCount: number;        // 通道数
   slotCount: number;           // 槽位数
@@ -661,7 +661,7 @@ interface SetAppSettingsInput {
 // 输入：无（使用当前工作区）
 // 输出：
 interface GetProjectSettingsOutput {
-  defaultMaterialGroupId: string;     // 默认材料组ID
+  defaultFilamentGroupId: string;     // 默认耗材组ID
   defaultLayerHeightMm: number;       // 默认层高毫米
   defaultModelId: string;             // 默认模型ID
   exportPreferences: ExportPreferences;  // 导出偏好
@@ -690,7 +690,7 @@ interface MaskGenParams {
 ```typescript
 // 输入：
 interface SetProjectSettingsInput {
-  defaultMaterialGroupId?: string;
+  defaultFilamentGroupId?: string;
   defaultLayerHeightMm?: number;
   defaultModelId?: string;
   exportPreferences?: ExportPreferences;

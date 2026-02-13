@@ -247,7 +247,7 @@ jobs:
         run: pixi run web-install
 
       - name: 构建 C++ 模块
-        run: pixi run python cpp_module/scripts/build_demo.py
+        run: pixi run python cpp_module/scripts/build.py
 
       - name: 构建 Tauri 应用
         run: pixi run pnpm -C web tauri build --target ${{ matrix.target }}
