@@ -146,6 +146,7 @@ p2-clean-gen = "python -m oc_proto.common.clean --type gen"
 p2-clean-all = "python -m oc_proto.common.clean --type all"
 
 p2-calib-board-gen = "python -m oc_proto.calib_board_gen.main"
+p2-calib-board-gen-interactive = "python -m oc_proto.calib_board_gen.interactive_gen"
 p2-calib-photo-warp = "python -m oc_proto.calib_photo_warp.app --rebuild --warp-json data/calibration/photos/warp-01.json"
 p2-calib-photo-warp-ui = "python -m oc_proto.calib_photo_warp.app"
 p2-calib-sample-build = "python -m oc_proto.calib_sample_build.main"

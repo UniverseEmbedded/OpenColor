@@ -8,7 +8,7 @@ import random
 import numpy as np
 from tqdm import tqdm
 
-from ..calib_color_rts.color_space import rgb01_to_lab
+from oc_xgb.color_space import rgb01_to_lab
 from oc_xgb.xgb_features import build_gpr_features
 from oc_proto.calib_color_rts.models.ml_residual_model import MLResidualModel
 from oc_xgb.xgb_fit import PhysGPRModel, predict_phys_gpr_lab, predict_ad_rgb01

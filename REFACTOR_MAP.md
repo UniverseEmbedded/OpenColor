@@ -5,7 +5,6 @@
 ## 更新记录
 
 - **2026-02-10**: 全面更新文档，反映最新代码结构
-  - 更新模块名称（LumenBoardTool 已整合到 opencolor）
   - 更新原型模块路径（oc_prototypes_02 → oc_proto）
   - 更新环节名称（移除 _01 后缀，calib_color_model_fit → calib_color_rts）
   - 添加新的模块（sdf, xgb）
@@ -32,11 +31,6 @@
 - `calib_color_model_fit` → `calib_color_rts` ✅
 - 已在代码中完成重命名
 
-### 3. LumenBoardTool 整合（已完成）
-
-- `LumenBoardTool` 功能已整合到 `opencolor/src/oc_core_02/` ✅
-- 保留 lumina 作为包名引用
-
 ---
 
 ## 高优先级重构
@@ -45,7 +39,7 @@
 
 **当前问题**:
 - `oc_core/` 和 `oc_core_02/` 两个目录并存
-- `oc_core_02` 包含 SDF 相关功能（LumenBoardTool 的代码）
+- `oc_core_02` 包含 SDF 相关功能
 - `oc_core` 包含旧版核心功能
 
 **建议**:
@@ -233,7 +227,6 @@ py_module/
 |--------|--------|--------|----------|------|
 | 🟢 完成 | 原型模块重命名 | 中 | 33 个文件 | ✅ 已完成 |
 | 🟢 完成 | calib_color_model_fit → calib_color_rts | 小 | 30 个文件 | ✅ 已完成 |
-| 🟢 完成 | LumenBoardTool 整合 | 中 | 20 个文件 | ✅ 已完成 |
 | 🔴 高 | oc_core 模块合并 | 大 | 29 个文件 | ⏳ 待处理 |
 | 🟡 中 | scripts 模块重组 | 中 | 内部结构 | ⏳ 待处理 |
 | 🟡 中 | analyze → scripts | 小 | 模块合并 | ⏳ 待处理 |

@@ -210,16 +210,6 @@ DATA_COLS = 32
 # 核心尺寸 - 32x32数据 + 1格边框 = 34x34格子
 CORE_SIZE = 34
 
-# 格子尺寸（毫米）
-CELL_SIZE_MM = DEFAULT_CELL_SIZE
-# Tag像素尺寸（毫米）
-TAG_PIXEL_MM = 1.5
-
-# 小Tag的模块数
-SMALL_TAG_MODULES = 6
-# 大Tag的模块数
-BIG_TAG_MODULES = 8
-
 # 默认组ID
 DEFAULT_GROUP_ID = 0
 
@@ -487,47 +477,6 @@ def build_board_spec(
             }
             idx += 1
 
-    # 计算尺寸参数
-    core_w_mm = core_size * cell_size_mm
-    core_h_mm = core_size * cell_size_mm
-    small_tag_mm = SMALL_TAG_MODULES * TAG_PIXEL_MM
-    big_tag_mm = BIG_TAG_MODULES * TAG_PIXEL_MM
-
-    # 计算Tag ID
-    big_tag_id = group_id * 100 + plate_index
-    small_tag_id = plate_index
-
-    # 配置AprilTag
-    spec.apriltag["enabled"] = True
-    spec.apriltag["families"] = ["tag36h11", "tag16h5"]
-    # 大Tag移至右上角最外侧
-    spec.apriltag["primary"] = {
-        "tag_id": big_tag_id,
-        "size_mm": big_tag_mm,
-        "board_corners_mm": [
-            [core_w_mm, core_h_mm],
-            [core_w_mm + big_tag_mm, core_h_mm],
-            [core_w_mm + big_tag_mm, core_h_mm + big_tag_mm],
-            [core_w_mm, core_h_mm + big_tag_mm]
-        ]
-    }
-    # 小Tag移至左下角最外侧
-    spec.apriltag["secondary"] = {
-        "tag_id": small_tag_id,
-        "size_mm": small_tag_mm,
-        "board_corners_mm": [
-            [-small_tag_mm, -small_tag_mm],
-            [0, -small_tag_mm],
-            [0, 0],
-            [-small_tag_mm, 0]
-        ]
-    }
-    spec.apriltag["id_encoding"] = {
-        "scheme": "group_plate_pack_v1",
-        "group_mul": 100,
-        "group_id": group_id,
-        "plate_id": plate_index
-    }
     return spec
 
 
@@ -718,54 +667,6 @@ def _box_mesh(x0: float, x1: float, y0: float, y1: float, z0: float, z1: float) 
     return mesh
 
 
-def _triangle_prism_mesh(p0: Tuple[float, float], p1: Tuple[float, float], p2: Tuple[float, float], z0: float, z1: float) -> trimesh.Trimesh:
-    """
-    创建一个三角棱柱网格
-
-    参数:
-        p0, p1, p2: 三角形的三个顶点（XY平面）
-        z0, z1: Z轴范围
-
-    返回:
-        三角棱柱三角网格
-    """
-    v = np.array(
-        [
-            [p0[0], p0[1], z0],
-            [p1[0], p1[1], z0],
-            [p2[0], p2[1], z0],
-            [p0[0], p0[1], z1],
-            [p1[0], p1[1], z1],
-            [p2[0], p2[1], z1],
-        ],
-        dtype=float,
-    )
-    f = np.array(
-        [
-            [0, 1, 2],
-            [5, 4, 3],
-            [0, 1, 4],
-            [0, 4, 3],
-            [1, 2, 5],
-            [1, 5, 4],
-            [2, 0, 3],
-            [2, 3, 5],
-        ],
-        dtype=int,
-    )
-    m = trimesh.Trimesh(vertices=v, faces=f, process=False)
-    try:
-        if hasattr(m, "fix_normals"):
-            m.fix_normals()
-    except Exception as e:
-        logger.error(f"[错误] 三角棱柱法线修复失败: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise
-    return m
-
-
 def _build_core_volumes(
     spec: BoardSpec,
     slot_names: List[str] = None,
@@ -827,44 +728,6 @@ def _build_core_volumes(
     return volumes
 
 
-def _build_triangle_meshes(total_h: float = None) -> Dict[str, List[trimesh.Trimesh]]:
-    """
-    构建连接Tag和色盘的三角形填充网格
-
-    参数:
-        total_h: 总高度（毫米），默认使用 DEFAULT_LAYERS * DEFAULT_LAYER_HEIGHT
-
-    返回:
-        按颜色分类的三角网格列表字典
-    """
-    meshes: Dict[str, List[trimesh.Trimesh]] = {name: [] for name in SLOT_NAMES_8}
-    if total_h is None:
-        total_h = DEFAULT_LAYERS * DEFAULT_LAYER_HEIGHT
-    core_w_mm = CORE_SIZE * CELL_SIZE_MM
-    core_h_mm = CORE_SIZE * CELL_SIZE_MM
-    small_tag_mm = SMALL_TAG_MODULES * TAG_PIXEL_MM
-    big_tag_mm = BIG_TAG_MODULES * TAG_PIXEL_MM
-
-    # 大Tag侧（右上角内侧连接处）
-    # Tag位于[90, 102] x [78, 90]
-    # 三角形应位于Tag下方，连接色盘右边缘：[90, 102] x [66, 78]
-    # 顶点：(90, 78)直角, (102, 78), (90, 66)。斜边从(102, 78)到(90, 66)
-    p0 = (core_w_mm, core_h_mm - big_tag_mm)
-    p1 = (core_w_mm + big_tag_mm, core_h_mm - big_tag_mm)
-    p2 = (core_w_mm, core_h_mm - big_tag_mm * 2)
-    meshes["White"].append(_triangle_prism_mesh(p0, p1, p2, 0.0, total_h))
-
-    # 小Tag侧（左下角内侧连接处）
-    # Tag位于[-6, 0] x [0, 6]
-    # 三角形应位于Tag上方，连接色盘左边缘：[-6, 0] x [6, 12]
-    # 顶点：(0, 6)直角, (-6, 6), (0, 12)。斜边从(-6, 6)到(0, 12)
-    q0 = (0.0, small_tag_mm)
-    q1 = (-small_tag_mm, small_tag_mm)
-    q2 = (0.0, small_tag_mm * 2)
-    meshes["White"].append(_triangle_prism_mesh(q0, q1, q2, 0.0, total_h))
-    return meshes
-
-
 def spec_to_meshes(
     spec: BoardSpec,
     shrink: float = DEFAULT_SHRINK,
@@ -872,8 +735,6 @@ def spec_to_meshes(
     slot_names: List[str] = None,
     marker_colors: Dict[str, str] = None,
     default_border_color: str = None,
-    include_apriltag: bool = False,
-    include_side_triangles: bool = False,
     cell_size_mm: float = None,
 ) -> Dict[str, trimesh.Trimesh]:
     """
@@ -885,8 +746,6 @@ def spec_to_meshes(
         slot_names: 颜色名称列表，默认为8色配置
         marker_colors: 标记颜色配置，默认为8色配置的标记颜色
         default_border_color: 边框默认颜色，默认为White
-        include_apriltag: 是否包含AprilTag
-        include_side_triangles: 是否包含侧边三角形
         cell_size_mm: 格子尺寸（毫米），默认使用 DEFAULT_CELL_SIZE
 
     返回:
@@ -922,17 +781,6 @@ def spec_to_meshes(
                     f"体素网格质量警告(slot={slot_name}): 非流形边={info.get('non_manifold_edges')} 边界边={info.get('boundary_edges')}"
                 )
             meshes_by_slot[slot_name].append(m)
-
-    if bool(include_apriltag):
-        pass
-
-    if bool(include_side_triangles):
-        # 计算总高度并构建侧边三角形
-        total_h = DEFAULT_LAYERS * layer_height_mm
-        triangle_meshes = _build_triangle_meshes(total_h=total_h)
-        for slot_name, mesh_list in triangle_meshes.items():
-            if slot_name in meshes_by_slot:
-                meshes_by_slot[slot_name].extend(mesh_list)
 
     # 合并每个颜色的所有网格
     merged: Dict[str, trimesh.Trimesh] = {}

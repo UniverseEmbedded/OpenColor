@@ -17,8 +17,6 @@ from shapely.geometry import Polygon
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
-# 添加lumina到路径
-sys.path.insert(0, str(Path(__file__).parents[5] / "LumenBoardTool" / "src"))
 from oc_sdf.sdf_io import rasterize_geometry_soft
 
 

@@ -94,7 +94,7 @@ OpenColor 项目本身采用 **AGPL 许可证**，详见仓库根目录的 LICEN
 
 | 模块 | 路径 | 许可证 | 备注 |
 |------|------|--------|------|
-| opencolor (oc-core) | `py_module/opencolor/` | MIT | 核心算法库（已整合 LumenBoardTool） |
+| opencolor (oc-core) | `py_module/opencolor/` | MIT | 核心算法库 |
 | oc-engine | `py_module/engine/` | MIT | API 服务 |
 | oc-calib | `py_module/calibration/` | MIT | 校准类型 |
 | model-export | `py_module/model_export/` | MIT | 3MF 导出 |

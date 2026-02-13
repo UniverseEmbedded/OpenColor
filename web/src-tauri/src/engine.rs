@@ -64,7 +64,6 @@ impl EngineManager {
             root.join("py_module/sdf/src"),
             root.join("py_module/xgb/src"),
             root.join("py_module/scripts/src"),
-            root.join("py_module/LumenBoardTool/src"),
         ];
 
         Python::attach(|py| -> PyResult<()> {

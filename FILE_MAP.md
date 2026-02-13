@@ -9,7 +9,6 @@
   - 更新环节名称（移除 _01 后缀）
   - 添加 sdf 和 xgb 模块
   - 更新 C++ 模块结构
-  - 移除 LumenBoardTool 独立模块（已整合到 opencolor）
 
 ---
 
@@ -364,4 +363,3 @@ graph LR
 | `oc_prototypes_02/gen_masks_01/` | `oc_proto/gen_masks/` | 2026-02 |
 | `oc_prototypes_02/gen_vector_01/` | `oc_proto/gen_vector/` | 2026-02 |
 | `oc_prototypes_02/gen_model_exporter_01/` | `oc_proto/gen_3mf/` | 2026-02 |
-| `py_module/LumenBoardTool/` | 整合到 `opencolor/src/oc_core_02/` | 2026-02 |

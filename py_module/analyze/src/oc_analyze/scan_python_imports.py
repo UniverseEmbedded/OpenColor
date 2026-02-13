@@ -11,6 +11,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import re
+
 from oc_core_02.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -20,6 +22,62 @@ def _run(cmd: list[str], cwd: Path | None = None) -> None:
     """执行命令并打印"""
     logger.info(f"[命令] {' '.join(cmd)}")
     subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
+
+
+def _collect_entry_modules_for_package(
+    module_prefix: str, source_dir: Path
+) -> list[str]:
+    if not source_dir.exists():
+        logger.warning(f"[警告] 入口模块目录不存在: {source_dir}")
+        return []
+
+    main_pattern = re.compile(r"if\s+__name__\s*==\s*[\"\']__main__[\"\']\s*:")
+    entries: list[str] = []
+
+    for py_path in source_dir.rglob("*.py"):
+        if py_path.name == "__init__.py":
+            continue
+        try:
+            content = py_path.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"读取文件失败: {py_path} | 错误: {e}")
+            raise
+        if not main_pattern.search(content):
+            continue
+        rel = py_path.relative_to(source_dir).as_posix()
+        rel = rel[:-3] if rel.endswith(".py") else rel
+        rel = rel.replace("/", ".")
+        if rel:
+            entries.append(f"{module_prefix}.{rel}")
+        else:
+            entries.append(module_prefix)
+
+    if entries:
+        logger.info(f"[信息] 入口模块 {module_prefix} 检测到 {len(entries)} 个入口脚本")
+        return entries
+
+    init_path = source_dir / "__init__.py"
+    if init_path.exists():
+        logger.info(f"[信息] 入口模块 {module_prefix} 未发现入口脚本，使用包根模块")
+        return [module_prefix]
+
+    fallback_entries: list[str] = []
+    for py_path in source_dir.rglob("*.py"):
+        if py_path.name == "__init__.py":
+            continue
+        rel = py_path.relative_to(source_dir).as_posix()
+        rel = rel[:-3] if rel.endswith(".py") else rel
+        rel = rel.replace("/", ".")
+        if rel:
+            fallback_entries.append(f"{module_prefix}.{rel}")
+        else:
+            fallback_entries.append(module_prefix)
+
+    if fallback_entries:
+        logger.info(
+            f"[信息] 入口模块 {module_prefix} 未发现入口脚本且缺少 __init__.py，已降级为 {len(fallback_entries)} 个脚本入口"
+        )
+    return fallback_entries
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -142,12 +200,19 @@ def main() -> None:
     raw_args = sys.argv[1:]
     need_build = False
     forward_args: list[str] = []
+    has_entry_arg = False
 
     i = 0
     while i < len(raw_args):
         arg = raw_args[i]
         if arg == "--build":
             need_build = True
+        elif arg == "--entry":
+            has_entry_arg = True
+            forward_args.append(arg)
+            if i + 1 < len(raw_args):
+                i += 1
+                forward_args.append(raw_args[i])
         elif arg == "--":
             # 剩余参数全部转发
             forward_args.extend(raw_args[i + 1 :])
@@ -179,6 +244,36 @@ def main() -> None:
     if not any(not a.startswith("--") and not a.startswith("-") for a in forward_args):
         py_module = repo_root / "py_module"
         forward_args = [str(py_module)] + forward_args
+
+    # 如果没有指定入口模块，添加默认的三个入口模块
+    # 注意：模块名现在使用包配置中的短名称（如 oc_engine 而不是 py_module.engine.src.oc_engine）
+    if not has_entry_arg:
+        default_entries: list[str] = []
+        default_entries.extend(
+            _collect_entry_modules_for_package(
+                "oc_analyze", repo_root / "py_module" / "analyze" / "src" / "oc_analyze"
+            )
+        )
+        default_entries.extend(
+            _collect_entry_modules_for_package(
+                "oc_engine", repo_root / "py_module" / "engine" / "src" / "oc_engine"
+            )
+        )
+        default_entries.extend(
+            _collect_entry_modules_for_package(
+                "oc_proto",
+                repo_root / "py_module" / "prototypes" / "src" / "oc_proto",
+            )
+        )
+        default_entries.extend(
+            _collect_entry_modules_for_package(
+                "oc_core_02", repo_root / "py_module" / "opencolor" / "src" / "oc_core_02"
+            )
+        )
+        unique_entries = list(dict.fromkeys(default_entries))
+        logger.info(f"[信息] 使用默认入口模块: {', '.join(unique_entries)}")
+        for entry in unique_entries:
+            forward_args.extend(["--entry", entry])
 
     # 运行分析工具（添加--md参数）
     cmd = [str(exe), "--md", str(md_report_path), *forward_args]

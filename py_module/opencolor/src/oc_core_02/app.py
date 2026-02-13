@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 # 核心模块由 pixi 自动管理 PYTHONPATH，不再需要手动 append
 # 如果不在 pixi 环境运行，建议使用 pixi run
 
-APP_TITLE = "LumenBoardTool (from-scratch)"
+APP_TITLE = "open color"
 
 
 def build_ui(default_photo=None, default_spec=None):

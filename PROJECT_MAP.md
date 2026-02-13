@@ -8,7 +8,6 @@
   - 更新原型模块路径（oc_prototypes_02 → oc_proto）
   - 更新环节名称（移除 _01 后缀）
   - 添加 sdf 和 xgb 模块
-  - 移除 LumenBoardTool 独立模块（已整合到 opencolor）
   - 更新 C++ 模块结构（添加 ICM 优化器）
 
 ---
@@ -386,4 +385,3 @@ pixi run setup-cpp            # 设置 C++ 环境
 | `oc_prototypes_02/calib_board_gen_01/` | `oc_proto/calib_board_gen/` | 2026-02 |
 | `oc_prototypes_02/calib_color_model_fit_01/` | `oc_proto/calib_color_rts/` | 2026-02 |
 | `oc_prototypes_02/gen_model_exporter_01/` | `oc_proto/gen_3mf/` | 2026-02 |
-| `py_module/LumenBoardTool/` | 整合到 `opencolor/src/oc_core_02/` | 2026-02 |

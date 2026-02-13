@@ -72,8 +72,6 @@ def get_default_border_color(profile: ColorProfile) -> str:
 def run(
     num_boards: int = 8,
     shrink: float = 0.0,
-    include_apriltag: bool = False,
-    include_side_triangles: bool = False,
     profile: ColorProfile = None,
     layer_height_mm: float = None,
     cell_size_mm: float = None,
@@ -86,8 +84,6 @@ def run(
     参数:
         num_boards: 生成的板子数量
         shrink: 格子缩进量
-        include_apriltag: 是否包含AprilTag
-        include_side_triangles: 是否包含侧边三角形
         profile: 颜色配置，默认为8色配置
         layer_height_mm: 层高（毫米），默认使用 generate_board.DEFAULT_LAYER_HEIGHT
         cell_size_mm: 格子尺寸（毫米），默认使用 generate_board.DEFAULT_CELL_SIZE
@@ -134,8 +130,6 @@ def run(
         num_boards,
         shrink,
         output_dir,
-        include_apriltag,
-        include_side_triangles,
         layer_height_mm,
         cell_size_mm,
         data_rows,
@@ -180,8 +174,6 @@ def run(
                 slot_names=slot_names,
                 marker_colors=marker_colors,
                 default_border_color=default_border_color,
-                include_apriltag=bool(include_apriltag),
-                include_side_triangles=bool(include_side_triangles),
                 cell_size_mm=cell_size_mm,
             )
             out_3mf = gen_bd.export_standard_3mf(
@@ -208,8 +200,6 @@ def run(
         num_boards,
         shrink,
         out_dir,
-        include_apriltag=bool(include_apriltag),
-        include_side_triangles=bool(include_side_triangles),
         layer_height_mm=layer_height_mm,
         cell_size_mm=cell_size_mm,
         data_rows=data_rows,
@@ -225,8 +215,6 @@ def run(
         params={
             "num_boards": num_boards,
             "shrink": shrink,
-            "include_apriltag": bool(include_apriltag),
-            "include_side_triangles": bool(include_side_triangles),
             "num_colors": n_colors,
             "color_names": slot_names,
             "color_profile": profile.name,
@@ -287,12 +275,6 @@ def main():
     )
     parser.add_argument(
         "--shrink", type=float, default=0.0, help="格子缩进量（默认0.0）"
-    )
-    parser.add_argument(
-        "--include_apriltag", action="store_true", help="启用色盘两侧的AprilTag"
-    )
-    parser.add_argument(
-        "--include_side_triangles", action="store_true", help="启用色盘两侧白色三角形"
     )
     parser.add_argument(
         "--profile", type=str, default="full_8",
@@ -361,8 +343,6 @@ def main():
     run(
         num_boards=args.num_boards,
         shrink=args.shrink,
-        include_apriltag=bool(args.include_apriltag),
-        include_side_triangles=bool(args.include_side_triangles),
         profile=profile,
         layer_height_mm=args.layer_height,
         cell_size_mm=args.cell_size,

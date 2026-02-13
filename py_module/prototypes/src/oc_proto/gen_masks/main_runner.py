@@ -15,7 +15,8 @@ from oc_core_02.core.color_systems import ColorSystem
 from oc_core_02.utils.logger import get_logger
 from oc_core_02.utils.paths import RESOURCES, get_out_dir, make_out_subdir_name_for_file
 from oc_proto.gen_masks import _save_layer_total_contour_viz
-from oc_proto.gen_masks.joint_refinement import _joint_refine_layers, _joint_refine_layers_icm
+from oc_proto.gen_masks.joint_refinement import _joint_refine_layers
+from oc_proto.gen_masks.joint_refinement_icm import _joint_refine_layers_icm
 from oc_proto.gen_masks.main_preprocess import _load_model_and_setup, _preprocess_image
 from oc_proto.gen_masks.main_solve import (
     _generate_preview_and_error,

@@ -8,7 +8,6 @@
   - 更新原型模块路径（oc_prototypes_02 → oc_proto）
   - 更新环节名称（移除 _01 后缀，calib_color_model_fit → calib_color_rts）
   - 添加 sdf 和 xgb 模块说明
-  - 移除 LumenBoardTool 独立模块说明（已整合到 opencolor）
   - 更新模块依赖关系图
 
 ---
@@ -522,4 +521,3 @@ pixi run python -m oc_proto.gen_3mf.main
 | `py_module/prototypes/src/oc_prototypes_02/` | `py_module/prototypes/src/oc_proto/` | 2026-02 |
 | `oc_prototypes_02/calib_color_model_fit_01/` | `oc_proto/calib_color_rts/` | 2026-02 |
 | `oc_prototypes_02/gen_model_exporter_01/` | `oc_proto/gen_3mf/` | 2026-02 |
-| `py_module/LumenBoardTool/` | 整合到 `opencolor/src/oc_core_02/` | 2026-02 |
